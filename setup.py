@@ -2,7 +2,7 @@
 
 from distutils.core import setup
 
-setup(name='serpent',
+setup(name='ethereum-serpent',
       version='1.1.8',
       description='Serpent contract programming language tools',
       author='Vitalik Buterin',
