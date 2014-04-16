@@ -158,6 +158,9 @@ def rewrite(ast):
         of = map(
             lambda i: ['arrset', tempvar, str(i), rewrite(ast[i + 1])], range(0, len(ast[1:])))
         return ['seq'] + [o1] + of + [tempvar]
+    elif ast[0] == 'return':
+        if len(ast) == 2 and ast[1][0] == 'array_lit':
+            return ['return', rewrite(ast[1]), str(len(ast[1][1:]))]
     return map(rewrite, ast)
 
 
