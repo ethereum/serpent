@@ -69,9 +69,9 @@ funtable = [
     # <3> <2> <1> <0> (CALL) MSIZE FLAG (POP) MSIZE (MLOAD) RESULT
     ['msg', 5, 1, ['MSIZE', 0, 'MSIZE', 'MSTORE', 'DUP', 32, 'SWAP', '<4>', 32, 'MUL', '<3>',
                    '<2>', '<1>', '<0>', 'CALL', 'POP', 'MLOAD']],  # to, value, gas, data, datasize -> out32
-    # <5> MSIZE (SWAP) MSIZE <5> (MSIZE SWAP) MSIZE MSIZE <5> (32 MUL) MSIZE MSIZE <5>*32 (DUP ADD 1 SWAP SUB) MSIZE MSIZE <6>*32 MEND (MSTORE8) MSIZE MSIZE <6>*32 (... CALL)
-    ['msg', 6, 0, ['<5>', 'MSIZE', 'SWAP', 'MSIZE', 'SWAP', 32, 'MUL', 'DUP', 'ADD', 1, 'SWAP', 'SUB', 'MSTORE8',
-                   '<4>', '<3>', '<2>', '<1>', '<0>', 'CALL', 'POP']],  # to, value, gas, data, datasize, outsize -> out
+    # <5>*32 (MSIZE SWAP) MSIZE <5>*32 (MSIZE SWAP) MSIZE MSIZE <5>*32 (DUP MSIZE) MSIZE MSIZE <5>*32 <5>*32 MSIZE (ADD 1 SWAP SUB) MSIZE MSIZE <5>*32 MEND (0 SWAP MSTORE8) MSIZE MSIZE <5>*32 (... CALL)
+    ['msg', 6, 1, ['<5>', 32, 'MUL', 'MSIZE', 'SWAP', 'MSIZE', 'SWAP', 'DUP', 'MSIZE', 'ADD', 1, 'SWAP', 'SUB', 0, 'SWAP', 'MSTORE8',
+                   '<4>', 32, 'MUL', '<3>', '<2>', '<1>', '<0>', 'CALL', 'POP']],  # to, value, gas, data, datasize, outsize -> out
     # value, gas, data, datasize
     ['create', 4, 1, ['<3>', '<2>', '<1>', '<0>', 'CREATE']],
     ['sha3', 1, 1, [32, 'MSIZE', '<0>', 'MSIZE', 'MSTORE', 'SHA3']],
@@ -245,6 +245,7 @@ def compile_expr(ast, varhash, lc=[0]):
     # Functions and operations
     for f in funtable:
         if ast[0] == f[0] and len(ast[1:]) == f[1]:
+            # If arity of all args is 1
             if reduce(lambda x, y: x * arity(y), ast[1:], 1):
                 iq = f[3][:]
                 oq = []
@@ -301,9 +302,9 @@ def optimize(c):
                 multipop(oq, 3).append(ntok)
         if oq[-1] == 'NOT' and len(oq) >= 2 and oq[-2] == 'NOT':
             multipop(oq, 2)
-        if oq[-1] == 'ADD' and len(oq) >= 3 and oq[-2] == 0:
+        if oq[-1] == 'ADD' and len(oq) >= 3 and oq[-2] == 0 and is_numberlike(oq[-3]):
             multipop(oq, 2)
-        if oq[-1] in ['SUB', 'ADD'] and len(oq) >= 3 and oq[-3] == 0:
+        if oq[-1] in ['SUB', 'ADD'] and len(oq) >= 3 and oq[-3] == 0 and is_numberlike(oq[-2]):
             ntok = oq[-2]
             multipop(oq, 3).append(ntok)
     return oq
