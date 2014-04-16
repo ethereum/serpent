@@ -69,8 +69,8 @@ funtable = [
     # <3> <2> <1> <0> (CALL) MSIZE FLAG (POP) MSIZE (MLOAD) RESULT
     ['msg', 5, 1, ['MSIZE', 0, 'MSIZE', 'MSTORE', 'DUP', 32, 'SWAP', '<4>', 32, 'MUL', '<3>',
                    '<2>', '<1>', '<0>', 'CALL', 'POP', 'MLOAD']],  # to, value, gas, data, datasize -> out32
-    # <5>*32 (MSIZE SWAP) MSIZE <5>*32 (MSIZE SWAP) MSIZE MSIZE <5>*32 (DUP MSIZE) MSIZE MSIZE <5>*32 <5>*32 MSIZE (ADD 1 SWAP SUB) MSIZE MSIZE <5>*32 MEND (0 SWAP MSTORE8) MSIZE MSIZE <5>*32 (... CALL)
-    ['msg', 6, 1, ['<5>', 32, 'MUL', 'MSIZE', 'SWAP', 'MSIZE', 'SWAP', 'DUP', 'MSIZE', 'ADD', 1, 'SWAP', 'SUB', 0, 'SWAP', 'MSTORE8',
+    # <5>*32 (MSIZE SWAP MSIZE SWAP) MSIZE MSIZE <5>*32 (DUP MSIZE ADD) MSIZE MSIZE <5>*32 MEND+1 (1 SWAP SUB) MSIZE MSIZE <5>*32 MEND (0 SWAP MSTORE8) MSIZE MSIZE <5>*32 (SWAP) MSIZE <5>*32 MSIZE
+    ['msg', 6, 1, ['<5>', 32, 'MUL', 'MSIZE', 'SWAP', 'MSIZE', 'SWAP', 'DUP', 'MSIZE', 'ADD', 1, 'SWAP', 'SUB', 0, 'SWAP', 'MSTORE8', 'SWAP',
                    '<4>', 32, 'MUL', '<3>', '<2>', '<1>', '<0>', 'CALL', 'POP']],  # to, value, gas, data, datasize, outsize -> out
     # value, gas, data, datasize
     ['create', 4, 1, ['<3>', '<2>', '<1>', '<0>', 'CREATE']],
