@@ -427,7 +427,11 @@ def encode_datalist(vals):
             return 1
         elif n is False or n is None:
             return 0
-    return ''.join(map(enc, vals))
+    if isinstance(vals, (tuple, list)):
+        return ''.join(map(enc, vals))
+    else:
+        # Assume you're getting in numbers or 0x...
+        return ''.join(map(enc, map(numberize, vals.split(' '))))
 
 
 def decode_datalist(arr):
