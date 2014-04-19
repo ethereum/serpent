@@ -167,7 +167,7 @@ def toktype(token):
     elif token in ['!']: return 'unary_operation' 
     elif not isinstance(token,str): return 'compound'
     elif token in precedence: return 'binary_operation'
-    elif re.match('^[0-9a-z\-\.]*$',token): return 'alphanum'
+    elif re.match('^[0-9a-zA-Z\-\.]*$',token): return 'alphanum'
     elif token[0] in ['"',"'"] and token[0] == token[-1]: return 'alphanum'
     else: raise Exception("Invalid token: "+token)
 
