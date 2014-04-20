@@ -430,6 +430,8 @@ def encode_datalist(vals):
             return 0
     if isinstance(vals, (tuple, list)):
         return ''.join(map(enc, vals))
+    elif vals == '':
+        return ''
     else:
         # Assume you're getting in numbers or 0x...
         return ''.join(map(enc, map(numberize, vals.split(' '))))
