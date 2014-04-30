@@ -1,10 +1,7 @@
 #!/usr/bin/python
 import re
-import sys
-import os
 from parser import parse
 from opcodes import opcodes, reverse_opcodes
-import json
 
 label_counter = [0]
 
@@ -54,8 +51,8 @@ funtable = [
     # len (32 MUL) len*32 (MSIZE) len*32 MSIZE (SWAP) MSIZE len*32 (MSIZE ADD)
     # MSIZE MSIZE+len*32 (1) MSIZE MSIZE+len*32 1 (SWAP SUB) MSIZE
     # MSIZE+len*32-1 (0 SWAP MSTORE8) MSIZE
-    ['array', 1, 1, ['<0>', 32, 'MUL', 'MSIZE', 'SWAP', 'MSIZE',
-                     'ADD', 1, 'SWAP', 'SUB', 0, 'SWAP', 'MSTORE8']],  # len -> arr
+    ['array', 1, 1, ['<0>', 32, 'MUL', 'MSIZE', 'SWAP', 'MSIZE',  # len -> arr
+                     'ADD', 1, 'SWAP', 'SUB', 0, 'SWAP', 'MSTORE8']],
     # String array methods
     # arr, ind -> val
     ['getch', 2, 1, ['<1>', '<0>', 'ADD', 'MLOAD', 255, 'AND']],
@@ -66,14 +63,15 @@ funtable = [
                       1, 'SWAP', 'SUB', 0, 'SWAP', 'MSTORE8']],  # len -> arr
     # ['send', 2, 1, [0,0,0,0,0,'<1>','<0>','CALL'] ], # to, value, 0, [] -> /dev/null
     # to, value, gas, [] -> /dev/null
+    ['send', 2, 1, [0, 0, 0, 0, '<1>', '<0>', 25, 'GAS', 'SUB', 'CALL']],
     ['send', 3, 1, [0, 0, 0, 0, '<2>', '<1>', '<0>', 'CALL']],
     # MSIZE 0 MSIZE (MSTORE) MSIZE (DUP) MSIZE MSIZE (...) MSIZE MSIZE 32 <4>
     # <3> <2> <1> <0> (CALL) MSIZE FLAG (POP) MSIZE (MLOAD) RESULT
     ['msg', 5, 1, ['MSIZE', 0, 'MSIZE', 'MSTORE', 'DUP', 32, 'SWAP', '<4>', 32, 'MUL', '<3>',
-                   '<2>', '<1>', '<0>', 'CALL', 'POP', 'MLOAD']],  # to, value, gas, data, datasize -> out32
+                   '<1>', '<0>', '<2>', 'CALL', 'POP', 'MLOAD']],  # to, value, gas, data, datasize -> out32
     # <5>*32 (MSIZE SWAP MSIZE SWAP) MSIZE MSIZE <5>*32 (DUP MSIZE ADD) MSIZE MSIZE <5>*32 MEND+1 (1 SWAP SUB) MSIZE MSIZE <5>*32 MEND (0 SWAP MSTORE8) MSIZE MSIZE <5>*32 (SWAP) MSIZE <5>*32 MSIZE
     ['msg', 6, 1, ['<5>', 32, 'MUL', 'MSIZE', 'SWAP', 'MSIZE', 'SWAP', 'DUP', 'MSIZE', 'ADD', 1, 'SWAP', 'SUB', 0, 'SWAP', 'MSTORE8', 'SWAP',
-                   '<4>', 32, 'MUL', '<3>', '<2>', '<1>', '<0>', 'CALL', 'POP']],  # to, value, gas, data, datasize, outsize -> out
+                   '<4>', 32, 'MUL', '<3>', '<1>', '<0>', '<2>', 'CALL', 'POP']],  # to, value, gas, data, datasize, outsize -> out
     # value, gas, data, datasize
     ['create', 4, 1, ['<3>', '<2>', '<1>', '<0>', 'CREATE']],
     ['sha3', 1, 1, [32, 'MSIZE', '<0>', 'MSIZE', 'MSTORE', 'SHA3']],
@@ -140,29 +138,36 @@ def numberize(b):
 
 
 # Apply rewrite rules
-def rewrite(ast):
+def _rewrite(ast):
     if isinstance(ast, (str, unicode)):
         return ast
     elif ast[0] == 'set':
         if ast[1][0] == 'access':
             if ast[1][1] == 'contract.storage':
-                return ['sstore', rewrite(ast[1][2]), rewrite(ast[2])]
+                return ['sstore', _rewrite(ast[1][2]), _rewrite(ast[2])]
             else:
-                return ['arrset', rewrite(ast[1][1]), rewrite(ast[1][2]), rewrite(ast[2])]
+                return ['arrset', _rewrite(ast[1][1]), _rewrite(ast[1][2]), _rewrite(ast[2])]
     elif ast[0] == 'access':
         if ast[1] == 'msg.data':
-            return ['calldataload', rewrite(ast[2])]
+            return ['calldataload', _rewrite(ast[2])]
         elif ast[1] == 'contract.storage':
-            return ['sload', rewrite(ast[2])]
+            return ['sload', _rewrite(ast[2])]
     elif ast[0] == 'array_lit':
         o = ['array', str(len(ast[1:]))]
         for a in ast[1:]:
-            o = ['set_and_inc', rewrite(a), o]
+            o = ['set_and_inc', _rewrite(a), o]
         return ['-', o, str(len(ast[1:])*32)]
     elif ast[0] == 'return':
         if len(ast) == 2 and ast[1][0] == 'array_lit':
-            return ['return', rewrite(ast[1]), str(len(ast[1][1:]))]
-    return map(rewrite, ast)
+            return ['return', _rewrite(ast[1]), str(len(ast[1][1:]))]
+    return map(_rewrite, ast)
+
+
+def rewrite(ast):
+    if ast[0] != 'init':
+        return _rewrite(['init', ['seq'], ast])
+    else:
+        return _rewrite(ast)
 
 
 # Main compiler code
@@ -238,6 +243,17 @@ def compile_expr(ast, varhash, lc=[0]):
         endlab, endref = 'LABEL_' + str(lc[0] + 1), 'REF_' + str(lc[0] + 1)
         lc[0] += 2
         return [beglab] + f + ['NOT', endref, 'JUMPI'] + g + [begref, 'JUMP', endlab]
+    # Init blocks
+    elif ast[0] == 'init':
+        if len(ast) == 3:
+            beglab, begref = 'LABEL_' + str(lc[0]), 'REF_' + str(lc[0])
+            endlab, endref = 'LABEL_' + str(lc[0]+1), 'REF_' + str(lc[0]+1)
+            lenref = 'SUB_' + str(lc[0]+1) + '_'+str(lc[0])
+            lc[0] += 2
+            return [endref, 'JUMP', beglab] + compile_expr(ast[2], varhash, lc) + \
+                   [endlab, lenref, 'MSIZE', lenref, 'MSIZE', begref, 'CALLDATACOPY', 'RETURN']
+        else:
+            return compile_expr(ast[1], varhash, lc)
     # Seq
     elif ast[0] == 'seq':
         o = []
@@ -345,31 +361,38 @@ def tobytearr(n, L):
 
 # Dereference labels
 def dereference(c):
+    label_length = log256(len(c)*4)
     iq = [x for x in c]
     mq = []
     pos = 0
     labelmap = {}
     while len(iq):
         front = iq.pop(0)
-        if isinstance(front, str) and front[:6] == 'LABEL_':
+        if not isinstance(front, (int, long)) and front[:6] == 'LABEL_':
             labelmap[front[6:]] = pos
         else:
             mq.append(front)
-            if isinstance(front, str) and front[:4] == 'REF_':
-                pos += 5
-            elif isinstance(front, (int, long)):
+            if isinstance(front, (int, long)):
                 pos += 1 + max(1, log256(front))
+            elif front[:4] == 'REF_':
+                pos += label_length + 1
+            elif front[:4] == 'SUB_':
+                pos += label_length + 1
             else:
                 pos += 1
     oq = []
     for m in mq:
-        if isinstance(m, str) and m[:4] == 'REF_':
-            oq.append('PUSH4')
-            oq.extend(tobytearr(labelmap[m[4:]], 4))
-        elif isinstance(m, (int, long)):
+        if isinstance(m, (int, long)):
             L = max(1, log256(m))
             oq.append('PUSH' + str(L))
             oq.extend(tobytearr(m, L))
+        elif m[:4] == 'REF_':
+            oq.append('PUSH'+str(label_length))
+            oq.extend(tobytearr(labelmap[m[4:]], label_length))
+        elif m[:4] == 'SUB_':
+            oq.append('PUSH'+str(label_length))
+            margs = m.split('_')
+            oq.extend(tobytearr(labelmap[margs[1]] - labelmap[margs[2]], label_length))
         else:
             oq.append(m)
     return oq
@@ -401,7 +424,7 @@ def deserialize(source):
             o.append('PUSH' + str(p - 95))
         else:
             o.append(opcodes[p][0])
-        if p >= 96 and p <= 127:
+        if j < 0 and p >= 96 and p <= 127:
             j = p - 95
         j -= 1
         i += 1
