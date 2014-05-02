@@ -114,7 +114,7 @@ funtable = [
     # value, gas, data, datasize
     ['create', 4, 1, ['<3>', '<2>', '<1>', '<0>', 'CREATE']],
     # value, gas, dataobject
-    ['create', 3, [1, 1, 2], ['<2>', '<1>', '<0>', 'CREATE']],
+    ['create', [1, 1, 2], 1, ['<2>', '<1>', '<0>', 'CREATE']],
     ['sha3', 1, 1, [32, 'MSIZE', '<0>', 'MSIZE', 'MSTORE', 'SHA3']],
     ['sha3bytes', 1, 1, ['SHA3']],
     ['sload', 1, 1, ['<0>', 'SLOAD']],
@@ -138,7 +138,7 @@ funtable = [
         ['~beginwhile', '<0>', 'NOT', '$endwhile', 'JUMPI',
          '<1>', '$beginwhile', 'JUMP', '~endwhile']],
     # Inits with code <0> and returns code <1>
-    ['init', [0, 0], 1,
+    ['init', [0, 0], 0,
         ['<0>', '$begincode.endcode', 'DUP', 'MSIZE', 'SWAP',  # len memsz len
          'MSIZE', '$begincode', 'CALLDATACOPY', 'RETURN',  # cdc and return
          '~begincode', '<C1>', '~endcode']],
@@ -146,7 +146,7 @@ funtable = [
     ['code', [0], 2,
         ['$begincode.endcode', 'DUP', 'MSIZE', 'SWAP',  # len memsize len
          'MSIZE', '$begincode', 'CODECOPY', '$endcode', 'JUMP',  # len memsize
-         '~begincode', '<C2>', '~endcode']],
+         '~begincode', '<C0>', '~endcode']],
 ]
 
 # Pseudo-variables representing opcodes
@@ -269,12 +269,12 @@ class decorate():
             for f in funtable:
                 if ast[0] == f[0]:
                     f[1] = ([1] * f[1]) if is_numeric(f[1]) else f[1]
-                    works = True
-                    for i in range(len(f[1])):
-                        if d[i].arity != f[1][i]:
-                            works = False
-                    if len(d) != len(f[1]):
-                        works = False
+                    works = False
+                    if len(d) == len(f[1]):
+                        works = True
+                        for i in range(len(f[1])):
+                            if d[i].arity != f[1][i]:
+                                works = False
                     if works:
                         self.value, self.fun = None, f[0]
                         self.args = d
