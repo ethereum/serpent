@@ -5,14 +5,18 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from macros import macroexpand
 
-def assert_eq(expand, should_be):
+def assert_eq(expand, should_be=None):
+    if should_be is None:
+        should_be = expand
+
     ret = macroexpand(expand)
     if ret != should_be:
         print('wrong', ret, 'vs\n', should_be)
-        assert false
+        assert False
 
 assert_eq(['set', ['access', 'contract.storage', 'index'], 'value'],
           ['sstore', 'index', 'value'])
+assert_eq(['set', 'x', ['+', '3', '5']])
 assert_eq(['if', 1, 2, 3], ['ifelse', 1, 2 ,3])
 assert_eq(['if', 1, 2],    ['if', 1, 2])
 assert_eq(['access', 'msg.data', 'index'], ['calldataload', 'index'])
