@@ -253,9 +253,9 @@ class decorate():
 # Debugging
 def print_wrapper(f):
     def wrapper(*args, **kwargs):
-        print args[0]
+        print(args[0])
         u = f(*args, **kwargs)
-        print u
+        print(u)
         return u
     return wrapper
 
