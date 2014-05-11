@@ -134,7 +134,7 @@ funtable = [
         ['<0>', 'NOT', '$else', 'JUMPI', '<1>',
          '$endif', 'JUMP', '~else', '<2>', '~endif']],
     # while cond code
-    ['while', 2, 0,
+    ['while', [1, 0], 0,
         ['~beginwhile', '<0>', 'NOT', '$endwhile', 'JUMPI',
          '<1>', '$beginwhile', 'JUMP', '~endwhile']],
     # Inits with code <0> and returns code <1>
