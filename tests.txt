@@ -1,3 +1,4 @@
+
 ================
 x = 3 + 5
 ================
@@ -53,3 +54,7 @@ a[2] = 30
 y = array(1)
 y[0] = msg(0xf345747062de4d05d897d62c4696febbedcb36b8, 10^18, tx.gas - 100, a, 3, 1)
 x = y[0]
+================
+a = 0x1001 & 1
+================
+// A comment on a line on its own at the start of a file
