@@ -36,9 +36,9 @@ def _set(ast):
         else:
             return ['arrset', ast[1][1], ast[1][2], ast[2]]
 
-def _funcall(ast):  # Call as function.
-    return ['msg', ast[0], '0', ['-', 'tx.gas', msg_gas],
-            ['array_lit'] + ast[1:], str(len(ast)-1)]
+def _funcall(ast):  # Call contract as function.
+    return ['msg', ast[1], '0', ['-', 'tx.gas', msg_gas],
+            ['array_lit'] + ast[2:], str(len(ast)-2)]
 
 dont_recurse = ['access', 'if']
 # Note: lambda not easy enough to use, apparently.
@@ -86,7 +86,7 @@ def if_not_macro(ast):  # Thing to do if it isnt a macro.
         return None
     elif type(ast[0]) is str:
          # Equivalent to calling the 'funcall' macro.
-        return _funcall(ast)  # (['funcall'] + ast)
+        return _funcall(['funcall'] + ast)  # (['funcall'] + ast)
     # If you want to use a returned value as the address, use `funcall` directly.
     else:
         raise Exception("No behavior defined for this", ast)

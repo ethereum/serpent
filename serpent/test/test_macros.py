@@ -30,7 +30,11 @@ assert_eq(['access', 'contract.storage', 'index'], ['sload', 'index'])
 assert_eq(['array_lit', 1, 2, 3],
           ['-', ['set_and_inc', 3, ['set_and_inc', 2,
                                     ['set_and_inc', 1, ['array', '3']]]], '96'])
-assert_eq(['function', 1, 2, 3],
-          ['msg', 'function', '0', ['-', 'tx.gas', '21'], ['-', ['set_and_inc', 3, ['set_and_inc', 2, ['set_and_inc', 1, ['array', '3']]]], '96'], '3'],
-          ['msg', 'function', '0', ['-', 'tx.gas', macros.msg_gas],
-                  ['array_lit', 1, 2, 3], '3'])
+
+completely = ['msg', 'function', '0', ['-', 'tx.gas', '21'], ['-', ['set_and_inc', 3, ['set_and_inc', 2, ['set_and_inc', 1, ['array', '3']]]], '96'], '3']
+one        = ['msg', 'function', '0', ['-', 'tx.gas', macros.msg_gas],
+                     ['array_lit', 1, 2, 3], '3']
+# Test both automatic and manual calling of funcall.
+assert_eq(['function', 1, 2, 3], completely, one)
+assert_eq(['funcall', 'function', 1, 2, 3], completely, one)
+          
