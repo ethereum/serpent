@@ -1,4 +1,11 @@
 
+gensym_i = 0
+
+def gensym(name='__G'):  # Symbol 'guaranteed' to be unique.
+    gensym_i += 1
+    return name + str(gensym_i)
+
+
 def _access(ast):
     if ast[1] == 'msg.data':
         return ['calldataload', ast[2]]
@@ -36,9 +43,48 @@ def _set(ast):
         else:
             return ['arrset', ast[1][1], ast[1][2], ast[2]]
 
+
 def _funcall(ast):  # Call contract as function.
     return ['msg', ast[1], '0', ['-', 'tx.gas', msg_gas],
             ['array_lit'] + ast[2:], str(len(ast)-2)]
+
+## Case. (idea to have parser uuse this.)
+def subcase(var, ast):
+    if len(ast) == 0:  #Got nothing.
+        return ["seq"]
+
+    assert type(ast[0]) is list and len(ast[0]) == 2
+
+    if ast[0][0] == 'otherwise':
+        assert len(ast) == 1  # Must be last case.
+        return ast[0][1]
+    else:
+        return ["ifelse", ["=", var, ast[0][0]],
+                ast[0][1], subcase(var, ast[1:])]
+
+def _case(ast):
+    var = gensym()
+    return ['seq',
+            ['set', var, ast[1]],   # Put into parameter.
+            subcase(var, ast[2:])]  # Generate a lot of `ifelse`s with the param.
+
+## Cond.
+def raw_cond(ast):
+    if len(ast) == 0:
+        return ["seq"]
+
+    assert type(ast[0]) is list and len(ast[0]) == 2
+
+    if ast[0][0] == "otherwise":
+        assert len(ast) == 1  # Always runs, must be last.
+        return ast[0][1]
+    else:
+        return ["ifelse", ast[0][0], ast[0][1], raw_cond(ast[1:])]
+
+
+def _cond(ast):
+    return raw_cond(ast[1:])
+
 
 dont_recurse = ['access', 'if']
 # Note: lambda not easy enough to use, apparently.
@@ -52,7 +98,10 @@ macros = {
     'set'    : _set,
     'access' : _access,
 
-    'funcall' : _funcall
+    'funcall' : _funcall,
+    'case'    : _case,
+# This one is for the lispers.(for them the ifelse construct is too nested)
+    'cond'    : _cond
 }
 
 #def _code(ast): # Doesnt really do anything? Just check number of args instead?
