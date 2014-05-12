@@ -28,6 +28,7 @@ def _return(ast):
 def _if(ast):
     return ['ifelse' if len(ast) == 4 else 'if'] + ast[1:]
 
+
 def _set(ast):
     if ast[1][0] == 'access':
         if ast[1][1] == 'contract.storage':
@@ -35,7 +36,11 @@ def _set(ast):
         else:
             return ['arrset', ast[1][1], ast[1][2], ast[2]]
 
-dont_recurse = ['access', 'if', '']
+def _funcall(ast):  # Call as function.
+    return ["msg", ast[0], '0', ["-", "tx.gas", msg_gas],
+            ['array_lit'] + ast[1:], str(len(ast)-1)]
+
+dont_recurse = ['access', 'if']
 # Note: lambda not easy enough to use, apparently.
 macros = {
     'access' : _access,
@@ -45,7 +50,9 @@ macros = {
     'return' : _return,
     'if'     : _if,
     'set'    : _set,
-    'access' : _access
+    'access' : _access,
+
+    'funcall' : _funcall
 }
 
 #def _code(ast): # Doesnt really do anything? Just check number of args instead?
@@ -57,17 +64,46 @@ def macroexpand_list(list):
         ret.append(macroexpand(el))
     return ret
 
+
+# Note: might be better to use compiler.py's `funtable`
+# also some more internal stuff either needs exemption of to be pulled in
+# as macros.
+fun_exempt = ['+', '-', '*', '/', '^', '%', '#/', '#%', '==', '<',
+            '<=','>','>=','!','or','||','and','&&','xor','&','|',
+            'byte','pop','array','setch','string','sha3','sha3bytes',
+            'sload','sstore','calldataload','id','return','return',
+            'suicide','if','ifelse','while','init','code',
+            'set_and_inc']
+
+def is_exempt(name): 
+    return name in fun_exempt
+    
+
+msg_gas = '21'  # Drinking age.
+
+def if_not_macro(ast):  # Thing to do if it isnt a macro.
+    if is_exempt(ast[0]):
+        return None
+    if ast[0] is str:
+         # Equivalent to calling the 'funcall' macro.
+        return _funcall(ast)  # (['funcall'] + ast)
+    # If you want to use a returned value as the address, use `funcall` directly.
+    else:
+        raise Exception("No behavior defined for this", ast)
+
 def macroexpand(ast):
     if type(ast) is list:
+        ret = None
         if ast[0] in macros:
             ret = macros[ast[0]](ast)
-            if ast[0] in dont_recurse:
-                return ret
-            elif ret is None:
-                return macroexpand_list(ast)
-            else:
-                return macroexpand(ret)
         else:
+            ret = if_not_macro(ast)
+
+        if ast[0] in dont_recurse:
+            return ast if (ret is None) else ret
+        elif ret is None:
             return macroexpand_list(ast)
+        else:
+            return macroexpand(ret)
     else:
         return ast

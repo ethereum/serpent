@@ -11,7 +11,7 @@ def assert_eq(expand, should_be=None, say='macroexpand wrong'):
 
     ret = macroexpand(expand)
     if ret != should_be:
-        raise (say, ret, 'vs\n', should_be)
+        raise Exception(say, ret, 'vs\n', should_be)
 
 assert_eq(['set', ['access', 'contract.storage', 'index'], 'value'],
           ['sstore', 'index', 'value'])
