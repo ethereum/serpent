@@ -37,7 +37,7 @@ def _set(ast):
             return ['arrset', ast[1][1], ast[1][2], ast[2]]
 
 def _funcall(ast):  # Call as function.
-    return ["msg", ast[0], '0', ["-", "tx.gas", msg_gas],
+    return ['msg', ast[0], '0', ['-', 'tx.gas', msg_gas],
             ['array_lit'] + ast[1:], str(len(ast)-1)]
 
 dont_recurse = ['access', 'if']
@@ -73,7 +73,7 @@ fun_exempt = ['+', '-', '*', '/', '^', '%', '#/', '#%', '==', '<',
             'byte','pop','array','setch','string','sha3','sha3bytes',
             'sload','sstore','calldataload','id','return','return',
             'suicide','if','ifelse','while','init','code',
-            'set_and_inc']
+            'set_and_inc','msg']
 
 def is_exempt(name): 
     return name in fun_exempt
@@ -84,20 +84,23 @@ msg_gas = '21'  # Drinking age.
 def if_not_macro(ast):  # Thing to do if it isnt a macro.
     if is_exempt(ast[0]):
         return None
-    if ast[0] is str:
+    elif type(ast[0]) is str:
          # Equivalent to calling the 'funcall' macro.
         return _funcall(ast)  # (['funcall'] + ast)
     # If you want to use a returned value as the address, use `funcall` directly.
     else:
         raise Exception("No behavior defined for this", ast)
 
+
+def macroexpand_1(ast):
+    if ast[0] in macros:
+        return macros[ast[0]](ast)
+    else:
+        return if_not_macro(ast)
+
 def macroexpand(ast):
     if type(ast) is list:
-        ret = None
-        if ast[0] in macros:
-            ret = macros[ast[0]](ast)
-        else:
-            ret = if_not_macro(ast)
+        ret = macroexpand_1(ast)
 
         if ast[0] in dont_recurse:
             return ast if (ret is None) else ret
