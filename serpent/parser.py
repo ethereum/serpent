@@ -25,7 +25,7 @@ def parse_lines(lns):
     while i < len(lns):
         main = lns[i]
         # Skip empty lines
-        if len(main.strip()) == 0:
+        if len(main.strip()) == 0 or main.strip()[:2] == '//':
             i += 1
             continue
         if spaces(main) > 0:
