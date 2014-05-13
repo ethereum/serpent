@@ -3,6 +3,8 @@ import re
 from parser import parse
 from opcodes import opcodes, reverse_opcodes
 
+from macros import macroexpand
+
 label_counter = [0]
 
 
@@ -199,50 +201,6 @@ def numberize(b):
         return int(b)
 
 
-# Apply rewrite rules
-def _rewrite(ast):
-    if isinstance(ast, (str, unicode)):
-        return ast
-    elif ast[0] == 'set':
-        if ast[1][0] == 'access':
-            if ast[1][1] == 'contract.storage':
-                return ['sstore', _rewrite(ast[1][2]), _rewrite(ast[2])]
-            else:
-                return ['arrset', _rewrite(ast[1][1]),
-                        _rewrite(ast[1][2]), _rewrite(ast[2])]
-    elif ast[0] == 'if':
-        return ['ifelse' if len(ast) == 4 else 'if'] + map(_rewrite, ast[1:])
-    elif ast[0] == 'access':
-        if ast[1] == 'msg.data':
-            return ['calldataload', _rewrite(ast[2])]
-        elif ast[1] == 'contract.storage':
-            return ['sload', _rewrite(ast[2])]
-    elif ast[0] == 'array_lit':
-        o = ['array', str(len(ast[1:]))]
-        for a in ast[1:]:
-            o = ['set_and_inc', _rewrite(a), o]
-        return ['-', o, str(len(ast[1:])*32)]
-    elif ast[0] == 'code':
-        return ['code', rewrite(ast[1])]
-    elif ast[0] == 'return':
-        if len(ast) == 2 and ast[1][0] == 'array_lit':
-            return ['return', _rewrite(ast[1]), str(len(ast[1][1:]))]
-    # Import is to be used specifically for creates
-    elif ast[0] == 'import':
-        return ['code', rewrite(parse(open(ast[1]).read()))]
-    # Inset is to be used like a macro in C++
-    elif ast[0] == 'inset':
-        return _rewrite(parse(open(ast[1]).read()))
-    return map(_rewrite, ast)
-
-
-def rewrite(ast):
-    if ast[0] != 'init':
-        return _rewrite(['init', ['seq'], ast])
-    else:
-        return _rewrite(ast)
-
-
 # Determine arity of every argument, do AST checking
 class decorate():
     def __init__(self, ast):
@@ -295,9 +253,9 @@ class decorate():
 # Debugging
 def print_wrapper(f):
     def wrapper(*args, **kwargs):
-        print args[0]
+        print(args[0])
         u = f(*args, **kwargs)
-        print u
+        print(u)
         return u
     return wrapper
 
@@ -422,7 +380,7 @@ def optimize(c):
 def compile_to_assembly(source, optimize_flag=1):
     if is_string(source):
         source = parse(source)
-    c1 = rewrite(source)
+    c1 = macroexpand(source)
     c2 = decorate(c1)
     label_counter[0] = 0
     varhash = {}
@@ -436,7 +394,7 @@ def get_vars(source):
     if is_string(source):
         source = parse(source)
     varhash = {}
-    c1 = rewrite(source)
+    c1 = macroexpand(source)
     # fill varhash
     compile_expr(c1, varhash, [0])
     return varhash
