@@ -116,6 +116,7 @@ funtable = [
     # value, gas, dataobject
     ['create', [1, 1, 2], 1, ['<2>', '<1>', '<0>', 'CREATE']],
     ['sha3', 1, 1, [32, 'MSIZE', '<0>', 'MSIZE', 'MSTORE', 'SHA3']],
+    ['sha3', 2, 1, [32, '<1>', 'MUL', '<0>', 'SHA3']],
     ['sha3bytes', 1, 1, ['SHA3']],
     ['sload', 1, 1, ['<0>', 'SLOAD']],
     ['sstore', 2, 0, ['<1>', '<0>', 'SSTORE']],
