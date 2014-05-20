@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from serpent import compiler
+from serpent import parser, rewriter, compiler
 t = open('tests.txt').readlines()
 i = 0
 while 1:
@@ -9,15 +9,21 @@ while 1:
         i += 1
     i += 1
     print '================='
-    text = '\n'.join(o).replace('\n\n','\n')
+    text = '\n'.join(o).replace('\n\n', '\n')
     print text
-    ast = compiler.parse(text)
-    print "AST:",ast
+    ast = parser.parse(text)
+    print "AST:", ast
     print ""
-    aevm = compiler.compile_to_assembly(text)
-    print "AEVM:",' '.join([str(x) for x in aevm])
+    ast2 = rewriter.compile_to_lll(ast)
+    print "LLL:", ast2
     print ""
-    code = compiler.compile(text)
-    print "Output:",code.encode('hex')
+    varz = rewriter.analyze(ast)
+    print "Analysis: ", varz
+    print ""
+    aevm = compiler.compile_lll(ast2)
+    print "AEVM:", ' '.join([str(x) for x in aevm])
+    print ""
+    code = compiler.assemble(aevm)
+    print "Output:", code.encode('hex')
     if i >= len(t):
         break
