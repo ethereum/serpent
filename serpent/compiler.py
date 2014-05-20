@@ -31,10 +31,10 @@ def compile_lll(ast):
         for subcode in subcodes:
             o.extend(subcode)
         return o
-    elif ast.fun == 'if':
-        out = subcodes[0] + ['NOT', '$endif'+symb, 'JUMPI'] + \
+    elif ast.fun == 'unless' and len(ast.args) == 2:
+        out = subcodes[0] + ['$endif'+symb, 'JUMPI'] + \
             subcodes[1] + ['~endif'+symb]
-    elif ast.fun == 'else if':
+    elif ast.fun == 'if' and len(ast.args) == 3:
         out = subcodes[0] + ['NOT', '$else'+symb, 'JUMPI'] + \
             subcodes[1] + ['$endif'+symb, 'JUMP', '~else'+symb] + \
             subcodes[2] + ['~endif'+symb]
@@ -54,7 +54,7 @@ def compile_lll(ast):
     elif ast.fun == 'array_lit':
         x = ['MSIZE', 'DUP']
         for s in subcodes:
-            x += s + ['MSTORE', 'DUP', 32, 'ADD']
+            x += s + ['SWAP', 'MSTORE', 'DUP', 32, 'ADD']
         out = x[:-3] if len(subcodes) > 0 else ['MSIZE']
     else:
         o = []

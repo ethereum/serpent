@@ -73,14 +73,14 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
                 raise Exception("Cannot start with else if! (%d)" % i)
             u = o[-1]
             while len(u.args) == 3:
-                u = u[-1]
+                u = u.args[-1]
             u.args.append(astnode('if', out.args, *out.metadata))
         elif out.fun == 'else':
             if len(o) == 0:
                 raise Exception("Cannot start with else! (%d)" % i)
             u = o[-1]
             while len(u.args) == 3:
-                u = u[-1]
+                u = u.args[-1]
             u.args.append(out.args[-1])
         elif out.fun == 'code':
             if len(o) > 0 and o[-1].fun == 'init':

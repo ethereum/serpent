@@ -29,6 +29,14 @@ simple_macros = [
         ['until', '<cond>', '<do>']
     ],
     [
+        ['if', ['NOT', '<cond>'], '<do>'],
+        ['unless', '<cond>', '<do>']
+    ],
+    [
+        ['if', '<cond>', '<do>'],
+        ['unless', ['NOT', '<cond>'], '<do>']
+    ],
+    [
         ['access', 'contract.storage', '<ind>'],
         ['SLOAD', '<ind>']
     ],
@@ -58,11 +66,11 @@ simple_macros = [
     ],
     [
         ['send', '<to>', '<value>'],
-        ['CALL', ['SUB', 'GAS', '25'], '<to>', '<value>', 0, 0, 0, 0]
+        ['CALL', ['SUB', ['GAS'], '25'], '<to>', '<value>', '0', '0', '0', '0']
     ],
     [
         ['send', '<gas>', '<to>', '<value>'],
-        ['CALL', '<gas>', '<to>', '<value>', 0, 0, 0, 0]
+        ['CALL', '<gas>', '<to>', '<value>', '0', '0', '0', '0']
     ],
     [
         ['sha3', '<x>'],
@@ -118,17 +126,22 @@ simple_macros = [
     ],
     [
         ['call', '<f>', '<dataval>'],
-        ['msg', ['SUB', 'GAS', '25'], '<f>', '0', '<dataval>']
+        ['msg', ['SUB', ['GAS'], '45'], '<f>', '0', '<dataval>']
     ],
     [
         ['msg', '<gas>', '<to>', '<val>', '<inp>', '<inpsz>'],
         ['seq',
-            ['CALL', '<gas>', '<to>', '<val>', '<inp>', '<inpsz>', '@1', '32'],
+            ['CALL', '<gas>', '<to>', '<val>', '<inp>',
+                ['MUL', '32', '<inpsz>'], '@1', '32'],
             ['MLOAD', '@1']]
     ],
     [
         ['call', '<f>', '<inp>', '<inpsz>'],
-        ['msg', ['SUB', 'GAS', '25'], '<f>', '0', '<inp>', '<inpsz>']
+        ['seq',
+            ['set', '@1', '<inpsz>'],
+            ['msg',
+                ['SUB', ['GAS'], ['ADD', '25', ['MLOAD', '@1']]],
+                '<f>', '0', '<inp>', ['MLOAD', '@1']]]
     ],
     [
         ['msg', '<gas>', '<to>', '<val>', '<inp>', '<inpsz>', '<outsz>'],
@@ -137,7 +150,7 @@ simple_macros = [
             ['MSTORE', '@2', ['alloc', ['MLOAD', '@1']]],
             ['POP',
                 ['CALL', '<gas>', '<to>', '<val>',
-                 '<inp>', '<inpsz>', '@2', ['MLOAD', '@1']]],
+                 '<inp>', ['MUL', '32', '<inpsz>'], '@2', ['MLOAD', '@1']]],
             ['MLOAD', '@2']]
     ],
     [
@@ -164,7 +177,7 @@ simple_macros = [
 ]
 
 constants = [
-    ['msg.datasize', ['DIV', '32', 'CALLDATASIZE']],
+    ['msg.datasize', ['DIV', ['CALLDATASIZE'], '32']],
     ['msg.sender', ['CALLER']],
     ['msg.value', ['CALLVALUE']],
     ['tx.gasprice', ['GASPRICE']],
@@ -184,14 +197,16 @@ constants = [
 
 def _getvar(ast):
     if isinstance(ast, token) and not utils.is_numberlike(ast.val):
-        if ast.val[0] != '_':
-            inner = token('__'+ast.val, *ast.metadata)
-            return astnode('MLOAD', [inner], *ast.metadata)
+        if ast.val not in map(lambda x: x[0], constants):
+            if ast.val[0] != '_':
+                inner = token('__'+ast.val, *ast.metadata)
+                return astnode('MLOAD', [inner], *ast.metadata)
 
 
 def _setvar(ast):
     if isinstance(ast, astnode) and ast.fun == 'set':
-        inner = token('__'+ast.args[0].val, *ast.args[0].metadata)
+        prefix = '__' if ast.args[0].val[0] != '_' else ''
+        inner = token(prefix+ast.args[0].val, *ast.args[0].metadata)
         return astnode('MSTORE', [inner, ast.args[1]], *ast.metadata)
 
 synonyms = [
@@ -263,10 +278,9 @@ def rewrite(ast):
         return astnode(ast.fun, map(rewrite, ast.args), *ast.metadata)
 
 
-def analyze_and_varify_ast(ast, data=None):
-    data = data or {"varhash": {}}
+def analyze_and_varify_ast(ast, data):
     if isinstance(ast, astnode):
-        if ast.fun == 'alloc':
+        if ast.fun in ['alloc', 'array_lit']:
             data['alloc_used'] = True
         if ast.fun == 'lll':
             argz = [finalize(ast.args[0]),
@@ -275,7 +289,7 @@ def analyze_and_varify_ast(ast, data=None):
             argz = map(lambda x: analyze_and_varify_ast(x, data), ast.args)
         return astnode(ast.fun, argz, *ast.metadata)
     elif utils.is_numberlike(ast.val):
-        return token(utils.numberize(ast.val), *ast.metadata)
+        return token(str(utils.numberize(ast.val)), *ast.metadata)
     else:
         if ast.val not in data['varhash']:
             data['varhash'][ast.val] = str(len(data['varhash']) * 32)
@@ -305,8 +319,9 @@ def compile_to_lll(ast):
 def analyze(ast):
     if utils.is_string(ast):
         ast = parse(ast)
-    data = {}
-    analyze_and_varify_ast(rewrite(preprocess(ast)), data)
+    ast = rewrite(preprocess(ast))
+    data = {"varhash": {}}
+    analyze_and_varify_ast(ast, data)
     return data
 
 
@@ -342,7 +357,10 @@ def set_macro_vars(subst, pattern, anchor, lc):
             return token(pattern, *anchor.metadata)
     else:
         f = lambda ast: set_macro_vars(subst, ast, anchor, lc)
-        return astnode(pattern[0], map(f, pattern[1:]), *anchor.metadata)
+        if isinstance(pattern, list):
+            return astnode(pattern[0], map(f, pattern[1:]), *anchor.metadata)
+        else:
+            return token(pattern, *anchor.metadata)
 
 
 def simple_macro(args):
@@ -350,7 +368,7 @@ def simple_macro(args):
 
     def app(ast):
         dic = get_macro_vars(pattern, ast)
-        if dic:
+        if dic is not None:
             label_counter[0] += 1
             return set_macro_vars(dic, subst, ast, label_counter[0])
     return app
