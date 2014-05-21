@@ -283,8 +283,10 @@ def analyze_and_varify_ast(ast, data):
         if ast.fun in ['alloc', 'array_lit']:
             data['alloc_used'] = True
         if ast.fun == 'lll':
-            argz = [finalize(ast.args[0]),
+            inner = {"varhash": {}, "inner": []}
+            argz = [finalize(ast.args[0], inner),
                     analyze_and_varify_ast(ast.args[1], data)]
+            data["inner"].append(inner)
         else:
             argz = map(lambda x: analyze_and_varify_ast(x, data), ast.args)
         return astnode(ast.fun, argz, *ast.metadata)
@@ -297,10 +299,11 @@ def analyze_and_varify_ast(ast, data):
 
 
 def finalize(expr, data=None):
-    data = data or {"varhash": {}}
+    data = data or {"varhash": {}, "inner": []}
     e = analyze_and_varify_ast(expr, data)
     if len(data['varhash']) > 0 and data.get('alloc_used'):
-        inner = astnode('MSTORE8', map(token, [str(len(data) * 32 - 1), '0']))
+        memsz = len(data['varhash']) * 32 - 1
+        inner = astnode('MSTORE8', map(token, map(str, [memsz, 0])))
         return astnode('seq', [inner, e])
     else:
         return e
@@ -320,7 +323,7 @@ def analyze(ast):
     if utils.is_string(ast):
         ast = parse(ast)
     ast = rewrite(preprocess(ast))
-    data = {"varhash": {}}
+    data = {"varhash": {}, "inner": []}
     analyze_and_varify_ast(ast, data)
     return data
 
