@@ -100,7 +100,7 @@ def chartype(c):
         return 'alphanum'
     elif c in '\t ':
         return 'space'
-    elif c in '()[]':
+    elif c in '()[]{}':
         return 'brack'
     elif c == '"':
         return 'dquote'
