@@ -34,8 +34,6 @@ def _parse_lll(tokens, pos):
     m, sv, o = tokens[pos].metadata, tokens[pos].val, []
     if sv not in ['(', '{', '[', '@', '@@']:
         return tokens[pos], pos + 1
-    elif sv == '{':
-        pos, o, watch = pos + 1, [parser.token('seq')], '}'
     elif sv == '@':
         node, pos = _parse_lll(tokens, pos+1)
         return parser.astnode('mload', [node], *m), pos
