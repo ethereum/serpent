@@ -53,6 +53,3 @@ while 1:
     if i >= len(t):
         break
 
-# Think this is wrong.
-ast = lllparser.parse_lll('(one_word)')
-print(ast)

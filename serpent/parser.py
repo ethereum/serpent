@@ -96,7 +96,7 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
 
 # Tokens contain one or more chars of the same type, with a few exceptions
 def chartype(c):
-    if c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.':
+    if c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.':
         return 'alphanum'
     elif c in '\t ':
         return 'space'
