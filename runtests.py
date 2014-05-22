@@ -1,8 +1,19 @@
 #!/usr/bin/python
 
+import random
+
 
 def bijection_test_lllparser(ast2):
     text2 = lllparser.serialize_lll(ast2)
+#    i = 0
+#    n = random.randrange(4)  # No comments yet.
+#    while i >= 0 and n > 0:
+#        i = text2.find('\n', i)
+#        n -= 1
+#    if i > 0:
+#        text2 = text2[:i-1] + ';blablabla\n' + text2[i:]
+#    print(text2)
+
     ast3  = lllparser.parse_lll(text2)
     if ast3.listfy() != ast2.listfy():
         print("Parsing output again gave different result!")
