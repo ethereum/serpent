@@ -5,18 +5,18 @@ import random
 
 def bijection_test_lllparser(ast2):
     text2 = lllparser.serialize_lll(ast2)
-#    i = 0
-#    n = random.randrange(4)  # No comments yet.
-#    while i >= 0 and n > 0:
-#        i = text2.find('\n', i)
-#        n -= 1
-#    if i > 0:
-#        text2 = text2[:i-1] + ';blablabla\n' + text2[i:]
-#    print(text2)
+    i = 0
+    n = random.randrange(4)  # No comments yet.
+    while i >= 0 and n > 0:
+        i = text2.find('\n', i)
+        n -= 1
+    if i > 0:
+        text2 = text2[:i] + ';blablabla\n' + text2[i:]
+    print(text2)
 
     ast3  = lllparser.parse_lll(text2)
     if ast3.listfy() != ast2.listfy():
-        print("Parsing output again gave different result!")
+        print("BUG: Parsing output again gave different result!")
         print(ast2)
         print(ast3)
         print("")
@@ -25,7 +25,7 @@ def bijection_test_lllparser(ast2):
 from serpent import parser, rewriter, compiler, lllparser
 t = open('tests.txt').readlines()
 i = 0
-while 1:
+while True:
     o = []
     while i < len(t) and (not len(t[i]) or t[i][0] != '='):
         o.append(t[i])
@@ -52,4 +52,3 @@ while 1:
     print "Output:", code.encode('hex')
     if i >= len(t):
         break
-

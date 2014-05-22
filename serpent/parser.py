@@ -162,7 +162,7 @@ def tokenize(ln, fil='main', linenum=0, charnum=0):
             tp = c
             i += 1
     nxt()
-    if o[-1].val in [':', ':\n', '\n']:
+    if len(o) > 0 and o[-1].val in [':', ':\n', '\n']:
         o.pop()
     if tp in ['squote', 'dquote']:
         raise Exception("Unclosed string: "+ln)

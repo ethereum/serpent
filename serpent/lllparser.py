@@ -19,9 +19,18 @@ def serialize_lll(ast):
         o += out.rstrip() + ')'
     return o
 
+def tokenize_lll(text):
+    tokens = []
+    for line in text.split('\n'):
+        i = line.find(';')
+        if i >= 0:
+            tokens += parser.tokenize(line[:i])
+        else:
+            tokens += parser.tokenize(line)
+    return tokens
 
 def parse_lll(text):
-    tokens = parser.tokenize(text.replace('\n', ''))
+    tokens = tokenize_lll(text)
     for token in tokens:
         token.line = text[:token.char].count('\n')
         token.char -= text[:token.char].rfind('\n')
