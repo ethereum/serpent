@@ -162,6 +162,7 @@ pseudovars = {
     'tx.gas': ['GAS'],
     'contract.balance': ['BALANCE'],
     'contract.address': ['ADDRESS'],
+    'contract.codesize': ['CODESIZE'],
     'block.prevhash': ['PREVHASH'],
     'block.coinbase': ['COINBASE'],
     'block.timestamp': ['TIMESTAMP'],
