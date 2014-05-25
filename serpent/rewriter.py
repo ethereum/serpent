@@ -11,6 +11,20 @@ token, astnode = utils.token, utils.astnode
 # Use <xxx> to indicate parts of the code that can pattern-match anything
 # Use '@xxx' to generate variables on the fly
 
+preparing_simple_macros = [
+    [
+        ['if', '<cond>', '<do>', ['else', '<else>']],
+        ['if', '<cond>', '<do>', '<else>']
+    ],
+    [
+        ['elif', '<cond>', '<do>'],
+        ['if', '<cond>', '<do>']
+    ],
+    [
+        ['elif', '<cond>', '<do>', '<else>'],
+        ['if', '<cond>', '<do>', '<else>']
+    ]]
+
 simple_macros = [
     [
         ['access', 'msg.data', '<ind>'],
@@ -401,6 +415,7 @@ def math_macro(args):
     return app
 
 macros = \
+    map(simple_macro, preparing_simple_macros) + \
     map(simple_macro, simple_macros + constants) + \
     [_getvar, _setvar] + \
     map(synonym_macro, synonyms) + \

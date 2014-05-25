@@ -19,6 +19,8 @@ if msg.value <= 25 * 10^18:
     return(0)
 elif contract.storage[msg.data[0]] or msg.data[0] < 1000:
     return(1)
+elif third:
+    return("else")
 contract.storage[msg.data[0]] = msg.data[1]
 ================
 while i < 997:

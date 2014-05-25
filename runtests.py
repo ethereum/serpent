@@ -11,7 +11,7 @@ def bijection_test_lllparser(ast2):
         i = text2.find('\n', i)
         n -= 1
     if i > 0:
-        text2 = text2[:i] + ';blablabla\n' + text2[i:]
+        text2 = text2[:i] + ';blablabla\n' + text2[i+1:]
     print(text2)
 
     ast3  = lllparser.parse_lll(text2)
