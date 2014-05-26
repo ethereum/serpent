@@ -19,6 +19,8 @@ if msg.value <= 25 * 10^18:
     return(0)
 elif contract.storage[msg.data[0]] or msg.data[0] < 1000:
     return(1)
+elif third:
+    return("else")
 contract.storage[msg.data[0]] = msg.data[1]
 ================
 while i < 997:
@@ -62,3 +64,13 @@ a = 0x1001 & 1
 
 ================
 // A comment on a line on its own at the start of a file
+================
+which = 1
+case which:
+of 3:
+    x = 1
+    return(x)
+of 1:
+    return('1')
+default:
+    return("most default")

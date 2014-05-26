@@ -60,7 +60,7 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
         out = parse_line(main, fil, voffset + line_index, hoffset + hoffset2)
         # Include the child block into the parsed expression
         if main[-1] == ':':
-            assert len(child_block)
+            # assert len(child_block)  # May be zero now(`case` for instance)
             params = fil, voffset + line_index + 1, hoffset + indent
             out.args.append(parse_lines(child_block, *params))
         else:
@@ -68,28 +68,17 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
         # This is somewhat complicated. Essentially, it converts something like
         # "if c1 then s1 elif c2 then s2 elif c3 then s3 else s4" (with
         # appropriate indenting) to [ if c1 s1 [ if c2 s2 [ if c3 s3 s4 ] ] ]
-        if out.fun == 'else if':
-            if len(o) == 0:
-                raise Exception("Cannot start with else if! (%d)" % i)
-            u = o[-1]
-            while len(u.args) == 3:
-                u = u.args[-1]
-            u.args.append(astnode('if', out.args, *out.metadata))
-        elif out.fun == 'else':
-            if len(o) == 0:
-                raise Exception("Cannot start with else! (%d)" % i)
-            u = o[-1]
-            while len(u.args) == 3:
-                u = u.args[-1]
-            u.args.append(out.args[-1])
-        elif out.fun == 'code':
-            if len(o) > 0 and o[-1].fun == 'init':
-                o[-1].args.append(out[1])
-            else:
-                astargs = [astnode('seq', [], *out[0].metadata), out[1]]
-                o.args.append(astnode('init', astargs, *out[0].metadata))
+        if len(o) == 0 or not isinstance(out, astnode):
+            o.append(out)
+            continue
+        u = o[-1]       
+        if u.fun in bodied_continued:
+            if out.fun in bodied_continued[u.fun]:  # It is a continued body.
+                while len(u.args) == 3:
+                    u = u.args[-1]
+                u.args.append(out.args[-1] if out.fun == 'else' else out)
         else:
-            # Normal case: just add the parsed line to the output
+        # Normal case: just add the parsed line to the output
             o.append(out)
     return o[0] if len(o) == 1 else astnode('seq', o, fil, voffset, hoffset)
 
@@ -192,6 +181,20 @@ precedence = {
     '=': 10,
 }
 
+bodied = { 'init':[], 'code':[],  # NOTE: also used in serpent_writer
+           'if':[''], 'elif':[''], 'else':[],
+           'while':[''],
+           'cond':'dont',  # (it is internal if ... elif .. else does it)
+           'case':[''], 'of':[''], 'default':[],
+           'for':['', 'in'],
+           'simple_macro':[]
+        }
+          
+
+bodied_continued = {'elif':['elif', 'else'],
+                    'if':['elif', 'else'],
+                    'case':['of', 'default']}
+
 
 def toktype(token):
     if token is None or isinstance(token, astnode):
@@ -216,7 +219,7 @@ def toktype(token):
         return 'alphanum'
     else:
         print token
-        raise Exception("Invalid token: "+token)
+        raise Exception("Invalid token: " + str(token))
 
 
 # https://en.wikipedia.org/wiki/Shunting-yard_algorithm
@@ -336,13 +339,21 @@ def parse_line(ln, fil='main', linenum=0, charnum=0):
     l_offset = len(ln) - len(ln.lstrip())
     metadata = fil, linenum, charnum + l_offset
     tok = tokenize(ln.strip(), *metadata)
-    if tok[0].val in ['if', 'while']:
-        return astnode(tok[0], [shunting_yard(tok[1:])], *metadata)
-    elif len(tok) >= 2 and [tok[0].val, tok[1].val] == ['else', 'if']:
-        return astnode('else if', [shunting_yard(tok[2:])], *metadata)
-    elif len(tok) >= 1 and tok[0].val == 'elif':
-        return astnode('else if', [shunting_yard(tok[1:])], *metadata)
-    elif len(tok) == 1 and tok[0].val in ['else', 'init', 'code']:
-        return astnode(tok[0], [], *metadata)
+    if tok[0].val in bodied:
+        names = bodied[tok[0].val]
+        if names == 'dont':
+            raise Exception("% not allowed.", tok[0].val)
+        args = []
+        i, j, k = 1, 1, 1
+        while i < len(names):
+            if tok[j].val == names[i]: # Find the name until which the data is.
+                args.append(shunting_yard(tok[k:j]))
+                i += 1
+                j += 1
+                k = j
+            j += 1
+        if k < len(tok):
+            args.append(shunting_yard(tok[k:]))
+        return astnode(tok[0], args, *metadata)
     else:
         return shunting_yard(tok)

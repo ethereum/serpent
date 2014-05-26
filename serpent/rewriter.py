@@ -11,6 +11,20 @@ token, astnode = utils.token, utils.astnode
 # Use <xxx> to indicate parts of the code that can pattern-match anything
 # Use '@xxx' to generate variables on the fly
 
+preparing_simple_macros = [
+    [
+        ['if', '<cond>', '<do>', ['else', '<else>']],
+        ['if', '<cond>', '<do>', '<else>']
+    ],
+    [
+        ['elif', '<cond>', '<do>'],
+        ['if', '<cond>', '<do>']
+    ],
+    [
+        ['elif', '<cond>', '<do>', '<else>'],
+        ['if', '<cond>', '<do>', '<else>']
+    ]]
+
 simple_macros = [
     [
         ['access', 'msg.data', '<ind>'],
@@ -400,8 +414,38 @@ def math_macro(args):
             return token(str(transform(*funargs)), *ast.metadata)
     return app
 
+
+global gen_i
+gen_i = 0
+
+def gensym(name='#gen'):
+    global gen_i
+    gen_i += 1
+    return name + str(gen_i)
+
+def _case(ast):
+
+    if isinstance(ast, astnode) and ast.fun == 'case':
+        assert len(ast.args) == 3  # No cases, or plain wrong.
+        assert ast.args[1].fun == 'seq' and len(ast.args[1].args) == 0
+        var, val = gensym('#casevar'), ast.args[0]
+
+        def c(a):
+            assert isinstance(a, astnode)
+            if a.fun == 'default':
+                assert len(a.args) == 1
+                return a.args[0]
+            elif a.fun == 'of':
+                assert len(a.args) in [2,3]
+                here = ['if', ['==', var, a.args[0]], a.args[1]]
+                if len(a.args) == 3:
+                    here.append(c(a.args[2]))
+                return here
+        return utils.nodeify(c(ast.args[2]))
+
 macros = \
+    map(simple_macro, preparing_simple_macros) + \
     map(simple_macro, simple_macros + constants) + \
-    [_getvar, _setvar] + \
+    [_getvar, _setvar, _case] + \
     map(synonym_macro, synonyms) + \
     map(math_macro, mathfuncs)
