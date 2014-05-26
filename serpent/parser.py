@@ -193,7 +193,8 @@ bodied = { 'init':[], 'code':[],  # NOTE: also used in serpent_writer
 
 bodied_continued = {'elif':['elif', 'else'],
                     'if':['elif', 'else'],
-                    'case':['of', 'default']}
+                    'case':['of', 'default'],
+                    'init':['code']}
 
 
 def toktype(token):

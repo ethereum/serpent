@@ -74,3 +74,8 @@ of 1:
     return('1')
 default:
     return("most default")
+================
+init:
+    a = 1
+code:
+    b = 2
