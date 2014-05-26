@@ -60,7 +60,7 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
         out = parse_line(main, fil, voffset + line_index, hoffset + hoffset2)
         # Include the child block into the parsed expression
         if main[-1] == ':':
-            assert len(child_block)
+            # assert len(child_block)  # May be zero now(`case` for instance)
             params = fil, voffset + line_index + 1, hoffset + indent
             out.args.append(parse_lines(child_block, *params))
         else:
@@ -181,14 +181,15 @@ precedence = {
     '=': 10,
 }
 
-bodied = {'init':[], 'code':[],
-          'if':[''], 'elif':[''], 'else':[],
-          'while':[''],
-          'cond':'dont',  # (it is internal if ... elif .. else does it)
-          'case':[''],
-          'for':['', 'in'],
-          'simple_macro':[],
-          'default':[]}
+bodied = { 'init':[], 'code':[],  # NOTE: also used in serpent_writer
+           'if':[''], 'elif':[''], 'else':[],
+           'while':[''],
+           'cond':'dont',  # (it is internal if ... elif .. else does it)
+           'case':[''], 'of':[''], 'default':[],
+           'for':['', 'in'],
+           'simple_macro':[]
+        }
+          
 
 bodied_continued = {'elif':['elif', 'else'],
                     'if':['elif', 'else'],
