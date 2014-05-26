@@ -5,10 +5,10 @@ x = 1
 ================
 x = 3 + 5
 ================
-x = array(3)
-x[0] = 4
-x[1] = 6
-x[2] = 8
+my_array = array(3)  // Testing underscores.
+my_array[0] = 4
+my_array[1] = 6
+my_array[2] = 8
 ================
 x = msg.datasize
 y = msg.data

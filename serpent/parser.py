@@ -214,7 +214,7 @@ def toktype(token):
         return 'compound'
     elif token.val in precedence:
         return 'binary_operation'
-    elif re.match('^[0-9a-zA-Z\-\.]*$', token.val):
+    elif re.match('^[0-9a-zA-Z\-\._]*$', token.val):
         return 'alphanum'
     elif token.val[0] in ['"', "'"] and token.val[0] == token.val[-1]:
         return 'alphanum'
