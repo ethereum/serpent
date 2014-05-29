@@ -64,14 +64,14 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
         if len(o) == 0 or not isinstance(out, astnode):
             o.append(out)
             continue
-        u = o[-1]       
+        u = o[-1]
         if u.fun in bodied_continued:
             if out.fun in bodied_continued[u.fun]:  # It is a continued body.
                 while len(u.args) == 3:
                     u = u.args[-1]
                 u.args.append(out.args[-1] if out.fun == 'else' else out)
         else:
-        # Normal case: just add the parsed line to the output
+            # Normal case: just add the parsed line to the output
             o.append(out)
     return o[0] if len(o) == 1 else astnode('seq', o, fil, voffset, hoffset)
 
@@ -178,20 +178,18 @@ precedence = {
     '=': 10,
 }
 
-bodied = { 'init':[], 'code':[],  # NOTE: also used in serpent_writer
-           'if':[''], 'elif':[''], 'else':[],
-           'while':[''],
-           'cond':'dont',  # (it is internal if ... elif .. else does it)
-           'case':[''], 'of':[''], 'default':[],
-           'for':['', 'in'],
-           'simple_macro':[]
-        }
-          
+bodied = {'init': [], 'code': [],  # NOTE: also used in serpent_writer
+          'if': [''], 'elif': [''], 'else': [],
+          'while': [''],
+          'cond': 'dont',  # (it is internal if ... elif .. else does it)
+          'case': [''], 'of': [''], 'default': [],
+          'for': ['', 'in'],
+          'simple_macro': []}
 
-bodied_continued = {'elif':['elif', 'else'],
-                    'if':['elif', 'else'],
-                    'case':['of', 'default'],
-                    'init':['code']}
+bodied_continued = {'elif': ['elif', 'else'],
+                    'if': ['elif', 'else'],
+                    'case': ['of', 'default'],
+                    'init': ['code']}
 
 
 def toktype(token):
@@ -350,7 +348,7 @@ def parse_line(ln, fil='main', linenum=0, charnum=0):
         args = []
         i, j, k = 1, 1, 1
         while i < len(names):
-            if tok[j].val == names[i]: # Find the name until which the data is.
+            if tok[j].val == names[i]:  # Find the name until which the data is
                 args.append(shunting_yard(tok[k:j]))
                 i += 1
                 j += 1
