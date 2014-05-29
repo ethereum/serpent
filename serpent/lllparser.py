@@ -1,24 +1,6 @@
 import parser
 
 
-def serialize_lll(ast):
-    if isinstance(ast, parser.token):
-        return ast.val
-    o = '(' + ast.fun
-    subs = map(serialize_lll, ast.args)
-    k = 0
-    out = ''
-    while k <= len(subs) and sum(map(len, subs[:k])) < 80:
-        out = ' ' + ' '.join(subs[:k])
-        k += 1
-    if k <= len(subs):
-        o += out + '\n    '
-        o += '\n'.join(subs[k-1:]).replace('\n', '\n    ')
-        o += '\n)'
-    else:
-        o += out.rstrip() + ')'
-    return o
-
 def tokenize_lll(text):
     tokens = []
     for line in text.split('\n'):
@@ -28,6 +10,7 @@ def tokenize_lll(text):
         else:
             tokens += parser.tokenize(line)
     return tokens
+
 
 def parse_lll(text):
     tokens = tokenize_lll(text)

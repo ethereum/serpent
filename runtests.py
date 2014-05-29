@@ -4,7 +4,7 @@ import random
 
 
 def bijection_test_lllparser(ast2):
-    text2 = lllparser.serialize_lll(ast2)
+    text2 = repr(ast2)
     i = 0
     n = random.randrange(4)  # No comments yet.
     while i >= 0 and n > 0:

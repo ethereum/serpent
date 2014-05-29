@@ -5,7 +5,7 @@ class token():
     def __init__(self, val, fil='', line=0, char=0):
         self.val = val
         self.metadata = [self.fil, self.line, self.char] = fil, line, char
-        self.__repr__ = lambda: repr(self.val)
+        self.__repr__ = lambda: str(self.val)
         self.listfy = lambda: self.val
 
 
@@ -22,8 +22,25 @@ class astnode():
         self.fun = detokenify(fun)
         self.args = args
         self.metadata = [self.fil, self.line, self.char] = fil, line, char
-        self.__repr__ = lambda: repr([self.fun] + self.args)
         self.listfy = lambda: [self.fun] + map(lambda x: x.listfy(), self.args)
+
+    def __repr__(self):
+        o = '(' + self.fun
+        subs = map(repr, self.args)
+        k = 0
+        out = ' '
+        while k < len(subs) and o != '(seq':
+            if '\n' in subs[k] or len(out + subs[k]) >= 80:
+                break
+            out += subs[k] + ' '
+            k += 1
+        if k < len(subs):
+            o += out + '\n    '
+            o += '\n'.join(subs[k:]).replace('\n', '\n    ')
+            o += '\n)'
+        else:
+            o += out.rstrip() + ')'
+        return o
 
 
 def nodeify(s, fil='', line=0, char=0):
