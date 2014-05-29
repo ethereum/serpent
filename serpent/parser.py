@@ -65,8 +65,8 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
             o.append(out)
             continue
         u = o[-1]
-        if u.fun in bodied_continued:
-            if out.fun in bodied_continued[u.fun]:  # It is a continued body.
+        # It is a continued body.
+        if u.fun in bodied_continued and out.fun in bodied_continued[u.fun]:
                 while len(u.args) == 3:
                     u = u.args[-1]
                 u.args.append(out.args[-1] if out.fun == 'else' else out)
