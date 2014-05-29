@@ -16,14 +16,6 @@ def parse(document, fil='main'):
     return parse_lines(document.split('\n'), fil)
 
 
-def strip_line(ln):
-    ln2 = ln.strip()
-    if '//' in ln2:
-        return ln2[:ln2.find('//')]
-    else:
-        return ln2
-
-
 # Parse the statement-level structure, including if and while statements
 def parse_lines(lns, fil='main', voffset=0, hoffset=0):
     o = []
@@ -31,13 +23,14 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
     while i < len(lns):
         main = lns[i]
         line_index = i
+        ms = main.strip()
         # Skip empty lines
-        if len(main.strip()) == 0 or main.strip()[:2] == '//':
+        if ms[:2] == '//' or ms[:1] in ['#', '']:
             i += 1
             continue
         if spaces(main) > 0:
             raise Exception("Line "+str(i)+" indented too much!")
-        main = strip_line(main)
+        main = ms
         hoffset2 = len(main) - len(main.lstrip())
         # If the line was only a comment it's now empty, so skip it
         if len(main) == 0:
@@ -48,7 +41,7 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
         i += 1
         child_lns = []
         while i < len(lns):
-            if len(strip_line(lns[i])) > 0:
+            if len(lns[i].strip()) > 0:
                 sp = spaces(lns[i])
                 if sp == 0:
                     break
@@ -59,7 +52,7 @@ def parse_lines(lns, fil='main', voffset=0, hoffset=0):
         # Calls parse_line to parse the individual line
         out = parse_line(main, fil, voffset + line_index, hoffset + hoffset2)
         # Include the child block into the parsed expression
-        if main[-1] == ':':
+        if out.fun in bodied:
             # assert len(child_block)  # May be zero now(`case` for instance)
             params = fil, voffset + line_index + 1, hoffset + indent
             out.args.append(parse_lines(child_block, *params))
@@ -111,9 +104,12 @@ def tokenize(ln, fil='main', linenum=0, charnum=0):
 
     def nxt():
         global cur
-        if len(cur) >= 2 and cur[-1] == '-':
+        if len(cur) >= 2 and cur[-1] in ['-', '#']:
             o.append(token(cur[:-1], fil, linenum, charnum + i - len(cur)))
-            o.append(token('-', fil, linenum, charnum + i))
+            o.append(token(cur[-1], fil, linenum, charnum + i))
+        elif len(cur) >= 3 and cur[-2:] == '//':
+            o.append(token(cur[:-2], fil, linenum, charnum + i - len(cur)))
+            o.append(token(cur[-2:], fil, linenum, charnum + i))
         elif len(cur.strip()) >= 1:
             o.append(token(cur, fil, linenum, charnum + i - len(cur)))
         cur = ''
@@ -141,7 +137,8 @@ def tokenize(ln, fil='main', linenum=0, charnum=0):
                 i += 1
         # Not inside a string
         else:
-            if c == 'brack' or tp == 'brack': nxt()
+            if cur[-2:] == '//' or cur[-1:] in ['-', '#']: nxt()
+            elif c == 'brack' or tp == 'brack': nxt()
             elif c == 'space': nxt()
             elif c != 'space' and tp == 'space': nxt()
             elif c == 'symb' and tp != 'symb': nxt()
@@ -340,6 +337,12 @@ def parse_line(ln, fil='main', linenum=0, charnum=0):
     l_offset = len(ln) - len(ln.lstrip())
     metadata = fil, linenum, charnum + l_offset
     tok = tokenize(ln.strip(), *metadata)
+    for i, t in enumerate(tok):
+        if t.val in ['#', '//']:
+            tok = tok[:i]
+            break
+    if tok[-1].val == ':':
+        tok = tok[:-1]
     if tok[0].val in bodied:
         names = bodied[tok[0].val]
         if names == 'dont':
