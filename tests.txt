@@ -79,3 +79,16 @@ init:
     a = 1
 code:
     b = 2
+================
+init:
+    contract.storage[1] = msg.sender
+code:
+    contract.storage[2] = 1
+================
+init: // comment on block line
+    contract.storage[1] = msg.sender
+code:
+    if tx.gas > 1000: // comment on block line
+        send(msg.sender, msg.value, tx.gas / 2)
+        return(1)
+    return(0)

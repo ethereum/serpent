@@ -64,6 +64,6 @@ def test_on_file(file):
 for f in ['tests.txt',
           'examples/mul2.se', 'examples/namecoin.se',
           # Currently dont work, latter is fixed by #33
-          # 'examples/returnten.se', 'examples/subcurrency.se'
+          'examples/returnten.se', 'examples/subcurrency.se'
           ]:
     test_on_file(f)

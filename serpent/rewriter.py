@@ -238,6 +238,7 @@ synonyms = [
     ['not', 'NOT'],
     ['byte', 'BYTE'],
     ['string', 'alloc'],
+    ['create', 'CREATE'],
     ['+', 'ADD'],
     ['-', 'SUB'],
     ['*', 'MUL'],
@@ -269,14 +270,20 @@ mathfuncs = [
 
 
 def _import(ast):
-    if ast[0].val == 'import':
-        x = parse(open(ast[0].val).read(), ast[0].val)
-        return astnode('code', [x], *ast[0].metadata)
+    if isinstance(ast, astnode) and ast.fun == 'import':
+        filename = ast.args[0].val
+        if filename[0] == '"':
+            filename = filename[1:-1]
+        x = preprocess(parse(open(filename).read(), ast.args[0].val))
+        return astnode('code', [x], *ast.metadata)
 
 
 def _inset(ast):
-    if ast[0].val == 'inset':
-        return parse(open(ast[0].val).read(), ast[0].val)
+    if isinstance(ast, astnode) and ast.fun == 'inset':
+        filename = ast.args[0].val
+        if filename[0] == '"':
+            filename = filename[1:-1]
+        return parse(open(filename).read(), ast.args[0].val)
 
 
 label_counter = [0]
@@ -459,6 +466,6 @@ def _case(ast):
 macros = \
     map(simple_macro, preparing_simple_macros) + \
     map(simple_macro, simple_macros + constants) + \
-    [_getvar, _setvar, _case] + \
+    [_getvar, _setvar, _case, _import, _inset] + \
     map(synonym_macro, synonyms) + \
     map(math_macro, mathfuncs)
