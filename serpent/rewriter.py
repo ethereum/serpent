@@ -24,9 +24,11 @@ preparing_simple_macros = [
         ['elif', '<cond>', '<do>', '<else>'],
         ['if', '<cond>', '<do>', '<else>']
     ],
-    [   ['code', '<code>'],
+    [
+        ['code', '<code>'],
         '<code>'
-    ]]
+    ]
+]
 
 simple_macros = [
     [
@@ -312,6 +314,8 @@ def analyze_and_varify_ast(ast, data):
     else:
         if ast.val not in data['varhash']:
             data['varhash'][ast.val] = str(len(data['varhash']) * 32)
+        if ast.val == '__msg.data':
+            data['msgdata_used'] = True
         return token(data['varhash'][ast.val], *ast.metadata)
 
 
@@ -321,9 +325,15 @@ def finalize(expr, data=None):
     if len(data['varhash']) > 0 and data.get('alloc_used'):
         memsz = len(data['varhash']) * 32 - 1
         inner = astnode('MSTORE8', map(token, map(str, [memsz, 0])))
-        return astnode('seq', [inner, e])
-    else:
-        return e
+        e = astnode('seq', [inner, e])
+    if data.get('msgdata_used'):
+        msg_data_addr = token(data['varhash']['__msg.data'])
+        alloc = astnode('alloc', [astnode('CALLDATASIZE', [])])
+        node1 = astnode('MSTORE', [msg_data_addr, alloc])
+        tok3 = astnode('CALLDATASIZE', [])
+        node2 = astnode('CALLDATACOPY', [token(0), msg_data_addr, tok3])
+        e = astnode('seq', [node1, node2, e])
+    return e
 
 
 def preprocess(ast):
