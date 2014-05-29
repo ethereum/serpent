@@ -23,6 +23,9 @@ preparing_simple_macros = [
     [
         ['elif', '<cond>', '<do>', '<else>'],
         ['if', '<cond>', '<do>', '<else>']
+    ],
+    [   ['code', '<code>'],
+        '<code>'
     ]]
 
 simple_macros = [
@@ -127,7 +130,7 @@ simple_macros = [
         ['NOT', ['GT', '<x>', '<y>']]
     ],
     [
-        ['create', '<endowment>', ['code', '<code>']],
+        ['create', '<endowment>', '<code>'],
         ['seq',
             ['CREATE', '<endowment>', '@1', ['lll', ['outer', '<code>'], '@1']]]
     ],
