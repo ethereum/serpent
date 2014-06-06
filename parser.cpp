@@ -2,83 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
-
-const int TOKEN = 0,
-          ASTNODE = 1,
-          SPACE = 2,
-          BRACK = 3,
-          SQUOTE = 4,
-          DQUOTE = 5,
-          SYMB = 6,
-          ALPHANUM = 7,
-          LPAREN = 8,
-          RPAREN = 9,
-          COMMA = 10,
-          COLON = 11,
-          UNARY_OP = 12,
-          BINARY_OP = 13,
-          COMPOUND = 14;
-
-// Stores metadata about each token
-struct Metadata {
-    std::string file;
-    int ln;
-    int ch;
-};
-
-Metadata metadata(std::string file="main", int ln=0, int ch=0) {
-    Metadata o;
-    o.file = file;
-    o.ln = ln;
-    o.ch = ch;
-    return o;
-}
-
-// type can be TOKEN or ASTNODE
-struct Node {
-    int type;
-    std::string val;
-    std::vector<Node> args;
-    Metadata metadata;
-};
-
-Node token(std::string val, Metadata metadata) {
-    Node o;
-    o.type = 0;
-    o.val = val;
-    o.metadata = metadata;
-    return o;
-}
-
-Node astnode(std::string val, std::vector<Node> args, Metadata metadata) {
-    Node o;
-    o.type = 1;
-    o.val = val;
-    o.args = args;
-    o.metadata = metadata;
-    return o;
-}
-
-// Print token list
-std::string printTokens(std::vector<Node> tokens) {
-    if (!tokens.size()) return "[]";
-    std::string s = "[";
-    for (int i = 0; i < tokens.size(); i++) {
-        s += tokens[i].val + ", ";
-    }
-    return s.substr(0,s.length() - 2) + "]";
-}
-
-// Prints a lisp AST on one line
-std::string printSimple(Node ast) {
-    if (ast.type == TOKEN) return ast.val;
-    std::string o = "(" + ast.val;
-    std::vector<std::string> subs;
-    for (int i = 0; i < ast.args.size(); i++) {
-        o += " " + printSimple(ast.args[i]);
-    }
-    return o + ")";
-}
+#include "types.cpp"
 
 // These appear as independent tokens even if inside a stream of symbols
 const std::string atoms[] = { "#", "-", "//", "(", ")", "[", "]", "{", "}" };
@@ -88,6 +12,7 @@ int chartype(char c) {
     if (c >= '0' && c <= '9') return ALPHANUM;
     else if (c >= 'a' && c <= 'z') return ALPHANUM;
     else if (c >= 'A' && c <= 'Z') return ALPHANUM;
+    else if (std::string("._@").find(c) != -1) return ALPHANUM;
     else if (c == '\t' || c == ' ' || c == '\n') return SPACE;
     else if (std::string("()[]{}").find(c) != -1) return BRACK;
     else if (c == '"') return DQUOTE;
@@ -386,7 +311,9 @@ Node treefy(std::vector<Node> stream) {
         std::cerr << "Output blank!\n";
     }
     else if (oq.size() > 1) {
-        std::cerr << "Too many tokens in output\n";
+        std::cerr << "Too many tokens in output: ";
+        for (int i = 0; i < oq.size(); i++)
+            std::cerr << printSimple(oq[i]) << "\n";
     }
     else return oq[0];
 }
@@ -573,7 +500,7 @@ std::string printAST(Node ast) {
 
 using namespace std;
 
-int main() {
+/*int main() {
     cout << printTokens(tokenize("f(2,5+3)/45+-7")) << "\n";
     cout << printAST(parseLLL("(seq (+ 2 7) (- 2 (* 7 4)) (mstore (mload 6)))")) << "\n";
     cout << printAST(parseLLL("(/ (+ 2 3) (mload (mstore 3214 ) 124124 ) 128461274672164124124 (+ 8 9) (/ 1267416274 12431241 21412412 4 ))")) << "\n";
@@ -588,4 +515,5 @@ int main() {
     cout << printAST(parseSerpent("if x < 2 + 3:\n    y = 5 * 7")) << "\n";
     cout << printAST(parseSerpent("if x < 2 + 3:\n    y = 5 * 7\nelif x < 9:\n    y = 15")) << "\n";
     cout << printAST(parseSerpent("if x < 2 + 3:\n    y = 5 * 7\nelif x < 9:\n    y = 15\nelif x < f(4):\n    y = -4\nelse:\n    y = 0")) << "\n";
-}
+    cout << printAST(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]\n    return(1)\nelse:\n    return(0)")) << "\n";
+}*/
