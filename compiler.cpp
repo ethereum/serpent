@@ -2,8 +2,9 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include "rewriter.cpp"
-#include "opcodes.cpp"
+#include "util.h"
+#include "bignum.h"
+#include "opcodes.h"
 
 struct programData {
     std::map<std::string, std::string> vars;
@@ -31,9 +32,8 @@ programData merge(programData existing, programData newdata) {
     return existing;
 }
 
-programData compile(Node node, programData pdata=pd()) {
-    std::string symb = "_"+intToDecimal(counter);
-    counter += 1;
+programData flatten(Node node, programData pdata=pd()) {
+    std::string symb = "_"+mkUniqueToken();
     if (node.type == TOKEN) {
         pdata.code.push_back(nodeToNumeric(node));
     }
@@ -44,7 +44,7 @@ programData compile(Node node, programData pdata=pd()) {
         }
         if (varname == "msg.data") pdata.calldataUsed = true;
         if (node.val == "set") {
-            pdata = merge(pdata, compile(node.args[1], pdata));
+            pdata = merge(pdata, flatten(node.args[1], pdata));
         }
         pdata.code.push_back(token(pdata.vars[varname], node.metadata));
         if (node.val == "set") {
@@ -56,34 +56,34 @@ programData compile(Node node, programData pdata=pd()) {
     }
     else if (node.val == "seq") {
         for (int i = 0; i < node.args.size(); i++) {
-            pdata = merge(pdata, compile(node.args[i], pdata));
+            pdata = merge(pdata, flatten(node.args[i], pdata));
         }
     }
     else if (node.val == "unless" && node.args.size() == 2) {
-        pdata = merge(pdata, compile(node.args[0], pdata));
+        pdata = merge(pdata, flatten(node.args[0], pdata));
         pdata.code.push_back(token("$endif"+symb, node.metadata));
         pdata.code.push_back(token("JUMPI", node.metadata));
-        pdata = merge(pdata, compile(node.args[1], pdata));
+        pdata = merge(pdata, flatten(node.args[1], pdata));
         pdata.code.push_back(token("~endif"+symb, node.metadata));
     }
     else if (node.val == "if" && node.args.size() == 3) {
-        pdata = merge(pdata, compile(node.args[0], pdata));
+        pdata = merge(pdata, flatten(node.args[0], pdata));
         pdata.code.push_back(token("NOT", node.metadata));
         pdata.code.push_back(token("$else"+symb, node.metadata));
         pdata.code.push_back(token("JUMPI", node.metadata));
-        pdata = merge(pdata, compile(node.args[1], pdata));
+        pdata = merge(pdata, flatten(node.args[1], pdata));
         pdata.code.push_back(token("$endif"+symb, node.metadata));
         pdata.code.push_back(token("JUMP", node.metadata));
         pdata.code.push_back(token("~else"+symb, node.metadata));
-        pdata = merge(pdata, compile(node.args[2], pdata));
+        pdata = merge(pdata, flatten(node.args[2], pdata));
         pdata.code.push_back(token("~endif"+symb, node.metadata));
     }
     else if (node.val == "until") {
         pdata.code.push_back(token("~beg"+symb, node.metadata));
-        pdata = merge(pdata, compile(node.args[0], pdata));
+        pdata = merge(pdata, flatten(node.args[0], pdata));
         pdata.code.push_back(token("$end"+symb, node.metadata));
         pdata.code.push_back(token("JUMPI", node.metadata));
-        pdata = merge(pdata, compile(node.args[1], pdata));
+        pdata = merge(pdata, flatten(node.args[1], pdata));
         pdata.code.push_back(token("$beg"+symb, node.metadata));
         pdata.code.push_back(token("JUMP", node.metadata));
         pdata.code.push_back(token("~end"+symb, node.metadata));
@@ -92,20 +92,20 @@ programData compile(Node node, programData pdata=pd()) {
         std::string LEN = "$begincode"+symb+".endcode"+symb;
         pdata.code.push_back(token(LEN, node.metadata));
         pdata.code.push_back(token("DUP", node.metadata));
-        pdata = merge(pdata, compile(node.args[1], pdata));
+        pdata = merge(pdata, flatten(node.args[1], pdata));
         pdata.code.push_back(token("$begincode"+symb, node.metadata));
         pdata.code.push_back(token("CODECOPY", node.metadata));
         pdata.code.push_back(token("$endcode"+symb, node.metadata));
         pdata.code.push_back(token("JUMP", node.metadata));
         pdata.code.push_back(token("~begincode"+symb, node.metadata));
         pdata.code.push_back(token("#CODE_BEGIN", node.metadata));
-        pdata = merge(pdata, compile(node.args[0], pdata));
+        pdata = merge(pdata, flatten(node.args[0], pdata));
         pdata.code.push_back(token("#CODE_END", node.metadata));
         pdata.code.push_back(token("~endcode"+symb, node.metadata));
     }
     else if (node.val == "alloc") {
         pdata.allocUsed = true;
-        pdata = merge(pdata, compile(node.args[0], pdata));
+        pdata = merge(pdata, flatten(node.args[0], pdata));
         pdata.code.push_back(token("MSIZE", node.metadata));
         pdata.code.push_back(token("SWAP", node.metadata));
         pdata.code.push_back(token("MSIZE", node.metadata));
@@ -123,7 +123,7 @@ programData compile(Node node, programData pdata=pd()) {
         if (node.args.size()) {
             pdata.code.push_back(token("DUP", node.metadata));
             for (int i = 0; i < node.args.size(); i++) {
-                pdata = merge(pdata, compile(node.args[i], pdata));
+                pdata = merge(pdata, flatten(node.args[i], pdata));
                 pdata.code.push_back(token("SWAP", node.args[i].metadata));
                 pdata.code.push_back(token("MSTORE", node.args[i].metadata));
                 pdata.code.push_back(token("DUP", node.args[i].metadata));
@@ -137,14 +137,14 @@ programData compile(Node node, programData pdata=pd()) {
     }
     else {
         for (int i = node.args.size() - 1; i >= 0; i--) {
-            pdata = merge(pdata, compile(node.args[i], pdata));
+            pdata = merge(pdata, flatten(node.args[i], pdata));
         }
         pdata.code.push_back(token(node.val, node.metadata));
     }
     return pdata;
 }
 
-programData finalize(programData c) {
+std::vector<Node> finalize(programData c) {
     std::vector<Node> newCode;
     if (c.allocUsed && c.vars.size() > 0) {
         newCode.push_back(token("0", c.code[0].metadata));
@@ -162,19 +162,22 @@ programData finalize(programData c) {
         newCode.push_back(token("MSTORE", c.code[0].metadata));
     }
     for (int i = 0; i < c.code.size(); i++) newCode.push_back(c.code[i]);
-    c.code = newCode;
-    return c;
+    return newCode;
 }
 
-std::vector<Node> dereference(programData c) {
+std::vector<Node> compile_lll(Node node) {
+    return finalize(flatten(node));
+}
+
+std::vector<Node> dereference(std::vector<Node> program) {
     int labelLength = 1;
-    int tokenCount = c.code.size();
+    int tokenCount = program.size();
     while (tokenCount > 64) {
         tokenCount /= 256;
         labelLength += 1;
     }
     std::vector<Node> iq;
-    for (int i = c.code.size() - 1; i >= 0; i--) iq.push_back(c.code[i]);
+    for (int i = program.size() - 1; i >= 0; i--) iq.push_back(program[i]);
     std::map<std::string,std::string> labelMap;
     int pos = 0;
     std::vector<int> codeStk;
@@ -191,7 +194,7 @@ std::vector<Node> dereference(programData c) {
         else {
             mq.push_back(front);
             if (isNumberLike(front)) {
-                pos += 1 + (decimalLog256(front.val) || 1);
+                pos += 1 + toByteArr(front.val, front.metadata).size();
             }
             else if (front.val[0] == '$') {
                 pos += labelLength + 1;
@@ -204,9 +207,9 @@ std::vector<Node> dereference(programData c) {
         Node m = mq[i];
         if (isNumberLike(m)) {
             m = nodeToNumeric(m);
-            int len = decimalLog256(m.val) || 1;
-            oq.push_back(token("PUSH"+intToDecimal(len), m.metadata));
             std::vector<Node> os = toByteArr(m.val, m.metadata);
+            int len = os.size();
+            oq.push_back(token("PUSH"+intToDecimal(len), m.metadata));
             for (int i = 0; i < os.size(); i++) oq.push_back(os[i]);
         }
         else if (m.val[0] == '$') {
@@ -223,7 +226,6 @@ std::vector<Node> dereference(programData c) {
                 std::string start = labelMap[m.val.substr(1, dotLoc - 1)],
                             end = labelMap[m.val.substr(dotLoc + 1)],
                             dist = decimalSub(end, start);
-                std::cout << m.val.substr(1, dotLoc - 1) << " " << start << " " << m.val.substr(dotLoc - 1) << " " << end << " " << dist << " foo\n";
                 os = toByteArr(dist, m.metadata);
             }
             for (int i = 0; i < os.size(); i++) oq.push_back(os[i]);
@@ -252,7 +254,11 @@ std::string serialize(std::vector<Node> derefed) {
     return o;
 }
 
-int main() {
+std::string assemble(std::vector<Node> program) {
+    return serialize(dereference(program));
+}
+
+/*int main() {
     Node n = rewrite(parseSerpent("x = 2 + 3"));
     cout << printAST(n) << " r\n";
     programData c = compile(n);
@@ -266,4 +272,4 @@ int main() {
     cout << printTokens(compile(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]"))).code) << "\n";
     cout << printTokens(dereference(finalize(compile(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]")))))) << "\n";
     cout << serialize(dereference(finalize(compile(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]")))))) << "\n";
-}
+}*/

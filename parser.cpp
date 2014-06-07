@@ -2,97 +2,9 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include "types.cpp"
-
-// These appear as independent tokens even if inside a stream of symbols
-const std::string atoms[] = { "#", "-", "//", "(", ")", "[", "]", "{", "}" };
-const int numAtoms = 9;
-
-int chartype(char c) {
-    if (c >= '0' && c <= '9') return ALPHANUM;
-    else if (c >= 'a' && c <= 'z') return ALPHANUM;
-    else if (c >= 'A' && c <= 'Z') return ALPHANUM;
-    else if (std::string("._@").find(c) != -1) return ALPHANUM;
-    else if (c == '\t' || c == ' ' || c == '\n') return SPACE;
-    else if (std::string("()[]{}").find(c) != -1) return BRACK;
-    else if (c == '"') return DQUOTE;
-    else if (c == '\'') return SQUOTE;
-    else return SYMB;
-}
-
-// "y = f(45,124)/3" -> [ "y", "f", "(", "45", ",", "124", ")", "/", "3"]
-std::vector<Node> tokenize(std::string inp, Metadata metadata=metadata()) {
-    int curtype = SPACE;
-    int pos = 0;
-    metadata.ch = 0;
-    std::string cur;
-    std::vector<Node> out;
-
-    inp += " ";
-    while (pos < inp.length()) {
-        int headtype = chartype(inp[pos]);
-        // Are we inside a quote?
-        if (curtype == SQUOTE || curtype == DQUOTE) {
-            // Close quote
-            if (headtype == curtype) {
-                cur += inp[pos];
-                out.push_back(token(cur, metadata));
-                cur = "";
-                metadata.ch = pos;
-                curtype = SPACE;
-            }
-            // eg. \xc3
-            else if (inp.length() >= pos + 4 && inp.substr(pos, 2) == "\\x") {
-                cur += (std::string("0123456789abcdef").find(inp[pos+2]) * 16
-                        + std::string("0123456789abcdef").find(inp[pos+3]));
-                pos += 4;
-            }
-            // Newline
-            else if (inp.substr(pos, 2) == "\\n") {
-                cur += '\n';
-                pos += 2;
-            }
-            // Backslash escape
-            else if (inp.length() >= pos + 2 && inp[pos] == '\\') {
-                cur += inp[pos + 1];
-                pos += 2;
-            }
-            // Normal character
-            else {
-                cur += inp[pos];
-                pos += 1;
-            }
-        }
-        else {
-            // Handle atoms ( '//', '#', '-', brackets )
-            for (int i = 0; i < numAtoms; i++) {
-                int split = cur.length() - atoms[i].length();
-                if (split >= 0 && cur.substr(split) == atoms[i]) {
-                    if (split > 0) {
-                        out.push_back(token(cur.substr(0, split), metadata));
-                    }
-                    metadata.ch += split;
-                    out.push_back(token(cur.substr(split), metadata));
-                    metadata.ch = pos;
-                    cur = "";
-                    curtype = SPACE;
-                }
-            }
-            // Boundary between different char types
-            if (headtype != curtype) {
-                if (curtype != SPACE && cur != "") {
-                    out.push_back(token(cur, metadata));
-                }
-                metadata.ch = pos;
-                cur = "";
-            }
-            cur += inp[pos];
-            curtype = headtype;
-            pos += 1;
-        }
-    }
-    return out;
-}
+#include "util.h"
+#include "parser.h"
+#include "tokenize.h"
 
 // Extended BEDMAS precedence order
 int precedence(Node tok) {
@@ -122,57 +34,6 @@ int toktype(Node tok) {
     else return ALPHANUM;
 }
 
-struct _parseOutput {
-    Node node;
-    int newpos;
-};
-
-// Helper, returns subtree and position of start of next node
-_parseOutput _parse(std::vector<Node> inp, int pos) {
-    Metadata met = inp[pos].metadata;
-    _parseOutput o;
-    // Bracket: keep grabbing tokens until we get to the
-    // corresponding closing bracket
-    if (inp[pos].val == "(" || inp[pos].val == "[") {
-        std::string fun, rbrack;
-        std::vector<Node> args;
-        pos += 1;
-        if (inp[pos].val == "[") {
-            fun = "access";
-            rbrack = "]";
-        }
-        else rbrack = ")";
-        // First argument is the function
-        while (inp[pos].val != ")") {
-            _parseOutput po = _parse(inp, pos);
-            if (fun.length() == 0 && po.node.type == 1) {
-                std::cerr << "Error: first arg must be function\n";
-                fun = po.node.val;
-            }
-            else if (fun.length() == 0) {
-                fun = po.node.val;
-            }
-            else {
-                args.push_back(po.node);
-            }
-            pos = po.newpos;
-        }
-        o.newpos = pos + 1;
-        o.node = astnode(fun, args, met);
-    }
-    // Normal token, return it and advance to next token
-    else {
-        o.newpos = pos + 1;
-        o.node = token(inp[pos].val, met);
-    }
-    return o;
-}
-
-// stream of tokens -> lisp parse tree
-Node parseTokenStream(std::vector<Node> inp) {
-    _parseOutput o = _parse(inp, 0);
-    return o.node;
-}
 
 // Converts to reverse polish notation
 std::vector<Node> shuntingYard(std::vector<Node> tokens) {
@@ -318,31 +179,12 @@ Node treefy(std::vector<Node> stream) {
     else return oq[0];
 }
 
-// Parses LLL
-Node parseLLL(std::string s, Metadata metadata=metadata()) {
-    return parseTokenStream(tokenize(s, metadata));
-}
 
 // Parses one line of serpent
-Node parseLine(std::string s, Metadata metadata) {
-    return treefy(shuntingYard(tokenize(s, metadata)));
+Node parseSerpentTokenStream(std::vector<Node> s) {
+    return treefy(shuntingYard(s));
 }
 
-// Splits text by line
-std::vector<std::string> splitLines(std::string s) {
-    int pos = 0;
-    int lastNewline = 0;
-    std::vector<std::string> o;
-    while (pos < s.length()) {
-        if (s[pos] == '\n') {
-            o.push_back(s.substr(lastNewline, pos - lastNewline));
-            lastNewline = pos + 1;
-        }
-        pos = pos + 1;
-    }
-    o.push_back(s.substr(lastNewline));
-    return o;
-}
 
 // Count spaces at beginning of line
 int spaceCount(std::string s) {
@@ -396,7 +238,7 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
             continue;
         }
         // Parse current line
-        Node out = treefy(shuntingYard(tokens2));
+        Node out = parseSerpentTokenStream(tokens2);
         // Parse child block
         int indent = 999999;
         std::vector<std::string> childBlock;
@@ -447,56 +289,10 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
 }
 
 // Parses serpent code
-Node parseSerpent(std::string s, std::string file="file") {
+Node parseSerpent(std::string s, std::string file) {
     return parseLines(splitLines(s), metadata(file, 0, 0), 0);
 }
 
-// Inverse of splitLines
-std::string joinLines(std::vector<std::string> lines) {
-    std::string o = "\n";
-    for (int i = 0; i < lines.size(); i++) {
-        o += lines[i] + "\n";
-    }
-    return o.substr(1, o.length() - 2);
-}
-
-// Indent all lines by 4 spaces
-std::string indentLines(std::string inp) {
-    std::vector<std::string> lines = splitLines(inp);
-    for (int i = 0; i < lines.size(); i++) lines[i] = "    "+lines[i];
-    return joinLines(lines);
-}
-
-// Prints a lisp AST
-std::string printAST(Node ast) {
-    if (ast.type == TOKEN) return ast.val;
-    std::string o = "(" + ast.val;
-    std::vector<std::string> subs;
-    for (int i = 0; i < ast.args.size(); i++) {
-        subs.push_back(printAST(ast.args[i]));
-    }
-    int k = 0;
-    std::string out = " ";
-    // As many arguments as possible go on the same line as the function,
-    // except when seq is used
-    while (k < subs.size() && o != "(seq") {
-        if (subs[k].find("\n") != -1 || (out + subs[k]).length() >= 80) break;
-        out += subs[k] + " ";
-        k += 1;
-    }
-    // All remaining arguments go on their own lines
-    if (k < subs.size()) {
-        o += out + "\n";
-        std::vector<std::string> subsSliceK;
-        for (int i = k; i < subs.size(); i++) subsSliceK.push_back(subs[i]);
-        o += indentLines(joinLines(subsSliceK));
-        o += "\n)";
-    }
-    else {
-        o += out.substr(0, out.size() - 1) + ")";
-    }
-    return o;
-}
 
 using namespace std;
 

@@ -1,3 +1,6 @@
+#ifndef ETHSERP_OPCODES
+#define ETHSERP_OPCODES
+
 #include <stdio.h>
 #include <iostream>
 #include <vector>
@@ -67,3 +70,5 @@ int opcode(std::string op) {
     }
     return opcodes[op];
 }
+
+#endif
