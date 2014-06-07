@@ -104,10 +104,18 @@ std::string macros[][2] = {
     },
     {
         "(>= $x $y)",
-        "(NOT (LT $x $y))"
+        "(NOT (SLT $x $y))"
     },
     {
         "(<= $x $y)",
+        "(NOT (SGT $x $y))"
+    },
+    {
+        "(@>= $x $y)",
+        "(NOT (LT $x $y))"
+    },
+    {
+        "(@<= $x $y)",
         "(NOT (GT $x $y))"
     },
     {
