@@ -59,6 +59,6 @@ Node parseLLLTokenStream(std::vector<Node> inp) {
 }
 
 // Parses LLL
-Node parseLLL(std::string s, Metadata metadata) {
-    return parseLLLTokenStream(tokenize(s, metadata));
+Node parseLLL(std::string s, Metadata meta) {
+    return parseLLLTokenStream(tokenize(s, meta));
 }

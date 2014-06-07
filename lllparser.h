@@ -8,6 +8,6 @@
 #include "util.h"
 
 // LLL text -> parse tree
-Node parseLLL(std::string s, Metadata metadata=metadata());
+Node parseLLL(std::string s, Metadata meta=metadata());
 
 #endif
