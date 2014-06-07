@@ -7,6 +7,6 @@
 #include <map>
 #include "util.h"
 
-std::vector<Node> tokenize(std::string inp, Metadata metadata=metadata());
+std::vector<Node> tokenize(std::string inp, Metadata meta=metadata());
 
 #endif
