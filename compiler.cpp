@@ -257,19 +257,3 @@ std::string serialize(std::vector<Node> derefed) {
 std::string assemble(std::vector<Node> program) {
     return serialize(dereference(program));
 }
-
-/*int main() {
-    Node n = rewrite(parseSerpent("x = 2 + 3"));
-    cout << printAST(n) << " r\n";
-    programData c = compile(n);
-    cout << printTokens(c.code) << " c\n";
-    c = finalize(c);
-    cout << printTokens(c.code) << " f\n";
-    std::vector<Node> d = dereference(c);
-    cout << printTokens(d) << " d\n";
-    std::string s = serialize(d);
-    cout << s << " s\n";
-    cout << printTokens(compile(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]"))).code) << "\n";
-    cout << printTokens(dereference(finalize(compile(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]")))))) << "\n";
-    cout << serialize(dereference(finalize(compile(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]")))))) << "\n";
-}*/

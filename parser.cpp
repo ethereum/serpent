@@ -295,21 +295,3 @@ Node parseSerpent(std::string s, std::string file) {
 
 
 using namespace std;
-
-/*int main() {
-    cout << printTokens(tokenize("f(2,5+3)/45+-7")) << "\n";
-    cout << printAST(parseLLL("(seq (+ 2 7) (- 2 (* 7 4)) (mstore (mload 6)))")) << "\n";
-    cout << printAST(parseLLL("(/ (+ 2 3) (mload (mstore 3214 ) 124124 ) 128461274672164124124 (+ 8 9) (/ 1267416274 12431241 21412412 4 ))")) << "\n";
-    cout << printAST(parseLLL(printAST(parseLLL("(/ (+ 2 3) (mload (mstore 3214 ) 124124 ) 128461274672164124124 (+ 8 9) (/ 1267416274 12431241 21412412 4 ))")))) << "\n";
-    cout << printTokens(shuntingYard(tokenize("2 + 3"))) << "\n";
-    cout << printTokens(shuntingYard(tokenize("2 / query(4 + 3) * [1,2,3]"))) << "\n";
-    cout << printAST(parseLine("2 + 3", metadata())) << "\n";
-    cout << printAST(parseLine("bob[5] = \"dog\"", metadata())) << "\n";
-    cout << printAST(parseLine("2 / query(4 + 3) * [1,2,3]", metadata())) << "\n";
-    cout << printAST(parseSerpent("x = 2 + 3")) << "\n";
-    cout << printAST(parseSerpent("x = 2 + 3\ny = 5 * 7")) << "\n";
-    cout << printAST(parseSerpent("if x < 2 + 3:\n    y = 5 * 7")) << "\n";
-    cout << printAST(parseSerpent("if x < 2 + 3:\n    y = 5 * 7\nelif x < 9:\n    y = 15")) << "\n";
-    cout << printAST(parseSerpent("if x < 2 + 3:\n    y = 5 * 7\nelif x < 9:\n    y = 15\nelif x < f(4):\n    y = -4\nelse:\n    y = 0")) << "\n";
-    cout << printAST(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]\n    return(1)\nelse:\n    return(0)")) << "\n";
-}*/

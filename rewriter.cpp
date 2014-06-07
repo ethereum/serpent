@@ -322,24 +322,3 @@ Node rewrite(Node inp) {
 }
 
 using namespace std;
-
-/*int main() {
-    cout << printAST(rewrite(parseSerpent("x = 2 + 3"))) << "\n";
-    cout << printAST(rewrite(parseSerpent("x = 2 + 3\ny = 5 * 7"))) << "\n";
-    cout << printAST(rewrite(parseSerpent("if x < 2 + 3:\n    y = 5 * 7"))) << "\n";
-    cout << printAST(rewrite(parseSerpent("if x < 2 + 3:\n    y = 5 * 7\nelif x < 9:\n    y = 15"))) << "\n";
-    cout << printAST(parseSerpent("if x < 2 + 3:\n    y = 5 * 7\nelif x < 9:\n    y = 15\nelif x < f(4):\n    y = -4\nelse:\n    y = 0")) << "\n";
-    cout << printAST(rewrite(parseSerpent("if x < 2 + 3:\n    y = 5 * 7\nelif x < 9:\n    y = 15\nelif x < f(4):\n    y = -4\nelse:\n    y = 0"))) << "\n";
-    cout << printAST(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]")) << "\n";
-    cout << printAST(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]"))) << "\n";
-    cout << printAST(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]\n    return(1)\nelse:\n    return(0)")) << "\n";
-    cout << printAST(rewrite(parseSerpent("if contract.storage[msg.data[0]]:\n    contract.storage[msg.data[0]] = msg.data[1]\n    return(1)\nelse:\n    return(0)")));
-    cout << decimalAdd("256", "256") << "\n";
-    cout << decimalDigitMul("19683", 3) << "\n";
-    cout << decimalMul("65536", "65536") << "\n";
-    cout << decimalSub("65536", "32768") << "\n";
-    cout << decimalSub("1000000", "43") << "\n";
-    cout << decimalDiv("531441", "243") << "\n";
-    cout << decimalDiv("531441", "9") << "\n";
-    cout << decimalDiv("999999", "27") << "\n";
-}*/
