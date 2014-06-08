@@ -167,6 +167,18 @@ Node treefy(std::vector<Node> stream) {
             oq.push_back(astnode(fun, args2, tok.metadata));
         }
         else oq.push_back(tok);
+        // This is messy, but has to be done. Import/inset other files here
+        std::string v = oq.back().val;
+        if ((v == "inset" || v == "import" || v == "create") 
+                && oq.back().args.size() == 1
+                && oq.back().args[0].type == TOKEN) {
+            std::string filename = oq.back().args[0].val;
+            filename = filename.substr(1, filename.length() - 2);
+            std::cout << filename << "\n";
+            std::string inner = get_file_contents(filename);
+            oq.back().args.pop_back();
+            oq.back().args.push_back(parseSerpent(inner));
+        }
     }
     // Output must have one argument
     if (oq.size() == 0) {

@@ -41,6 +41,7 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata) {
                 cur = "";
                 metadata.ch = pos;
                 curtype = SPACE;
+                pos += 1;
             }
             // eg. \xc3
             else if (inp.length() >= pos + 4 && inp.substr(pos, 2) == "\\x") {

@@ -5,6 +5,8 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <fstream>
+#include <cerrno>
 
 const int TOKEN = 0,
           ASTNODE = 1,
@@ -68,5 +70,11 @@ Node nodeToNumeric(Node node);
 
 //Converts a value to an array of byte number nodes
 std::vector<Node> toByteArr(std::string val, Metadata metadata);
+
+//Reads a file
+std::string get_file_contents(std::string filename);
+
+//Does a file exist?
+bool exists(std::string fileName);
 
 #endif

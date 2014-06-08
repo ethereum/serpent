@@ -158,6 +158,22 @@ std::string macros[][2] = {
         "(seq (seq) $x)",
         "$x"
     },
+    {
+        "(inset $x)",
+        "$x"
+    },
+    {
+        "(create $val (import $code))",
+        "(seq (set $1 MSIZE) (create $val (get $1) (lll $code (get $1))))"
+    },
+    {
+        "(create (import $x))",
+        "(seq (set $1 MSIZE) (create $val (get $1) (lll $code (get $1))))"
+    },
+    {
+        "(create $x)",
+        "(seq (set $1 MSIZE) (create $val (get $1) (lll $code (get $1))))"
+    },
     { "msg.datasize", "(DIV (CALLDATASIZE) 32)" },
     { "msg.sender", "(CALLER)" },
     { "msg.value", "(CALLVALUE)" },

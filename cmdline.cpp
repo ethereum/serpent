@@ -24,6 +24,9 @@ int main(int argv, char** argc) {
             input += line + "\n";
         }
     }
+    if (exists(input)) {
+        input = get_file_contents(input);
+    }
     if (command == "parse" || command == "parse_serpent") {
         std::cout << printAST(parseSerpent(input)) << "\n";
     }
