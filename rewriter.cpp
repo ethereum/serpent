@@ -4,6 +4,30 @@
 #include <map>
 #include "util.h"
 #include "lllparser.h"
+#include "bignum.h"
+
+std::string valid[][3] = {
+    { "if", "2", "3" },
+    { "unless", "2", "2" },
+    { "while", "2", "2" },
+    { "until", "2", "2" },
+    { "code", "1", "2" },
+    { "init", "2", "2" },
+    { "shared", "2", "3" },
+    { "alloc", "2", "2" },
+    { "call", "2", "3" },
+    { "create", "1", "4" },
+    { "msg", "4", "6" },
+    { "getch", "2", "2" },
+    { "setch", "3", "3" },
+    { "sha3", "1", "2" },
+    { "return", "1", "2" },
+    { "inset", "1", "1" },
+    { "import", "1", "1" },
+    { "array_lit", "1", tt256 },
+    { "seq", "1", tt256 },
+    { "---END---", "", "" } //Keep this line at the end of the list
+};
 
 std::string macros[][2] = {
     {
@@ -123,6 +147,10 @@ std::string macros[][2] = {
         "(CREATE $endowment (ref $1) (lll (outer $code) (ref $1)))"
     },
     {
+        "(create $code)",
+        "(CREATE 0 (ref $1) (lll (outer $code) (ref $1)))"
+    },
+    {
         "(msg $gas $to $val $dataval)",
         "(seq (set $1 $dataval) (CALL $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
     },
@@ -203,7 +231,6 @@ std::string synonyms[][2] = {
     { "not", "NOT" },
     { "byte", "BYTE" },
     { "string", "alloc" },
-    { "create", "CREATE" },
     { "+", "ADD" },
     { "-", "SUB" },
     { "*", "MUL" },
@@ -335,6 +362,65 @@ Node apply_rules(Node node) {
     return node;
 }
 
+Node optimize(Node inp) {
+    if (inp.type == TOKEN) return tryNumberize(inp);
+    for (int i = 0; i < inp.args.size(); i++) {
+        inp.args[i] = optimize(inp.args[i]);
+    }
+    if (inp.args.size() == 2 
+            && inp.args[0].type == TOKEN 
+            && inp.args[1].type == TOKEN) {
+      std::string o;
+      if (inp.val == "ADD") {
+          o = decimalMod(decimalAdd(inp.args[0].val, inp.args[1].val), tt256);
+      }
+      else if (inp.val == "SUB") {
+          if (decimalGt(inp.args[0].val, inp.args[1].val, true))
+              o = decimalSub(inp.args[0].val, inp.args[1].val);
+      }
+      else if (inp.val == "MUL") {
+          o = decimalMod(decimalMul(inp.args[0].val, inp.args[1].val), tt256);
+      }
+      else if (inp.val == "DIV" && inp.args[1].val != "0") {
+          o = decimalDiv(inp.args[0].val, inp.args[1].val);
+      }
+      else if (inp.val == "SDIV" && inp.args[1].val != "0"
+            && decimalGt(tt255, inp.args[0].val)
+            && decimalGt(tt255, inp.args[1].val)) {
+          o = decimalDiv(inp.args[0].val, inp.args[1].val);
+      }
+      else if (inp.val == "MOD" && inp.args[1].val != "0") {
+          o = decimalMod(inp.args[0].val, inp.args[1].val);
+      }
+      else if (inp.val == "SMOD" && inp.args[1].val != "0"
+            && decimalGt(tt255, inp.args[0].val)
+            && decimalGt(tt255, inp.args[1].val)) {
+          o = decimalMod(inp.args[0].val, inp.args[1].val);
+      }    
+      if (o.length()) return token(o, inp.metadata);
+    }
+    return inp;
+}
+
+Node validate(Node inp) {
+    if (inp.type == ASTNODE) {
+        int i = 0;
+        while(valid[i][0] != "---END---") {
+            if (inp.val == valid[i][0]) {
+                if (decimalGt(valid[i][1], intToDecimal(inp.args.size()))) {
+                    err("Too few arguments for "+inp.val, inp.metadata);   
+                }
+                if (decimalGt(intToDecimal(inp.args.size()), valid[i][2])) {
+                    err("Too many arguments for "+inp.val, inp.metadata);   
+                }
+            }
+            i++;
+        }
+    }
+    for (int i = 0; i < inp.args.size(); i++) validate(inp.args[i]);
+    return inp;
+}
+
 Node preprocess(Node inp) {
     std::vector<Node> args;
     args.push_back(inp);
@@ -342,7 +428,7 @@ Node preprocess(Node inp) {
 }
 
 Node rewrite(Node inp) {
-    return apply_rules(preprocess(inp));
+    return optimize(apply_rules(validate(preprocess(inp))));
 }
 
 using namespace std;

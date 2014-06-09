@@ -40,20 +40,23 @@ std::string decimalMul(std::string a, std::string b) {
     std::string o = "0";
     for (int i = 0; i < b.length(); i++) {
         std::string n = decimalDigitMul(a, b[i] - '0');
-        for (int j = i + 1; j < b.length(); j++) n += "0";
+        if (n != "0") {
+            for (int j = i + 1; j < b.length(); j++) n += "0";
+        }
         o = decimalAdd(o, n);
     }
     return o;
 }
 
 //Is a greater than b? Flag allows equality
-bool decimalGt(std::string a, std::string b, bool eqAllowed=false) {
+bool decimalGt(std::string a, std::string b, bool eqAllowed) {
     if (a == b) return eqAllowed;
     return (a.length() > b.length()) || (a.length() >= b.length() && a > b);
 }
 
 //Subtract the two strings representing decimal values
 std::string decimalSub(std::string a, std::string b) {
+    if (b == "0") return a;
     while (b.length() < a.length()) b = "0" + b;
     std::string c = b;
     for (int i = 0; i < c.length(); i++) c[i] = '0' + ('9' - c[i]);

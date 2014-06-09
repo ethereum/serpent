@@ -32,7 +32,15 @@ int toktype(Node tok) {
     else if (v == ":") return COLON;
     else if (v == "!") return UNARY_OP;
     else if (precedence(tok) >= 0) return BINARY_OP;
-    else return ALPHANUM;
+    bool isSymbolic = true;
+    if (tok.val[0] != '"' && tok.val[0] != '\'') {
+        for (int i = 0; i < tok.val.length(); i++) {
+            if (chartype(tok.val[i]) == SYMB) {
+                err("Invalid symbol: "+tok.val, tok.metadata);
+            }
+        }
+    }
+    return ALPHANUM;
 }
 
 
@@ -124,6 +132,10 @@ Node treefy(std::vector<Node> stream) {
             std::vector<Node> args;
             int rounds = (typ == BINARY_OP) ? 2 : 1;
             for (int i = 0; i < rounds; i++) {
+                if (oq.size() == 0) {
+                    err("Line malformed, not enough args for "+tok.val,
+                        tok.metadata);
+                }
                 args.push_back(oq.back());
                 oq.pop_back();
             }
@@ -137,9 +149,11 @@ Node treefy(std::vector<Node> stream) {
         // If rparen, keep grabbing until we get to an lparen
         else if (toktype(tok) == RPAREN) {
             std::vector<Node> args;
-            while (toktype(oq.back()) != LPAREN) {
+            while (1) {
                 args.push_back(oq.back());
                 oq.pop_back();
+                if (!oq.size()) err("Bracket without matching", tok.metadata);
+                if (toktype(oq.back()) == LPAREN) break;
             }
             oq.pop_back();
             // We represent a[b] as (access a b)
@@ -174,10 +188,9 @@ Node treefy(std::vector<Node> stream) {
                 && oq.back().args[0].type == TOKEN) {
             std::string filename = oq.back().args[0].val;
             filename = filename.substr(1, filename.length() - 2);
-            std::cout << filename << "\n";
             std::string inner = get_file_contents(filename);
             oq.back().args.pop_back();
-            oq.back().args.push_back(parseSerpent(inner));
+            oq.back().args.push_back(parseSerpent(inner, filename));
         }
     }
     // Output must have one argument
@@ -185,9 +198,7 @@ Node treefy(std::vector<Node> stream) {
         std::cerr << "Output blank!\n";
     }
     else if (oq.size() > 1) {
-        std::cerr << "Too many tokens in output: ";
-        for (int i = 0; i < oq.size(); i++)
-            std::cerr << printSimple(oq[i]) << "\n";
+        err("Multiple expressions or unclosed bracket", oq[1].metadata);
     }
     else return oq[0];
 }
@@ -206,9 +217,15 @@ int spaceCount(std::string s) {
     return pos;
 }
 
-// Is it a bodied command?
+// Is this a command that takes an argument on the same line?
 bool bodied(std::string tok) {
     return tok == "if" || tok == "elif";
+}
+
+// Is this a command that takes an argument as a child block?
+bool childBlocked(std::string tok) {
+    return tok == "if" || tok == "elif" || tok == "else"
+        || tok == "code" || tok == "shared" || tok == "init";
 }
 
 // Are the two commands meant to continue each other? 
@@ -218,6 +235,7 @@ bool bodiedContinued(std::string prev, std::string tok) {
         || prev == "elif" && tok == "elif"
         || prev == "if" && tok == "else"
         || prev == "init" && tok == "code"
+        || prev == "shared" && tok == "code"
         || prev == "shared" && tok == "init";
 }
 
@@ -240,11 +258,12 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         std::vector<Node> tokens2;
         for (int j = 0; j < tokens.size(); j++) {
             if (tokens[j].val == "#" || tokens[j].val == "//") break;
-            if (j == tokens.size() - 1 && tokens[j].val == ":") break;
             if (j >= 1 || !bodied(tokens[j].val)) {
                 tokens2.push_back(tokens[j]);
             }
         }
+        if (tokens2.size() > 0 && tokens2.back().val == ":")
+            tokens2.pop_back();
         // Is line empty or comment-only?
         if (tokens2.size() == 0) {
             i += 1;
@@ -267,11 +286,17 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
             out = astnode(tokens[0].val, args, out.metadata);
         }
         // Add child block to AST
-        if (childBlock.size()) {
+        if (childBlocked(tokens[0].val)) {
+            if (!childBlock.size())
+                err("Expected indented child block!", out.metadata);
             int childSpaces = spaceCount(childBlock[0]);
             out.type = ASTNODE;
+            metadata.ln += 1;
             out.args.push_back(parseLines(childBlock, metadata, childSpaces));
+            metadata.ln -= 1;
         }
+        else if (childBlock.size())
+            err("Did not expect indented child block!", out.metadata);
         if (o.size() == 0 || o.back().type == TOKEN) {
             o.push_back(out);
             continue;

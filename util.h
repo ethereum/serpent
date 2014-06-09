@@ -41,8 +41,8 @@ struct Node {
     std::vector<Node> args;
     Metadata metadata;
 };
-Node token(std::string val, Metadata metadata);
-Node astnode(std::string val, std::vector<Node> args, Metadata metadata);
+Node token(std::string val, Metadata met=metadata());
+Node astnode(std::string val, std::vector<Node> args, Metadata met=metadata());
 
 // Print token list
 std::string printTokens(std::vector<Node> tokens);
@@ -68,6 +68,9 @@ bool isNumberLike(Node node);
 //Normalizes number representations
 Node nodeToNumeric(Node node);
 
+//If a node is numeric, normalize its representation
+Node tryNumberize(Node node);
+
 //Converts a value to an array of byte number nodes
 std::vector<Node> toByteArr(std::string val, Metadata metadata);
 
@@ -76,5 +79,8 @@ std::string get_file_contents(std::string filename);
 
 //Does a file exist?
 bool exists(std::string fileName);
+
+//Report error
+void err(std::string errtext, Metadata met);
 
 #endif

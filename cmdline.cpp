@@ -15,6 +15,7 @@ int main(int argv, char** argc) {
     std::string flag = "";
     std::string command = argc[1];
     std::string input = argc[2];
+    std::string inputFile = "main";
     if (std::string(argc[1]) == "-s") {
         flag = command.substr(1);
         command = argc[2];
@@ -25,13 +26,17 @@ int main(int argv, char** argc) {
         }
     }
     if (exists(input)) {
+        inputFile = input;
         input = get_file_contents(input);
     }
     if (command == "parse" || command == "parse_serpent") {
-        std::cout << printAST(parseSerpent(input)) << "\n";
+        std::cout << printAST(parseSerpent(input, inputFile)) << "\n";
     }
     else if (command == "rewrite") {
         std::cout << printAST(rewrite(parseLLL(input))) << "\n";
+    }
+    else if (command == "compile_to_lll") {
+        std::cout << printAST(rewrite(parseSerpent((input)))) << "\n";
     }
     else if (command == "compile_lll") {
         std::cout << printTokens(compile_lll(parseLLL(input))) << "\n";
@@ -40,7 +45,8 @@ int main(int argv, char** argc) {
         std::cout << assemble(tokenize(input)) << "\n";
     }
     else if (command == "compile") {
-        std::cout << assemble(compile_lll(rewrite(parseSerpent(input)))) << "\n";
+        std::cout << assemble(compile_lll(rewrite(
+                        parseSerpent(input, inputFile)))) << "\n";
     }
 
     else if (command == "tokenize") {

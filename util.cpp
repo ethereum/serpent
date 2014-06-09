@@ -17,21 +17,21 @@ Metadata metadata(std::string file, int ln, int ch) {
 }
 
 //Token or value node constructor
-Node token(std::string val, Metadata metadata) {
+Node token(std::string val, Metadata met) {
     Node o;
     o.type = 0;
     o.val = val;
-    o.metadata = metadata;
+    o.metadata = met;
     return o;
 }
 
 //AST node constructor
-Node astnode(std::string val, std::vector<Node> args, Metadata metadata) {
+Node astnode(std::string val, std::vector<Node> args, Metadata met) {
     Node o;
     o.type = 1;
     o.val = val;
     o.args = args;
-    o.metadata = metadata;
+    o.metadata = met;
     return o;
 }
 
@@ -154,6 +154,11 @@ Node nodeToNumeric(Node node) {
     return token(o, node.metadata);
 }
 
+Node tryNumberize(Node node) {
+    if (node.type == TOKEN && isNumberLike(node)) return nodeToNumeric(node);
+    return node;
+}
+
 //Converts a value to an array of byte number nodes
 std::vector<Node> toByteArr(std::string val, Metadata metadata) {
     std::vector<Node> o;
@@ -196,4 +201,12 @@ std::string get_file_contents(std::string filename)
     return(contents);
   }
   throw(errno);
+}
+
+//Report error
+void err(std::string errtext, Metadata met) {
+    std::cerr << "Error (file \"" << met.file << "\", line " << met.ln
+              << ", char " << met.ch << "): " << errtext << "\n";
+    std::vector<Node> bob;
+    bob[0] = token("bob");
 }
