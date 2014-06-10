@@ -37,3 +37,4 @@ $(TARGET).o: $(TARGET).cpp $(COMMON_OBJS)
 
 install:
 	cp serpent /usr/local/bin
+	cp pyserpent.so /usr/lib/python2.7/lib-dynload/
