@@ -359,3 +359,17 @@ std::vector<Node> deserialize(std::string ser) {
 std::string assemble(Node program) {
     return serialize(flatten(dereference(program)));
 }
+
+// Converts a list of integer values to binary transaction data
+std::string encodeDatalist(std::vector<std::string> vals) {
+    std::string o;
+    for (int i = 0; i < vals.size(); i++) {
+        std::vector<Node> n2 = toByteArr(vals[i], Metadata(), 32);
+        for (int j = 0; j < n2.size(); j++) {
+            int v = decimalToInt(n2[j].val);
+            o += std::string("0123456789abcdef").substr(v/16, 1)
+               + std::string("0123456789abcdef").substr(v%16, 1);
+        }
+    }
+    return o;
+}

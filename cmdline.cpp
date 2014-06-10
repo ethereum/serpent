@@ -69,7 +69,13 @@ int main(int argv, char** argc) {
         std::cout << assemble(compile_lll(rewrite(
                         parseSerpent(input, inputFile)))) << "\n";
     }
-
+    else if (command == "encodeDatalist") {
+        std::vector<Node> tokens = tokenize(input);
+        std::vector<std::string> o;
+        for (int i = 0; i < (int)tokens.size(); i++)
+            o.push_back(tokens[i].val);
+        std::cout << encodeDatalist(o) << "\n";
+    }
     else if (command == "tokenize") {
         std::cout << printTokens(tokenize(input));
     }

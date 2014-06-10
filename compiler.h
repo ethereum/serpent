@@ -25,4 +25,7 @@ std::vector<Node> flatten(Node derefed);
 // Final machine code -> readable machine code
 std::vector<Node> deserialize(std::string ser);
 
+// Converts a list of integer values to binary transaction data
+std::string encodeDatalist(std::vector<std::string> vals);
+
 #endif
