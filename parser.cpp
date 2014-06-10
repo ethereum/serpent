@@ -328,7 +328,7 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
 
 // Parses serpent code
 Node parseSerpent(std::string s, std::string file) {
-    return parseLines(splitLines(s), metadata(file, 0, 0), 0);
+    return parseLines(splitLines(s), Metadata(file, 0, 0), 0);
 }
 
 

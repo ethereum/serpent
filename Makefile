@@ -2,9 +2,13 @@ PYTHON = /usr/include/python2.7
 BOOST_INC = /usr/include
 BOOST_LIB = /usr/lib
 TARGET = pyserpent
+COMMON_OBJS = bignum.o util.o tokenize.o lllparser.o parser.o rewriter.o compiler.o
+PYTHON_VERSION = 2.7
 
-serpent : bignum.o util.o tokenize.o lllparser.o parser.o rewriter.o compiler.o cmdline.cpp
-	g++ -Wall bignum.o util.o tokenize.o lllparser.o parser.o rewriter.o compiler.o cmdline.cpp -o serpent
+all: serpent $(TARGET).so
+
+serpent : $(COMMON_OBJS) cmdline.cpp
+	g++ -Wall $(COMMON_OBJS) cmdline.cpp -o serpent
 
 bignum.o : bignum.cpp bignum.h
 
@@ -21,19 +25,14 @@ rewriter.o : rewriter.cpp rewriter.h lllparser.o util.o
 compiler.o : compiler.cpp compiler.h util.o
 
 clean:
-	rm -f serpent *\.o
-
-libserpent.a: $(COMMON_OBJS)
-	ar rcs $@ $^
+	rm -f serpent *\.o $(TARGET).so
 
 $(TARGET).so: $(TARGET).o
-	g++ -shared -Wl,-soname,$(TARGET).so \
-	$(TARGET).o -L$(BOOST_LIB) -lboost_python -fPIC \
-	-L/usr/lib/python2.7/config -lpython2.7 \
-	-o $(TARGET).so -I. -L. -lserpent $(ARCH)
+	g++ -shared -Wl,--export-dynamic $(TARGET).o -L$(BOOST_LIB) -lboost_python -L/usr/lib/python$(PYTHON_VERSION)/config -lpython$(PYTHON_VERSION) $(COMMON_OBJS) -o $(TARGET).so
+ 
+$(TARGET).o: $(TARGET).cpp $(COMMON_OBJS)
+	g++ -I$(PYTHON) -I$(BOOST_INC) -fPIC -c $(TARGET).cpp
 
-$(TARGET).o: $(TARGET).cpp libserpent.a
-	g++ -I$(PYTHON) -I$(BOOST_INC) -c $(TARGET).cpp -fPIC -L. -lserpent $(ARCH)
 
 
 install:

@@ -25,12 +25,17 @@ const int TOKEN = 0,
           COMPOUND = 14;
 
 // Stores metadata about each token
-struct Metadata {
-    std::string file;
-    int ln;
-    int ch;
+class Metadata {
+    public:
+        Metadata(std::string file="main", int ln=0, int ch=0) {
+            file = file;
+            ln = ln;
+            ch = ch;
+        }
+        std::string file;
+        int ln;
+        int ch;
 };
-Metadata metadata(std::string file="main", int ln=0, int ch=0);
 
 std::string mkUniqueToken();
 
@@ -41,8 +46,8 @@ struct Node {
     std::vector<Node> args;
     Metadata metadata;
 };
-Node token(std::string val, Metadata met=metadata());
-Node astnode(std::string val, std::vector<Node> args, Metadata met=metadata());
+Node token(std::string val, Metadata met=Metadata());
+Node astnode(std::string val, std::vector<Node> args, Metadata met=Metadata());
 
 // Number of tokens in a tree
 int treeSize(Node prog);

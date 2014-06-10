@@ -9,6 +9,6 @@
 
 int chartype(char c);
 
-std::vector<Node> tokenize(std::string inp, Metadata meta=metadata());
+std::vector<Node> tokenize(std::string inp, Metadata meta=Metadata());
 
 #endif

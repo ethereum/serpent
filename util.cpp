@@ -7,15 +7,6 @@
 #include <fstream>
 #include <cerrno>
 
-//Token metadata constructor
-Metadata metadata(std::string file, int ln, int ch) {
-    Metadata o;
-    o.file = file;
-    o.ln = ln;
-    o.ch = ch;
-    return o;
-}
-
 //Token or value node constructor
 Node token(std::string val, Metadata met) {
     Node o;
