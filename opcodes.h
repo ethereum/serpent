@@ -7,9 +7,10 @@
 #include <map>
 
 std::map<std::string, int> opcodes;
+std::map<int, std::string> reverseOpcodes;
 
 // Fetches everything EXCEPT PUSH1..32
-int opcode(std::string op) {
+std::pair<std::string, int> _opcode(std::string ops, int opi, bool bk=false) {
     if (!opcodes.size()) {
         opcodes["STOP"] = 0x00;
         opcodes["ADD"] = 0x01;
@@ -62,13 +63,29 @@ int opcode(std::string op) {
         opcodes["PC"] = 0x5a;
         opcodes["MSIZE"] = 0x5b;
         opcodes["GAS"] = 0x5c;
-        opcodes["PUSH"] = 0x60;
         opcodes["CREATE"] = 0xf0;
         opcodes["CALL"] = 0xf1;
         opcodes["RETURN"] = 0xf2;
         opcodes["SUICIDE"] = 0xff;
+        for (std::map<std::string, int>::iterator it=opcodes.begin();
+             it != opcodes.end();
+             it++) {
+            reverseOpcodes[(*it).second] = (*it).first;
+        }
     }
-    return opcodes[op];
+    std::string op;
+    int opcode;
+    op = reverseOpcodes.count(opi) ? reverseOpcodes[opi] : "";
+    opcode = opcodes.count(ops) ? opcodes[ops] : -1;
+    return std::pair<std::string, int>(op, opcode);
+}
+
+int opcode(std::string op) {
+    return _opcode(op, 0, false).second;
+}
+
+std::string op(int opcode) {
+    return _opcode("", opcode, true).first;
 }
 
 #endif

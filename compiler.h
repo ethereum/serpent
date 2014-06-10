@@ -22,4 +22,7 @@ std::string assemble(Node program);
 // Assembly -> final machine code
 std::vector<Node> flatten(Node derefed);
 
+// Final machine code -> readable machine code
+std::vector<Node> deserialize(std::string ser);
+
 #endif

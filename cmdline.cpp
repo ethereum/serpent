@@ -59,6 +59,12 @@ int main(int argv, char** argc) {
     else if (command == "assemble") {
         std::cout << assemble(parseLLL(input)) << "\n";
     }
+    else if (command == "serialize") {
+        std::cout << serialize(tokenize(input)) << "\n";
+    }
+    else if (command == "deserialize") {
+        std::cout << printTokens(deserialize(input)) << "\n";
+    }
     else if (command == "compile") {
         std::cout << assemble(compile_lll(rewrite(
                         parseSerpent(input, inputFile)))) << "\n";

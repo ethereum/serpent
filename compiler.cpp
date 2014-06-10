@@ -42,6 +42,8 @@ Node multiToken(Node nodes[], int len, Metadata met) {
     return astnode("_", out, met);
 }
 
+Node finalize(programData c);
+
 // Turns LLL tree into tree of code fragments
 programData opcodeify(Node node, programAux aux=Aux()) {
     std::string symb = "_"+mkUniqueToken();
@@ -60,8 +62,8 @@ programData opcodeify(Node node, programAux aux=Aux()) {
         if (node.val == "set") {
              programData sub = opcodeify(node.args[1], aux);
              Node nodelist[] = {
-                 token(aux.vars[varname], m),
                  sub.code,
+                 token(aux.vars[varname], m),
                  token("MSTORE", m),
              };
              return pd(sub.aux, multiToken(nodelist, 3, m));                   
@@ -74,6 +76,21 @@ programData opcodeify(Node node, programAux aux=Aux()) {
         }
         // Refer variable
         else return pd(aux, token(aux.vars[varname], m));
+    }
+    // Code blocks
+    if (node.val == "lll") {
+        std::vector<Node> o;
+        o.push_back(finalize(opcodeify(node.args[0])));
+        programData sub = opcodeify(node.args[1], aux);
+        Node code = astnode("____CODE", o, m);
+        Node nodelist[] = {
+            token("$begincode"+symb+".endcode"+symb, m), token("DUP", m),
+            sub.code,
+            token("$begincode"+symb, m), token("CODECOPY", m),
+            token("$endcode"+symb, m), token("JUMP", m),
+            token("~begincode"+symb, m), code, token("~endcode"+symb, m)
+        };
+        return pd(sub.aux, multiToken(nodelist, 10, m));
     }
     std::vector<Node> subs;
     for (int i = 0; i < node.args.size(); i++) {
@@ -118,20 +135,6 @@ programData opcodeify(Node node, programAux aux=Aux()) {
         };
         return pd(aux, multiToken(nodelist, 8, m));
     }
-    // Code blocks
-    else if (node.val == "lll") {
-        std::vector<Node> o;
-        o.push_back(subs[0]);
-        Node code = astnode("____CODE", o, m);
-        Node nodelist[] = {
-            token("$begincode"+symb+".endcode"+symb, m), token("DUP", m),
-            subs[1],
-            token("$begincode"+symb, m), token("CODECOPY", m),
-            token("$endcode"+symb, m), token("JUMP", m),
-            token("~begincode"+symb, m), code, token("~endcode"+symb, m)
-        };
-        return pd(aux, multiToken(nodelist, 10, m));
-    }
     // Memory allocations
     else if (node.val == "alloc") {
         aux.allocUsed = true;
@@ -166,11 +169,17 @@ programData opcodeify(Node node, programAux aux=Aux()) {
     }
     // All other functions/operators
     else {
-        subs.push_back(token(node.val, m));
-        return pd(aux, astnode("_", subs, m));
+        std::vector<Node> subs2;
+        while (subs.size()) {
+            subs2.push_back(subs.back());
+            subs.pop_back();
+        }
+        subs2.push_back(token(node.val, m));
+        return pd(aux, astnode("_", subs2, m));
     }
 }
 
+// Adds necessary wrappers to a program
 Node finalize(programData c) {
     std::vector<Node> bottom;
     Metadata m = c.code.metadata;
@@ -253,13 +262,14 @@ Node substDict(Node program, programAux aux, int labelLength) {
             out.push_back(token(tokStr, m));
             int dotLoc = program.val.find('.');
             if (dotLoc == -1) {
-                inner = toByteArr(aux.vars[program.val.substr(1)], m);
+                std::string val = aux.vars[program.val.substr(1)];
+                inner = toByteArr(val, m, labelLength);
             }
             else {
                 std::string start = aux.vars[program.val.substr(1, dotLoc-1)],
                             end = aux.vars[program.val.substr(dotLoc + 1)],
                             dist = decimalSub(end, start);
-                inner = toByteArr(dist, m);
+                inner = toByteArr(dist, m, labelLength);
             }
             out.push_back(astnode("_", inner, m));
         }
@@ -284,7 +294,7 @@ Node substDict(Node program, programAux aux, int labelLength) {
 Node dereference(Node program) {
     int sz = treeSize(program) * 4;
     int labelLength = 1;
-    while (sz >= 256) labelLength += 1;
+    while (sz >= 256) { labelLength += 1; sz /= 256; }
     programAux aux = buildDict(program, Aux(), labelLength);
     return substDict(program, aux, labelLength);
 }
@@ -320,6 +330,28 @@ std::string serialize(std::vector<Node> codons) {
         }
         o += std::string("0123456789abcdef").substr(v/16, 1)
            + std::string("0123456789abcdef").substr(v%16, 1);
+    }
+    return o;
+}
+
+// Hex -> list
+std::vector<Node> deserialize(std::string ser) {
+    std::vector<Node> o;
+    int backCount = 0;
+    for (int i = 0; i < ser.length(); i+=2) {
+        int v = std::string("0123456789abcdef").find(ser[i]) * 16 +
+                std::string("0123456789abcdef").find(ser[i+1]);
+        if (v < 0) break;
+        std::string oper = op(v);
+        if (oper != "" && backCount <= 0) o.push_back(token(oper));
+        else if (v >= 96 && v < 128 && backCount <= 0) {
+            o.push_back(token("PUSH"+intToDecimal(v - 95)));
+        }
+        else o.push_back(token(intToDecimal(v)));
+        if (v >= 96 && v < 128 && backCount <= 0) {
+            backCount = v - 95;
+        }
+        else backCount--;
     }
     return o;
 }

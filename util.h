@@ -75,7 +75,7 @@ Node nodeToNumeric(Node node);
 Node tryNumberize(Node node);
 
 //Converts a value to an array of byte number nodes
-std::vector<Node> toByteArr(std::string val, Metadata metadata);
+std::vector<Node> toByteArr(std::string val, Metadata metadata, int minLen=1);
 
 //Reads a file
 std::string get_file_contents(std::string filename);

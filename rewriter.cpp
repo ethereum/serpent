@@ -88,11 +88,11 @@ std::string macros[][2] = {
     },
     {
         "(send $to $value)",
-        "(call (SUB (GAS) 25) $to $value 0 0 0 0)"
+        "(CALL (SUB (GAS) 25) $to $value 0 0 0 0)"
     },
     {
         "(send $gas $to $value)",
-        "(call $gas $to $value 0 0 0 0)"
+        "(CALL $gas $to $value 0 0 0 0)"
     },
     {
         "(sha3 $x)",

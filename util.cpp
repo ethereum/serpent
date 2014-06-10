@@ -159,7 +159,7 @@ Node nodeToNumeric(Node node) {
         }
     }
     else if (node.val.substr(0,2) == "0x") {
-        for (int i = 1; i < node.val.length() - 1; i++) {
+        for (int i = 2; i < node.val.length(); i++) {
             int dig = std::string("0123456789abcdef").find(node.val[i]);
             o = decimalAdd(decimalMul(o,"16"), intToDecimal(dig));
         }
@@ -174,12 +174,13 @@ Node tryNumberize(Node node) {
 }
 
 //Converts a value to an array of byte number nodes
-std::vector<Node> toByteArr(std::string val, Metadata metadata) {
+std::vector<Node> toByteArr(std::string val, Metadata metadata, int minLen) {
     std::vector<Node> o;
-    if (val == "0") o.push_back(token("0", metadata));
-    while (val != "0") {
+    int L = 0;
+    while (val != "0" || L < minLen) {
         o.push_back(token(decimalMod(val, "256"), metadata));
         val = decimalDiv(val, "256");
+        L++;
     }
     std::vector<Node> o2;
     for (int i = o.size() - 1; i >= 0; i--) o2.push_back(o[i]);
