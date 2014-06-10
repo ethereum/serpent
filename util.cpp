@@ -55,13 +55,27 @@ std::string printSimple(Node ast) {
     return o + ")";
 }
 
+// Number of tokens in a tree
+int treeSize(Node prog) {
+    if (prog.type == TOKEN) return 1;
+    int o = 0;
+    for (int i = 0; i < prog.args.size(); i++) o += treeSize(prog.args[i]);
+    return o;
+}
+
 // Pretty-prints a lisp AST
-std::string printAST(Node ast) {
+std::string printAST(Node ast, bool printMetadata) {
     if (ast.type == TOKEN) return ast.val;
-    std::string o = "(" + ast.val;
+    std::string o = "(";
+    if (printMetadata) {
+         o += ast.metadata.file + " ";
+         o += intToDecimal(ast.metadata.ln) + " ";
+         o += intToDecimal(ast.metadata.ch) + ": ";
+    }
+    o += ast.val;
     std::vector<std::string> subs;
     for (int i = 0; i < ast.args.size(); i++) {
-        subs.push_back(printAST(ast.args[i]));
+        subs.push_back(printAST(ast.args[i], printMetadata));
     }
     int k = 0;
     std::string out = " ";

@@ -8,15 +8,18 @@
 #include "util.h"
 
 // Compiles LLL to assembly
-std::vector<Node> compile_lll(Node node);
+Node compile_lll(Node node);
 
 // Assembly -> "readable machine code"
-std::vector<Node> dereference(std::vector<Node> program);
+Node dereference(Node program);
 
 // Readable machine code -> final machine code
-std::string serialize(std::vector<Node> derefed);
+std::string serialize(std::vector<Node> codons);
 
 // Assembly -> final machine code
-std::string assemble(std::vector<Node> program);
+std::string assemble(Node program);
+
+// Assembly -> final machine code
+std::vector<Node> flatten(Node derefed);
 
 #endif

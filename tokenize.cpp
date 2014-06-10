@@ -13,7 +13,7 @@ int chartype(char c) {
     if (c >= '0' && c <= '9') return ALPHANUM;
     else if (c >= 'a' && c <= 'z') return ALPHANUM;
     else if (c >= 'A' && c <= 'Z') return ALPHANUM;
-    else if (std::string("._$").find(c) != -1) return ALPHANUM;
+    else if (std::string("~._$").find(c) != -1) return ALPHANUM;
     else if (c == '\t' || c == ' ' || c == '\n') return SPACE;
     else if (std::string("()[]{}").find(c) != -1) return BRACK;
     else if (c == '"') return DQUOTE;
@@ -25,6 +25,7 @@ int chartype(char c) {
 std::vector<Node> tokenize(std::string inp, Metadata metadata) {
     int curtype = SPACE;
     int pos = 0;
+    int lastNewline = 0;
     metadata.ch = 0;
     std::string cur;
     std::vector<Node> out;
@@ -39,7 +40,7 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata) {
                 cur += inp[pos];
                 out.push_back(token(cur, metadata));
                 cur = "";
-                metadata.ch = pos;
+                metadata.ch = pos - lastNewline;
                 curtype = SPACE;
                 pos += 1;
             }
@@ -75,7 +76,7 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata) {
                     }
                     metadata.ch += split;
                     out.push_back(token(cur.substr(split), metadata));
-                    metadata.ch = pos;
+                    metadata.ch = pos - lastNewline;
                     cur = "";
                     curtype = SPACE;
                 }
@@ -85,12 +86,17 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata) {
                 if (curtype != SPACE && cur != "") {
                     out.push_back(token(cur, metadata));
                 }
-                metadata.ch = pos;
+                metadata.ch = pos - lastNewline;
                 cur = "";
             }
             cur += inp[pos];
             curtype = headtype;
             pos += 1;
+        }
+        if (inp[pos] == '\n') {
+            lastNewline = pos;
+            metadata.ch = 0;
+            metadata.ln += 1;
         }
     }
     return out;

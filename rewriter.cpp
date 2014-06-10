@@ -311,7 +311,7 @@ Node subst(Node pattern,
         for (int i = 0; i < pattern.args.size(); i++) {
             args.push_back(subst(pattern.args[i], dict, varflag, metadata));
         }
-        return astnode(pattern.val, args, pattern.metadata);
+        return astnode(pattern.val, args, metadata);
     }
 }
 

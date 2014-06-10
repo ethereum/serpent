@@ -44,6 +44,9 @@ struct Node {
 Node token(std::string val, Metadata met=metadata());
 Node astnode(std::string val, std::vector<Node> args, Metadata met=metadata());
 
+// Number of tokens in a tree
+int treeSize(Node prog);
+
 // Print token list
 std::string printTokens(std::vector<Node> tokens);
 
@@ -51,7 +54,7 @@ std::string printTokens(std::vector<Node> tokens);
 std::string printSimple(Node ast);
 
 // Pretty-prints a lisp AST
-std::string printAST(Node ast);
+std::string printAST(Node ast, bool printMetadata=false);
 
 // Splits text by line
 std::vector<std::string> splitLines(std::string s);
