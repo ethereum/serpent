@@ -27,10 +27,10 @@ const int TOKEN = 0,
 // Stores metadata about each token
 class Metadata {
     public:
-        Metadata(std::string file="main", int ln=0, int ch=0) {
-            file = file;
-            ln = ln;
-            ch = ch;
+        Metadata(std::string File="main", int Ln=0, int Ch=0) {
+            file = File;
+            ln = Ln;
+            ch = Ch;
         }
         std::string file;
         int ln;

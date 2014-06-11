@@ -230,13 +230,13 @@ bool childBlocked(std::string tok) {
 
 // Are the two commands meant to continue each other? 
 bool bodiedContinued(std::string prev, std::string tok) {
-    return prev == "if" && tok == "elif" 
-        || prev == "elif" && tok == "else"
-        || prev == "elif" && tok == "elif"
-        || prev == "if" && tok == "else"
-        || prev == "init" && tok == "code"
-        || prev == "shared" && tok == "code"
-        || prev == "shared" && tok == "init";
+    return (prev == "if" && tok == "elif")
+        || (prev == "elif" && tok == "else")
+        || (prev == "elif" && tok == "elif")
+        || (prev == "if" && tok == "else")
+        || (prev == "init" && tok == "code")
+        || (prev == "shared" && tok == "code")
+        || (prev == "shared" && tok == "init");
 }
 
 // Parse lines of serpent (helper function)
