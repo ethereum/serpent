@@ -157,6 +157,9 @@ programData opcodeify(Node node, programAux aux=Aux()) {
                 nodes.push_back(token("MSTORE", m));
             }
         }
+        nodes.push_back(token(intToDecimal(subs.size() * 32), m));
+        nodes.push_back(token("MSIZE", m));
+        nodes.push_back(token("SUB", m));
         return pd(aux, astnode("_", nodes, m));
     }
     // All other functions/operators
