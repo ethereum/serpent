@@ -150,20 +150,12 @@ programData opcodeify(Node node, programAux aux=Aux()) {
     else if (node.val == "array_lit") {
         aux.allocUsed = true;
         std::vector<Node> nodes;
-        nodes.push_back(token("MSIZE", m));
         if (subs.size()) {
-            nodes.push_back(token("DUP", m));
             for (int i = 0; i < subs.size(); i++) {
                 nodes.push_back(subs[i]);
-                nodes.push_back(token("SWAP", m));
+                nodes.push_back(token("MSIZE", m));
                 nodes.push_back(token("MSTORE", m));
-                nodes.push_back(token("DUP", m));
-                nodes.push_back(token("32", m));
-                nodes.push_back(token("ADD", m));
             }
-            nodes.pop_back();
-            nodes.pop_back();
-            nodes.pop_back();
         }
         return pd(aux, astnode("_", nodes, m));
     }
