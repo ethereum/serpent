@@ -150,16 +150,26 @@ programData opcodeify(Node node, programAux aux=Aux()) {
     else if (node.val == "array_lit") {
         aux.allocUsed = true;
         std::vector<Node> nodes;
-        if (subs.size()) {
-            for (int i = 0; i < subs.size(); i++) {
-                nodes.push_back(subs[i]);
-                nodes.push_back(token("MSIZE", m));
-                nodes.push_back(token("MSTORE", m));
-            }
+        if (!subs.size()) {
+            nodes.push_back(token("MSIZE", m));
+            return pd(aux, astnode("_", nodes, m));
         }
-        nodes.push_back(token(intToDecimal(subs.size() * 32), m));
         nodes.push_back(token("MSIZE", m));
-        nodes.push_back(token("SUB", m));
+        nodes.push_back(token("0", m));
+        nodes.push_back(token("MSIZE", m));
+        nodes.push_back(token(intToDecimal(subs.size() * 32 - 1), m));
+        nodes.push_back(token("ADD", m));
+        nodes.push_back(token("MSTORE8", m));
+        for (int i = 0; i < subs.size(); i++) {
+            nodes.push_back(token("DUP", m));
+            nodes.push_back(subs[i]);
+            nodes.push_back(token("SWAP", m));
+            if (i > 0) {
+                nodes.push_back(token(intToDecimal(i * 32), m));
+                nodes.push_back(token("ADD", m));
+            }
+            nodes.push_back(token("MSTORE", m));
+        }
         return pd(aux, astnode("_", nodes, m));
     }
     // All other functions/operators
