@@ -1,3 +1,4 @@
 Installation:
 
-sudo ./install.sh
+make
+sudo make install
