@@ -7,8 +7,11 @@ PYTHON_VERSION = 2.7
 
 all: serpent $(TARGET).so
 
-serpent : $(COMMON_OBJS) cmdline.cpp
+serpent : $(COMMON_OBJS) cmdline.cpp clearup
 	g++ -Wall $(COMMON_OBJS) cmdline.cpp -o serpent
+
+clearup: $(COMMON_OBJS) cmdline.cpp
+	rm -rf serpent
 
 bignum.o : bignum.cpp bignum.h
 

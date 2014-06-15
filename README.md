@@ -1,1 +1,4 @@
-Either download the zip files from Github and unpack them, or run git clone http://github.com/ethereum/serpent. Then, enter the serpent directory, and run "sudo python setup.py install" to install serpent to your system.
+Installation:
+
+1. `make`
+2. `sudo make install`
