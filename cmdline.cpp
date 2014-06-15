@@ -56,6 +56,14 @@ int main(int argv, char** argc) {
     else if (command == "pretty_assemble") {
         std::cout << printTokens(flatten(dereference(parseLLL(input)))) <<"\n";
     }
+    else if (command == "pretty_compile_lll") {
+        std::cout << printTokens(flatten(dereference(compile_lll(
+                                    parseLLL(input))))) <<"\n";
+    }
+    else if (command == "pretty_compile") {
+        std::cout << printTokens(flatten(dereference(compile_lll(
+                                    rewrite(parseSerpent((input))))))) <<"\n";
+    }
     else if (command == "assemble") {
         std::cout << assemble(parseLLL(input)) << "\n";
     }
