@@ -1,4 +1,5 @@
 PYTHON = /usr/include/python2.7
+CXXFLAGS = -fPIC
 BOOST_INC = /usr/include
 BOOST_LIB = /usr/lib
 TARGET = pyserpent
