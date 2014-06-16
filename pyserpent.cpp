@@ -1,20 +1,13 @@
 #include <boost/python.hpp>
 #include <Python.h>
-#include "util.h"
-#include "bignum.h"
-#include "tokenize.h"
-#include "parser.h"
-#include "rewriter.h"
-#include "compiler.h"
-#include "lllparser.h"
+#include "funcs.h"
 #include <boost/python/stl_iterator.hpp>
+
+// Provide a python wrapper for the C++ functions
 
 using namespace boost::python;
 
-std::string compile(std::string input) {
-    return assemble(compile_lll(rewrite(parseSerpent(input))));
-}
-
+//std::vector to python list converter
 //http://stackoverflow.com/questions/5314319/how-to-export-stdvector
 template<class T>
 struct VecToList
@@ -29,6 +22,7 @@ struct VecToList
     }
 };
 
+// python list to std::vector converter
 //http://code.activestate.com/lists/python-cplusplus-sig/16463/
 template<typename T>
 struct Vector_from_python_list
@@ -94,15 +88,10 @@ std::string printMetadata(Metadata m) {
     return "["+m.file+" "+intToDecimal(m.ln)+" "+intToDecimal(m.ch)+"]";
 }
 
-Node compile_to_lll(std::string code) { return rewrite(parseSerpent(code)); }
-
-std::vector<Node> pretty_assemble(Node code) {
-     return flatten(dereference(code)); 
-}
-
 BOOST_PYTHON_FUNCTION_OVERLOADS(tokenize_overloads, tokenize, 1, 2);
 BOOST_PYTHON_FUNCTION_OVERLOADS(parse_overloads, parseSerpent, 1, 2);
 BOOST_PYTHON_FUNCTION_OVERLOADS(parselll_overloads, parseLLL, 1, 2);
+BOOST_PYTHON_FUNCTION_OVERLOADS(compile_to_lll_overloads, compileToLLL, 1, 2);
 BOOST_PYTHON_FUNCTION_OVERLOADS(printast_overloads, printAST, 1, 2);
 //BOOST_PYTHON_FUNCTION_OVERLOADS(metadata_overloads, Metadata, 0, 3);
 BOOST_PYTHON_MODULE(pyserpent)
@@ -111,16 +100,16 @@ BOOST_PYTHON_MODULE(pyserpent)
     def("parse", parseSerpent, parse_overloads());
     def("parseLLL", parseLLL, parselll_overloads());
     def("rewrite", rewrite);
-    def("compile_to_lll", compile_to_lll);
+    def("compile_to_lll", compileToLLL, compile_to_lll_overloads());
     def("encode_datalist", static_cast<std::string (*)(std::vector<std::string>)>(&encodeDatalist));
-    def("compile_lll", compile_lll);
+    def("compile_lll", compileLLL);
     def("assemble", assemble);
     def("deserialize", deserialize);
     def("dereference", dereference);
     def("flatten", flatten);
     def("serialize", serialize);
     def("compile", compile);
-    def("pretty_assemble", pretty_assemble);
+    def("pretty_assemble", prettyAssemble);
     //class_<Node>("Node",init<>())
     to_python_converter<std::vector<Node,class std::allocator<Node> >,
                          VecToList<Node> >();

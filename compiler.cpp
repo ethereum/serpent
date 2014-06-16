@@ -213,7 +213,7 @@ Node finalize(programData c) {
 }
 
 //LLL -> code fragment tree
-Node compile_lll(Node node) {
+Node buildFragmentTree(Node node) {
     return finalize(opcodeify(node));
 }
 
@@ -295,7 +295,7 @@ Node substDict(Node program, programAux aux, int labelLength) {
     return astnode("_", out, m);
 }
 
-// Compiled code -> compiled code without labels
+// Compiled fragtree -> compiled fragtree without labels
 Node dereference(Node program) {
     int sz = treeSize(program) * 4;
     int labelLength = 1;
@@ -304,7 +304,7 @@ Node dereference(Node program) {
     return substDict(program, aux, labelLength);
 }
 
-// Code fragment tree -> list
+// Dereferenced fragtree -> opcodes
 std::vector<Node> flatten(Node derefed) {
     std::vector<Node> o;
     if (derefed.type == TOKEN) {
@@ -319,7 +319,7 @@ std::vector<Node> flatten(Node derefed) {
     return o;
 }
 
-// List -> hex
+// Opcodes -> hex
 std::string serialize(std::vector<Node> codons) {
     std::string o;
     for (int i = 0; i < codons.size(); i++) {
@@ -339,7 +339,7 @@ std::string serialize(std::vector<Node> codons) {
     return o;
 }
 
-// Hex -> list
+// Hex -> opcodes
 std::vector<Node> deserialize(std::string ser) {
     std::vector<Node> o;
     int backCount = 0;
@@ -361,8 +361,24 @@ std::vector<Node> deserialize(std::string ser) {
     return o;
 }
 
-std::string assemble(Node program) {
-    return serialize(flatten(dereference(program)));
+// Fragtree -> hex
+std::string assemble(Node fragTree) {
+    return serialize(flatten(dereference(fragTree)));
+}
+
+// Fragtree -> tokens
+std::vector<Node> prettyAssemble(Node fragTree) {
+    return flatten(dereference(fragTree));
+}
+
+// LLL -> hex
+std::string compileLLL(Node program) {
+    return assemble(buildFragmentTree(program));
+}
+
+// LLL -> tokens
+std::vector<Node> prettyCompileLLL(Node program) {
+    return prettyAssemble(buildFragmentTree(program));
 }
 
 // Converts a list of integer values to binary transaction data

@@ -4,16 +4,20 @@ CXXFLAGS = -fPIC
 BOOST_INC = /usr/include
 BOOST_LIB = /usr/lib
 TARGET = pyserpent
-COMMON_OBJS = bignum.o util.o tokenize.o lllparser.o parser.o rewriter.o compiler.o
+COMMON_OBJS = bignum.o util.o tokenize.o lllparser.o parser.o rewriter.o compiler.o funcs.o
+HEADERS = bignum.h util.h tokenize.h lllparser.h parser.h rewriter.h compiler.h funcs.h
 PYTHON_VERSION = 2.7
 
 all: serpent $(TARGET).so
 
-serpent : $(COMMON_OBJS) cmdline.cpp clearup
-	g++ -Wall $(COMMON_OBJS) cmdline.cpp -o serpent
+serpent : serpentc lib 
 
-clearup: $(COMMON_OBJS) cmdline.cpp
+lib:
+	ar rvs libserpent.a $(COMMON_OBJS) 
+
+serpentc: $(COMMON_OBJS) cmdline.cpp
 	rm -rf serpent
+	g++ -Wall $(COMMON_OBJS) cmdline.cpp -o serpent
 
 bignum.o : bignum.cpp bignum.h
 
@@ -29,8 +33,10 @@ rewriter.o : rewriter.cpp rewriter.h lllparser.o util.o
 
 compiler.o : compiler.cpp compiler.h util.o
 
+funcs.o : funcs.cpp funcs.h
+
 clean:
-	rm -f serpent *\.o $(TARGET).so
+	rm -f serpent *\.o $(TARGET).so libserpent.a
 
 $(TARGET).so: $(TARGET).o
 	g++ -shared $(PLATFORM_OPTS) $(TARGET).o -L$(BOOST_LIB) -lboost_python -L/usr/lib/python$(PYTHON_VERSION)/config -lpython$(PYTHON_VERSION) $(COMMON_OBJS) -o $(TARGET).so
@@ -38,8 +44,10 @@ $(TARGET).so: $(TARGET).o
 $(TARGET).o: $(TARGET).cpp $(COMMON_OBJS)
 	g++ -I$(PYTHON) -I$(BOOST_INC) -fPIC -c $(TARGET).cpp
 
-
-
 install:
 	cp serpent /usr/local/bin
+	cp libserpent.a /usr/local/lib
+	rm -r /usr/local/include/libserpent
+	mkdir -p /usr/local/include/libserpent
+	cp $(HEADERS) /usr/local/include/libserpent
 	cp pyserpent.so /usr/lib/python2.7/lib-dynload/

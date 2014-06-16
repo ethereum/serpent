@@ -7,22 +7,28 @@
 #include <map>
 #include "util.h"
 
-// Compiles LLL to assembly
-Node compile_lll(Node node);
-
-// Assembly -> "readable machine code"
+// Compiled fragtree -> compiled fragtree without labels
 Node dereference(Node program);
 
-// Readable machine code -> final machine code
-std::string serialize(std::vector<Node> codons);
-
-// Assembly -> final machine code
-std::string assemble(Node program);
-
-// Assembly -> final machine code
+// Dereferenced fragtree -> opcodes
 std::vector<Node> flatten(Node derefed);
 
-// Final machine code -> readable machine code
+// opcodes -> hex
+std::string serialize(std::vector<Node> codons);
+
+// Fragtree -> hex
+std::string assemble(Node fragTree);
+
+// Fragtree -> opcodes
+std::vector<Node> prettyAssemble(Node fragTree);
+
+// LLL -> hex
+std::string compileLLL(Node program);
+
+// LLL -> opcodes
+std::vector<Node> prettyCompileLLL(Node program);
+
+// hex -> opcodes
 std::vector<Node> deserialize(std::string ser);
 
 // Converts a list of integer values to binary transaction data

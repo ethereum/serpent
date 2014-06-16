@@ -2,12 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include "compiler.h"
-#include "rewriter.h"
-#include "parser.h"
-#include "lllparser.h"
-#include "tokenize.h"
-#include "bignum.h"
+#include "funcs.h"
 
 int main(int argv, char** argc) {
     if (argv == 1) {
@@ -45,24 +40,22 @@ int main(int argv, char** argc) {
         std::cout << printAST(rewrite(parseLLL(input)), haveSec) << "\n";
     }
     else if (command == "compile_to_lll") {
-        std::cout << printAST(rewrite(parseSerpent((input))), haveSec) << "\n";
+        std::cout << printAST(compileToLLL(input, inputFile), haveSec) << "\n";
     }
     else if (command == "compile_lll") {
-        std::cout << printAST(compile_lll(parseLLL(input)), haveSec) << "\n";
+        std::cout << compileLLL(parseLLL(input)) << "\n";
     }
     else if (command == "dereference") {
         std::cout << printAST(dereference(parseLLL(input)), haveSec) <<"\n";
     }
     else if (command == "pretty_assemble") {
-        std::cout << printTokens(flatten(dereference(parseLLL(input)))) <<"\n";
+        std::cout << printTokens(prettyAssemble(parseLLL(input))) <<"\n";
     }
     else if (command == "pretty_compile_lll") {
-        std::cout << printTokens(flatten(dereference(compile_lll(
-                                    parseLLL(input))))) <<"\n";
+        std::cout << printTokens(prettyCompileLLL(parseLLL(input))) << "\n";
     }
     else if (command == "pretty_compile") {
-        std::cout << printTokens(flatten(dereference(compile_lll(
-                                    rewrite(parseSerpent((input))))))) <<"\n";
+        std::cout << printTokens(prettyCompile(input, inputFile)) << "\n";
     }
     else if (command == "assemble") {
         std::cout << assemble(parseLLL(input)) << "\n";
@@ -74,8 +67,7 @@ int main(int argv, char** argc) {
         std::cout << printTokens(deserialize(input)) << "\n";
     }
     else if (command == "compile") {
-        std::cout << assemble(compile_lll(rewrite(
-                        parseSerpent(input, inputFile)))) << "\n";
+        std::cout << compile(input, inputFile) << "\n";
     }
     else if (command == "encodeDatalist") {
         std::vector<Node> tokens = tokenize(input);
@@ -91,8 +83,7 @@ int main(int argv, char** argc) {
         if (argv == 3)
              std::cerr << "Not enough arguments for biject\n";
         int pos = decimalToInt(secondInput);
-        std::vector<Node> n = flatten(dereference(compile_lll(rewrite(
-                       parseSerpent(input, inputFile)))));
+        std::vector<Node> n = prettyCompile(input, inputFile);
         if (pos >= (int)n.size())
              std::cerr << "Code position too high\n";
         Metadata m = n[pos].metadata;
