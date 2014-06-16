@@ -239,6 +239,14 @@ bool bodiedContinued(std::string prev, std::string tok) {
         || (prev == "shared" && tok == "init");
 }
 
+// Is a line of code empty?
+bool isLineEmpty(std::string line) {
+    std::vector<Node> tokens = tokenize(line);
+    if (!tokens.size() || tokens[0].val == "#" || tokens[0].val == "//")
+        return true;
+    return false;
+}
+
 // Parse lines of serpent (helper function)
 Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
     std::vector<Node> o;
@@ -276,6 +284,7 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         std::vector<std::string> childBlock;
         while (1) {
             i += 1;
+	        if (i < lines.size() && isLineEmpty(lines[i])) continue;
             if (i >= lines.size() || spaceCount(lines[i]) <= sp) break;
             childBlock.push_back(lines[i]);
         }
