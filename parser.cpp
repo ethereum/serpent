@@ -175,10 +175,11 @@ Node treefy(std::vector<Node> stream) {
             // function where the algo was expecting a function to call the
             // thing inside the brackets. This reverses that step
             if (fun == "id") {
-                fun = args[0].val;
-                args = args[0].args;
+                oq.push_back(args2[0]);
             }
-            oq.push_back(astnode(fun, args2, tok.metadata));
+            else {
+                oq.push_back(astnode(fun, args2, tok.metadata));
+            }
         }
         else oq.push_back(tok);
         // This is messy, but has to be done. Import/inset other files here
@@ -192,6 +193,11 @@ Node treefy(std::vector<Node> stream) {
             oq.back().args.pop_back();
             oq.back().args.push_back(parseSerpent(inner, filename));
         }
+        // Useful for debugging
+        // for (int i = 0; i < oq.size(); i++) {
+        //     std::cerr << printSimple(oq[i]) << " ";
+        // }
+        // std::cerr << "\n";
     }
     // Output must have one argument
     if (oq.size() == 0) {
@@ -219,13 +225,14 @@ int spaceCount(std::string s) {
 
 // Is this a command that takes an argument on the same line?
 bool bodied(std::string tok) {
-    return tok == "if" || tok == "elif";
+    return tok == "if" || tok == "elif" || tok == "while";
 }
 
 // Is this a command that takes an argument as a child block?
 bool childBlocked(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "else"
-        || tok == "code" || tok == "shared" || tok == "init";
+        || tok == "code" || tok == "shared" || tok == "init"
+        || tok == "while";
 }
 
 // Are the two commands meant to continue each other? 
