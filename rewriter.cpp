@@ -14,8 +14,9 @@ std::string valid[][3] = {
     { "code", "1", "2" },
     { "init", "2", "2" },
     { "shared", "2", "3" },
-    { "alloc", "2", "2" },
-    { "call", "2", "3" },
+    { "alloc", "1", "1" },
+    { "array", "1", "1" },
+    { "call", "2", "4" },
     { "create", "1", "4" },
     { "msg", "4", "6" },
     { "getch", "2", "2" },
@@ -164,7 +165,11 @@ std::string macros[][2] = {
     },
     {
         "(call $f $inp $inpsz)",
-        "(seq (set $1 $inpsz) (msg (SUB (GAS) (ADD 25 (get $1))) $f 0 $inp (get $1)))"
+        "(msg (SUB (GAS) 25) $f 0 $inp $inpsz)"
+    },
+    {
+        "(call $f $inp $inpsz $outsz)",
+        "(seq (set $1 $outsz) (set $2 (alloc (MUL 32 (get $1)))) (POP (CALL (SUB (GAS) (ADD 25 (get $1))) $f 0 $inp (MUL 32 $inpsz) (ref $2) (MUL 32 (get $1)))) (get $2))"
     },
     {
         "(msg $gas $to $val $inp $inpsz $outsz)",
@@ -175,7 +180,7 @@ std::string macros[][2] = {
         "(seq $init (RETURN 0 (lll $code 0)))"
     },
     {
-        "(outer (shared $shared $init $code))",
+        "(outer (shared $shared (init $init (code $code))))",
         "(seq $shared $init (RETURN 0 (lll (seq $shared $code) 0)))"
     },
     {

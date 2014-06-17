@@ -42,6 +42,9 @@ int main(int argv, char** argc) {
     else if (command == "compile_to_lll") {
         std::cout << printAST(compileToLLL(input, inputFile), haveSec) << "\n";
     }
+    else if (command == "build_fragtree") {
+        std::cout << printAST(buildFragmentTree(parseLLL(input))) << "\n";
+    }
     else if (command == "compile_lll") {
         std::cout << compileLLL(parseLLL(input)) << "\n";
     }
@@ -62,6 +65,9 @@ int main(int argv, char** argc) {
     }
     else if (command == "serialize") {
         std::cout << serialize(tokenize(input)) << "\n";
+    }
+    else if (command == "flatten") {
+        std::cout << printTokens(flatten(parseLLL(input))) << "\n";
     }
     else if (command == "deserialize") {
         std::cout << printTokens(deserialize(input)) << "\n";

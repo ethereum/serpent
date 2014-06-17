@@ -57,6 +57,7 @@ bool decimalGt(std::string a, std::string b, bool eqAllowed) {
 //Subtract the two strings representing decimal values
 std::string decimalSub(std::string a, std::string b) {
     if (b == "0") return a;
+    if (b == a) return "0";
     while (b.length() < a.length()) b = "0" + b;
     std::string c = b;
     for (int i = 0; i < c.length(); i++) c[i] = '0' + ('9' - c[i]);
