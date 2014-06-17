@@ -91,4 +91,10 @@ bool exists(std::string fileName);
 //Report error
 void err(std::string errtext, Metadata met);
 
+//Bin to hex
+std::string binToHex(std::string inp);
+
+//Hex to bin
+std::string hexToBin(std::string inp);
+
 #endif

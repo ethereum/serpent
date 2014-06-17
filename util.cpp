@@ -216,3 +216,25 @@ void err(std::string errtext, Metadata met) {
     std::vector<Node> bob;
     bob[0] = token("bob");
 }
+
+//Bin to hex
+std::string binToHex(std::string inp) {
+    std::string o = "";
+    for (int i = 0; i < inp.length(); i++) {
+        int v = (int)inp[i];
+        o += std::string("0123456789abcdef").substr(v/16, 1)
+           + std::string("0123456789abcdef").substr(v%16, 1);
+    }
+    return o;
+}
+
+//Hex to bin
+std::string hexToBin(std::string inp) {
+    std::string o = "";
+    for (int i = 0; i < inp.length(); i+=2) {
+        char v = (char)(std::string("0123456789abcdef").find(inp[i]) * 16 +
+                std::string("0123456789abcdef").find(inp[i+1]));
+        o += v;
+    }
+    return o;
+}

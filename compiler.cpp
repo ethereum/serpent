@@ -319,7 +319,7 @@ std::vector<Node> flatten(Node derefed) {
     return o;
 }
 
-// Opcodes -> hex
+// Opcodes -> bin
 std::string serialize(std::vector<Node> codons) {
     std::string o;
     for (int i = 0; i < codons.size(); i++) {
@@ -333,20 +333,17 @@ std::string serialize(std::vector<Node> codons) {
         else {
             v = opcode(codons[i].val);
         }
-        o += std::string("0123456789abcdef").substr(v/16, 1)
-           + std::string("0123456789abcdef").substr(v%16, 1);
+        o += (char)v;
     }
     return o;
 }
 
-// Hex -> opcodes
+// Bin -> opcodes
 std::vector<Node> deserialize(std::string ser) {
     std::vector<Node> o;
     int backCount = 0;
-    for (int i = 0; i < ser.length(); i+=2) {
-        int v = std::string("0123456789abcdef").find(ser[i]) * 16 +
-                std::string("0123456789abcdef").find(ser[i+1]);
-        if (v < 0) break;
+    for (int i = 0; i < ser.length(); i++) {
+        int v = (int)ser[i];
         std::string oper = op(v);
         if (oper != "" && backCount <= 0) o.push_back(token(oper));
         else if (v >= 96 && v < 128 && backCount <= 0) {
@@ -361,7 +358,7 @@ std::vector<Node> deserialize(std::string ser) {
     return o;
 }
 
-// Fragtree -> hex
+// Fragtree -> bin
 std::string assemble(Node fragTree) {
     return serialize(flatten(dereference(fragTree)));
 }
@@ -371,7 +368,7 @@ std::vector<Node> prettyAssemble(Node fragTree) {
     return flatten(dereference(fragTree));
 }
 
-// LLL -> hex
+// LLL -> bin
 std::string compileLLL(Node program) {
     return assemble(buildFragmentTree(program));
 }
@@ -388,8 +385,7 @@ std::string encodeDatalist(std::vector<std::string> vals) {
         std::vector<Node> n2 = toByteArr(vals[i], Metadata(), 32);
         for (int j = 0; j < n2.size(); j++) {
             int v = decimalToInt(n2[j].val);
-            o += std::string("0123456789abcdef").substr(v/16, 1)
-               + std::string("0123456789abcdef").substr(v%16, 1);
+            o += (char)v;
         }
     }
     return o;

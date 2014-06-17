@@ -64,13 +64,13 @@ int main(int argv, char** argc) {
         std::cout << assemble(parseLLL(input)) << "\n";
     }
     else if (command == "serialize") {
-        std::cout << serialize(tokenize(input)) << "\n";
+        std::cout << binToHex(serialize(tokenize(input))) << "\n";
     }
     else if (command == "flatten") {
         std::cout << printTokens(flatten(parseLLL(input))) << "\n";
     }
     else if (command == "deserialize") {
-        std::cout << printTokens(deserialize(input)) << "\n";
+        std::cout << printTokens(deserialize(hexToBin(input))) << "\n";
     }
     else if (command == "compile") {
         std::cout << compile(input, inputFile) << "\n";
@@ -80,7 +80,7 @@ int main(int argv, char** argc) {
         std::vector<std::string> o;
         for (int i = 0; i < (int)tokens.size(); i++)
             o.push_back(tokens[i].val);
-        std::cout << encodeDatalist(o) << "\n";
+        std::cout << binToHex(encodeDatalist(o)) << "\n";
     }
     else if (command == "tokenize") {
         std::cout << printTokens(tokenize(input));

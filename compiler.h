@@ -16,22 +16,22 @@ Node buildFragmentTree(Node program);
 // Dereferenced fragtree -> opcodes
 std::vector<Node> flatten(Node derefed);
 
-// opcodes -> hex
+// opcodes -> bin
 std::string serialize(std::vector<Node> codons);
 
-// Fragtree -> hex
+// Fragtree -> bin
 std::string assemble(Node fragTree);
 
 // Fragtree -> opcodes
 std::vector<Node> prettyAssemble(Node fragTree);
 
-// LLL -> hex
+// LLL -> bin
 std::string compileLLL(Node program);
 
 // LLL -> opcodes
 std::vector<Node> prettyCompileLLL(Node program);
 
-// hex -> opcodes
+// bin -> opcodes
 std::vector<Node> deserialize(std::string ser);
 
 // Converts a list of integer values to binary transaction data
