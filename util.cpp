@@ -231,7 +231,7 @@ std::string binToHex(std::string inp) {
 //Hex to bin
 std::string hexToBin(std::string inp) {
     std::string o = "";
-    for (int i = 0; i < inp.length(); i+=2) {
+    for (int i = 0; i+1 < inp.length(); i+=2) {
         char v = (char)(std::string("0123456789abcdef").find(inp[i]) * 16 +
                 std::string("0123456789abcdef").find(inp[i+1]));
         o += v;

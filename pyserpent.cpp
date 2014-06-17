@@ -103,7 +103,8 @@ BOOST_PYTHON_MODULE(pyserpent)
     def("parseLLL", parseLLL, parselll_overloads());
     def("rewrite", rewrite);
     def("compile_to_lll", compileToLLL, compile_to_lll_overloads());
-    def("encode_datalist", static_cast<std::string (*)(std::vector<std::string>)>(&encodeDatalist));
+    def("encode_datalist", encodeDatalist);
+    def("decode_datalist", decodeDatalist);
     def("compile_lll", compileLLL);
     def("assemble", assemble);
     def("deserialize", deserialize);
@@ -116,6 +117,8 @@ BOOST_PYTHON_MODULE(pyserpent)
     //class_<Node>("Node",init<>())
     to_python_converter<std::vector<Node,class std::allocator<Node> >,
                          VecToList<Node> >();
+    to_python_converter<std::vector<std::string,class std::allocator<std::string> >,
+                         VecToList<std::string> >();
     Vector_from_python_list<Node>();
     Vector_from_python_list<std::string>();
     class_<Metadata>("Metadata",init<>())

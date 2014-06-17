@@ -75,12 +75,20 @@ int main(int argv, char** argc) {
     else if (command == "compile") {
         std::cout << compile(input, inputFile) << "\n";
     }
-    else if (command == "encodeDatalist") {
+    else if (command == "encode_datalist") {
         std::vector<Node> tokens = tokenize(input);
         std::vector<std::string> o;
-        for (int i = 0; i < (int)tokens.size(); i++)
+        for (int i = 0; i < (int)tokens.size(); i++) {
             o.push_back(tokens[i].val);
+        }
         std::cout << binToHex(encodeDatalist(o)) << "\n";
+    }
+    else if (command == "decode_datalist") {
+        std::vector<std::string> o = decodeDatalist(hexToBin(input));
+        std::vector<Node> tokens;
+        for (int i = 0; i < (int)o.size(); i++)
+            tokens.push_back(token(o[i]));
+        std::cout << printTokens(tokens) << "\n";
     }
     else if (command == "tokenize") {
         std::cout << printTokens(tokenize(input));

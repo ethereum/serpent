@@ -390,3 +390,16 @@ std::string encodeDatalist(std::vector<std::string> vals) {
     }
     return o;
 }
+
+// Converts binary transaction data into a list of integer values
+std::vector<std::string> decodeDatalist(std::string ser) {
+    std::vector<std::string> out;
+    for (int i = 0; i < ser.length(); i+= 32) {
+        std::string o = "0";
+        for (int j = i; j < i + 32; j++) {
+            o = decimalAdd(decimalMul(o, "256"), intToDecimal((int)ser[j]));
+        }
+        out.push_back(o);
+    }
+    return out;
+}
