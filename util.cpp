@@ -211,10 +211,11 @@ std::string get_file_contents(std::string filename)
 
 //Report error
 void err(std::string errtext, Metadata met) {
-    std::cerr << "Error (file \"" << met.file << "\", line " << met.ln
-              << ", char " << met.ch << "): " << errtext << "\n";
-    std::vector<Node> bob;
-    bob[0] = token("bob");
+    std::string err = "Error (file \"" + met.file + "\", line " +
+        intToDecimal(met.ln) + ", char " + intToDecimal(met.ch) +
+        "): " + errtext;
+    std::cerr << err << "\n";
+    throw(err);
 }
 
 //Bin to hex
