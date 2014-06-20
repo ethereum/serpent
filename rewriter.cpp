@@ -33,39 +33,35 @@ std::string valid[][3] = {
 std::string macros[][2] = {
     {
         "(+= $a $b)",
-        "(set $a (+ (get $a) $b))"
+        "(set $a (+ $a $b))"
     },
     {
         "(*= $a $b)",
-        "(set $a (* (get $a) $b))"
+        "(set $a (* $a $b))"
     },
     {
         "(-= $a $b)",
-        "(set $a (- (get $a) $b))"
+        "(set $a (- $a $b))"
     },
     {
         "(/= $a $b)",
-        "(set $a (/ (get $a) $b))"
+        "(set $a (/ $a $b))"
     },
     {
         "(%= $a $b)",
-        "(set $a (% (get $a) $b))"
+        "(set $a (% $a $b))"
     },
     {
         "(^= $a $b)",
-        "(set $a (^ (get $a) $b))"
+        "(set $a (^ $a $b))"
     },
     {
         "(@/= $a $b)",
-        "(set $a (@/ (get $a) $b))"
+        "(set $a (@/ $a $b))"
     },
     {
         "(@%= $a $b)",
-        "(set $a (@% (get $a) $b))"
-    },
-    {
-        "(+= $a $b)",
-        "(set $a (+ (get $a) $b))"
+        "(set $a (@% $a $b))"
     },
     {
         "(if $cond $do (else $else))",
