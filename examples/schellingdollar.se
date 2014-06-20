@@ -15,6 +15,8 @@
 shared:
     NUM_HASHED_VOTES = 2^160 - 1
     HASHED_VOTES = 2^160
+    TOTAL_DEPOSIT = 2^170 - 1    
+    DEPOSITS = 2^170
     REVEALED_VOTES = 2^180
     LAST_EPOCH = 1
     STARTING_BLOCK = 2
@@ -42,36 +44,56 @@ code:
         o = array(num_hashed_votes)
         i = 0
         j = 0
+        total_deposit = contract.storage[TOTAL_DEPOSIT]
+        total_reward
         while i < num_hashed_votes:
             v = contract.storage[REVEALED_VOTES + i]
             if v > 0: # No need to do check, check was already made in (8)
-                o[j] = v          
+                # Original form is val * 2^160 + address, we convert to
+                # val * 2^160 + index
+                o[j] = v & (-2^160) + i
                 j = j + 1
+            else:
+                dep = contract.storage[DEPOSITS + i]
+                total_deposit -= dep
+                contract.storage[ACCOUNTS + (v % 2^160)] += dep
+                total_reward += dep
             i = i + 1
         o2 = call(MERGESORT, o, j, j)
 
-        # If no votes, copy last values, otherwise take median
-        pointer = EPOCHSTORE + last_epoch * 2
-        if j == 0:
-            contract.storage[pointer + 2] = contract.storage[pointer]
-        else:
-            contract.storage[pointer + 2] = o2[j / 2] / 2^160
 
         # If contract is short USD, we want fewer people long USD, so charge rent on it
         # Otherwise, do the reverse
+        pointer = EPOCHSTORE + last_epoch * 2
         if contract.storage[USD_EXPOSURE] < 0:
             contract.storage[pointer + 3] = contract.storage[pointer + 1] - 10000
         else:
             contract.storage[pointer + 3] = contract.storage[pointer + 1] + 10000
-        i = j/4
-        rew = 0
+    
+        i = 0
+        td = 0
+        new_value = contract.storage[pointer]
+        new_value_chosen = 0
 
-        # Reward accounts who are close to the medium
-        while i < 3*j/4:
-            account = o[j] % 2^160
-            contract.storage[ACCOUNTS + account] = contract.storage[ACCOUNTS + account] + 10^15
-            rew = rew + 1
-        contract.storage[ETH_EXPOSURE] = contract.storage[ETH_EXPOSURE] + rew * 10^15
+        while i < j:
+            index = o2[i] % 2^160
+            dep = contract.storage[DEPOSITS + i]
+            account = contract.storage[REVEALED_VOTES + index] % 2^160
+            # Reward accounts who are close to the medium
+            if td + dep > total_deposit / 4 or td < total_deposit * 3 / 4:
+                my_reward = dep * 2002 / 2000
+            else:
+                my_reward = dep * 1999 / 2000
+            contract.storage[ACCOUNTS + account] += my_reward
+            total_reward += my_reward
+            # Set the price to the new median value
+            if td + bal >= total_deposit / 2 and not new_value_chosen:
+                new_value = o2[i] / 2^160
+                new_value_chosen = 1
+            td += bal
+            i += 1
+        contract.storage[ETH_EXPOSURE] = contract.storage[ETH_EXPOSURE] + total_reward
+        contract.storage[pointer + 2] = new_value
 
         last_epoch = last_epoch + 1
         contract.storage[NUM_HASHED_VOTES] = 0
@@ -138,8 +160,8 @@ code:
             if (usdbal + usdplus) * 50 + (ethbal - ethminus) * usdval * 45 >= 0:
                 contract.storage[ACCOUNTS + sender] = ethbal - ethminus
                 contract.storage[ACCOUNTS + sender + 1] = usdbal + usdplus
-                contract.storage[ETH_EXPOSURE] = contract.storage[ETH_EXPOSURE] - ethminus
-                contract.storage[USD_EXPOSURE] = contract.storage[USD_EXPOSURE] + usdplus
+                contract.storage[ETH_EXPOSURE] -= ethminus
+                contract.storage[USD_EXPOSURE] += usdplus
             return([ethbal - ethminus, usdbal + usdplus], 2)
     # Deposit
     elif msg.data[0] == 5:
@@ -150,16 +172,20 @@ code:
     elif msg.data[0] == 6:
         if msg.data[1] >= 0 and msg.data[1] <= ethbal:
             contract.storage[ACCOUNTS + sender] = ethbal - msg.data[1]
-            contract.storage[ETH_EXPOSURE] = contract.storage[ETH_EXPOSURE] + msg.data[1]
+            contract.storage[ETH_EXPOSURE] += msg.data[1]
             send(msg.sender, msg.data[1])
             return(ethbal - msg.data[1])
-    # Submit hash (hash)
+    # Submit hash (hash, deposit)
     # Hash is sha3(value * 2^160 + sender address)
     elif msg.data[0] == 7:
-        if subindex < 500:
+        if subindex < 500 and msg.data[2] <= ethbal:
+            contract.storage[ACCOUNTS + sender] = ethbal - msg.data[2]
+            contract.storage[ETH_EXPOSURE] -= msg.data[2]
             num_hashed_votes = contract.storage[NUM_HASHED_VOTES]
             contract.storage[HASHED_VOTES + num_hashed_votes] = msg.data[1]
+            contract.storage[DEPOSITS + num_hashed_votes] += msg.data[2]
             contract.storage[NUM_HASHED_VOTES] = num_hashed_votes + 1
+            contract.storage[TOTAL_DEPOSIT] += msg.data[2]
             return(num_hashed_votes)
     # Submit result (index, val)
     # Be sure to submit the actual USD value, not the address/value combination that you hashed 

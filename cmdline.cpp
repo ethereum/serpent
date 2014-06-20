@@ -46,7 +46,7 @@ int main(int argv, char** argc) {
         std::cout << printAST(buildFragmentTree(parseLLL(input))) << "\n";
     }
     else if (command == "compile_lll") {
-        std::cout << compileLLL(parseLLL(input)) << "\n";
+        std::cout << binToHex(compileLLL(parseLLL(input))) << "\n";
     }
     else if (command == "dereference") {
         std::cout << printAST(dereference(parseLLL(input)), haveSec) <<"\n";
@@ -73,7 +73,7 @@ int main(int argv, char** argc) {
         std::cout << printTokens(deserialize(hexToBin(input))) << "\n";
     }
     else if (command == "compile") {
-        std::cout << compile(input, inputFile) << "\n";
+        std::cout << binToHex(compile(input, inputFile)) << "\n";
     }
     else if (command == "encode_datalist") {
         std::vector<Node> tokens = tokenize(input);
