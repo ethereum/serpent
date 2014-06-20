@@ -222,7 +222,7 @@ void err(std::string errtext, Metadata met) {
 std::string binToHex(std::string inp) {
     std::string o = "";
     for (int i = 0; i < inp.length(); i++) {
-        int v = (int)inp[i];
+        unsigned char v = inp[i];
         o += std::string("0123456789abcdef").substr(v/16, 1)
            + std::string("0123456789abcdef").substr(v%16, 1);
     }

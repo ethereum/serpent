@@ -203,7 +203,7 @@ Node treefy(std::vector<Node> stream) {
     }
     // Output must have one argument
     if (oq.size() == 0) {
-        std::cerr << "Output blank!\n";
+        err("Output blank", Metadata());
     }
     else if (oq.size() > 1) {
         err("Multiple expressions or unclosed bracket", oq[1].metadata);
@@ -262,13 +262,17 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
     int origLine = metadata.ln;
     int i = 0;
     while (i < lines.size()) {
+        metadata.ln = origLine + i; 
         std::string main = lines[i];
+        if (isLineEmpty(main)) {
+            i += 1;
+            continue;
+        }
         int spaces = spaceCount(main);
         if (spaces != sp) {
-            std::cerr << "Indent mismatch on line " << (origLine+i) << "\n";
+            err("Indent mismatch", metadata);
         }
         int lineIndex = i;
-        metadata.ln = origLine + i; 
         // Tokenize current line
         std::vector<Node> tokens = tokenize(main.substr(sp), metadata);
         // Remove extraneous tokens, including if / elif
@@ -281,21 +285,27 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         if (tokens2.size() > 0 && tokens2.back().val == ":")
             tokens2.pop_back();
-        // Is line empty or comment-only?
-        if (tokens2.size() == 0) {
-            i += 1;
-            continue;
-        }
         // Parse current line
         Node out = parseSerpentTokenStream(tokens2);
         // Parse child block
-        int indent = 999999;
+        int childIndent = 999999;
         std::vector<std::string> childBlock;
         while (1) {
             i += 1;
-	        if (i < lines.size() && isLineEmpty(lines[i])) continue;
-            if (i >= lines.size() || spaceCount(lines[i]) <= sp) break;
-            childBlock.push_back(lines[i]);
+            if (i >= lines.size()) break;
+            bool ile = isLineEmpty(lines[i]);
+            if (!ile) {
+                int spaces = spaceCount(lines[i]);
+                if (spaces <= sp) break;
+                childBlock.push_back(lines[i]);
+                if (spaces < childIndent) childIndent = spaces;
+            }
+            else childBlock.push_back("");
+        }
+        // Child block empty?
+        bool cbe = true;
+        for (int i = 0; i < childBlock.size(); i++) {
+            if (childBlock[i].length() > 0) { cbe = false; break; }
         }
         // Bring back if / elif into AST
         if (bodied(tokens[0].val)) {
@@ -305,15 +315,14 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         // Add child block to AST
         if (childBlocked(tokens[0].val)) {
-            if (!childBlock.size())
+            if (cbe)
                 err("Expected indented child block!", out.metadata);
-            int childSpaces = spaceCount(childBlock[0]);
             out.type = ASTNODE;
             metadata.ln += 1;
-            out.args.push_back(parseLines(childBlock, metadata, childSpaces));
+            out.args.push_back(parseLines(childBlock, metadata, childIndent));
             metadata.ln -= 1;
         }
-        else if (childBlock.size())
+        else if (!cbe)
             err("Did not expect indented child block!", out.metadata);
         if (o.size() == 0 || o.back().type == TOKEN) {
             o.push_back(out);
