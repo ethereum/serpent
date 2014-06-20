@@ -266,6 +266,7 @@ std::string synonyms[][2] = {
     { "elif", "if" },
     { "!", "NOT" },
     { "not", "NOT" },
+    { "not", "NOT" },
     { "byte", "BYTE" },
     { "string", "alloc" },
     { "+", "ADD" },

@@ -5,8 +5,8 @@
 #include "util.h"
 
 // These appear as independent tokens even if inside a stream of symbols
-const std::string atoms[] = { "#", "-", "//", "(", ")", "[", "]", "{", "}" };
-const int numAtoms = 9;
+const std::string atoms[] = { "#", "//", "(", ")", "[", "]", "{", "}" };
+const int numAtoms = 8;
 
 // Is the char alphanumeric, a space, a bracket, a quote, a symbol?
 int chartype(char c) {
@@ -67,7 +67,7 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata) {
             }
         }
         else {
-            // Handle atoms ( '//', '#', '-', brackets )
+            // Handle atoms ( '//', '#',  brackets )
             for (int i = 0; i < numAtoms; i++) {
                 int split = cur.length() - atoms[i].length();
                 if (split >= 0 && cur.substr(split) == atoms[i]) {
@@ -80,6 +80,12 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata) {
                     cur = "";
                     curtype = SPACE;
                 }
+            }
+            // Special case the minus sign
+            if (cur.length() > 1 && cur[cur.length() - 1] == '-') {
+                out.push_back(token(cur.substr(0, cur.length() - 1), metadata));
+                out.push_back(token("-", metadata));
+                cur = "";
             }
             // Boundary between different char types
             if (headtype != curtype) {

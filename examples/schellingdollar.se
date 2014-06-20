@@ -87,7 +87,7 @@ code:
             contract.storage[ACCOUNTS + account] += my_reward
             total_reward += my_reward
             # Set the price to the new median value
-            if td + bal >= total_deposit / 2 and not new_value_chosen:
+            if td + bal >= total_deposit / 2 and !new_value_chosen:
                 new_value = o2[i] / 2^160
                 new_value_chosen = 1
             td += bal

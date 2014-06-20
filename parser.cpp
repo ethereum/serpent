@@ -9,7 +9,7 @@
 // Extended BEDMAS precedence order
 int precedence(Node tok) {
     std::string v = tok.val;
-    if (v == "!") return 0;
+    if (v == "!" || v == "not") return 0;
     else if (v=="^") return 1;
     else if (v=="*" || v=="/" || v=="@/" || v=="%" | v=="@%") return 2;
     else if (v=="+" || v=="-") return 3;
@@ -32,7 +32,7 @@ int toktype(Node tok) {
     else if (v == ")" || v == "]") return RPAREN;
     else if (v == ",") return COMMA;
     else if (v == ":") return COLON;
-    else if (v == "!") return UNARY_OP;
+    else if (v == "!" || v == "not") return UNARY_OP;
     else if (precedence(tok) >= 0) return BINARY_OP;
     bool isSymbolic = true;
     if (tok.val[0] != '"' && tok.val[0] != '\'') {
