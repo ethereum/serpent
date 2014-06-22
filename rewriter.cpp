@@ -25,8 +25,8 @@ std::string valid[][3] = {
     { "return", "1", "2" },
     { "inset", "1", "1" },
     { "import", "1", "1" },
-    { "array_lit", "1", tt256 },
-    { "seq", "1", tt256 },
+    { "array_lit", "0", tt256 },
+    { "seq", "0", tt256 },
     { "---END---", "", "" } //Keep this line at the end of the list
 };
 
@@ -257,6 +257,8 @@ std::string macros[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
+std::vector<std::vector<Node> > nodeMacros;
+
 std::string synonyms[][2] = {
     { "|", "OR" },
     { "or", "||" },
@@ -355,6 +357,22 @@ Node subst(Node pattern,
 
 // Recursively applies rewrite rules
 Node apply_rules(Node node) {
+    // If the rewrite rules have not yet been parsed, parse them
+    if (!nodeMacros.size()) {
+        for (int i = 0; i < 9999; i++) {
+            std::vector<Node> o;
+            if (macros[i][0] == "---END---") {
+                o.push_back(token(""));
+                o.push_back(token(""));
+                nodeMacros.push_back(o);
+                break;
+            }
+            o.push_back(parseLLL(macros[i][0]));
+            o.push_back(parseLLL(macros[i][1]));
+            nodeMacros.push_back(o);
+        }
+    }
+    // Main code
     int pos = 0;
     std::string prefix = "_temp"+mkUniqueToken()+"_";
     while(1) {
@@ -366,22 +384,12 @@ Node apply_rules(Node node) {
         }
         pos++;
     }
-    pos = 0;
-    bool done = false;
-    while(1) {
-        if (macros[pos][0] == "---END---") {
-            if (!done) break;
-            else {
-                pos = 0;
-                done = false;
-            }
-        }
-        Node pattern = parseLLL(macros[pos][0]);
+    for (pos = 0; pos < nodeMacros.size(); pos++) {
+        Node pattern = nodeMacros[pos][0];
         matchResult mr = match(pattern, node);
         if (mr.success) {
-            Node pattern2 = parseLLL(macros[pos][1]);
+            Node pattern2 = nodeMacros[pos][1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
-            done = true;
         }
         pos++;
     }
