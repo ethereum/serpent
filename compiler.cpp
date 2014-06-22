@@ -382,9 +382,9 @@ std::vector<Node> prettyCompileLLL(Node program) {
 std::string encodeDatalist(std::vector<std::string> vals) {
     std::string o;
     for (int i = 0; i < vals.size(); i++) {
-        std::vector<Node> n2 = toByteArr(vals[i], Metadata(), 32);
-        for (int j = 0; j < n2.size(); j++) {
-            int v = decimalToInt(n2[j].val);
+        std::vector<Node> n = toByteArr(strToNumeric(vals[i]), Metadata(), 32);
+        for (int j = 0; j < n.size(); j++) {
+            int v = decimalToInt(n[j].val);
             o += (char)v;
         }
     }

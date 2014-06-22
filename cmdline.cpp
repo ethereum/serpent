@@ -11,7 +11,6 @@ int main(int argv, char** argc) {
     std::string flag = "";
     std::string command = argc[1];
     std::string input;
-    std::string inputFile = "main";
     std::string secondInput;
     if (std::string(argc[1]) == "-s") {
         flag = command.substr(1);
@@ -29,18 +28,14 @@ int main(int argv, char** argc) {
         secondInput = argv == 3 ? "" : argc[3];
     }
     bool haveSec = secondInput.length() > 0;
-    if (exists(input)) {
-        inputFile = input;
-        input = get_file_contents(input);
-    }
     if (command == "parse" || command == "parse_serpent") {
-        std::cout << printAST(parseSerpent(input, inputFile), haveSec) << "\n";
+        std::cout << printAST(parseSerpent(input), haveSec) << "\n";
     }
     else if (command == "rewrite") {
         std::cout << printAST(rewrite(parseLLL(input)), haveSec) << "\n";
     }
     else if (command == "compile_to_lll") {
-        std::cout << printAST(compileToLLL(input, inputFile), haveSec) << "\n";
+        std::cout << printAST(compileToLLL(input), haveSec) << "\n";
     }
     else if (command == "build_fragtree") {
         std::cout << printAST(buildFragmentTree(parseLLL(input))) << "\n";
@@ -58,7 +53,7 @@ int main(int argv, char** argc) {
         std::cout << printTokens(prettyCompileLLL(parseLLL(input))) << "\n";
     }
     else if (command == "pretty_compile") {
-        std::cout << printTokens(prettyCompile(input, inputFile)) << "\n";
+        std::cout << printTokens(prettyCompile(input)) << "\n";
     }
     else if (command == "assemble") {
         std::cout << assemble(parseLLL(input)) << "\n";
@@ -73,7 +68,7 @@ int main(int argv, char** argc) {
         std::cout << printTokens(deserialize(hexToBin(input))) << "\n";
     }
     else if (command == "compile") {
-        std::cout << binToHex(compile(input, inputFile)) << "\n";
+        std::cout << binToHex(compile(input)) << "\n";
     }
     else if (command == "encode_datalist") {
         std::vector<Node> tokens = tokenize(input);
@@ -97,7 +92,7 @@ int main(int argv, char** argc) {
         if (argv == 3)
              std::cerr << "Not enough arguments for biject\n";
         int pos = decimalToInt(secondInput);
-        std::vector<Node> n = prettyCompile(input, inputFile);
+        std::vector<Node> n = prettyCompile(input);
         if (pos >= (int)n.size())
              std::cerr << "Code position too high\n";
         Metadata m = n[pos].metadata;

@@ -10,14 +10,31 @@
 #include "rewriter.h"
 #include "tokenize.h"
 
-Node compileToLLL(std::string input, std::string inputFile) {
-    return rewrite(parseSerpent(input, inputFile));
+struct inputPair {
+    std::string first;
+    std::string second;
+};
+
+inputPair inputData(std::string input) {
+    inputPair o;
+    o.first = input;
+    o.second = "main";
+    if (exists(input)) {
+        o.first = get_file_contents(input);
+        o.second = input;
+    }
+    return o;
 }
 
-std::string compile(std::string input, std::string inputFile) {
-    return compileLLL(compileToLLL(input, inputFile));
+Node compileToLLL(std::string input) {
+    inputPair o = inputData(input);
+    return rewrite(parseSerpent(o.first, o.second));
 }
 
-std::vector<Node> prettyCompile(std::string input, std::string inputFile) {
-    return prettyCompileLLL(compileToLLL(input, inputFile));
+std::string compile(std::string input) {
+    return compileLLL(compileToLLL(input));
+}
+
+std::vector<Node> prettyCompile(std::string input) {
+    return prettyCompileLLL(compileToLLL(input));
 }

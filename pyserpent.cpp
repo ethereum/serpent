@@ -91,10 +91,7 @@ std::string printMetadata(Metadata m) {
 BOOST_PYTHON_FUNCTION_OVERLOADS(tokenize_overloads, tokenize, 1, 2);
 BOOST_PYTHON_FUNCTION_OVERLOADS(parse_overloads, parseSerpent, 1, 2);
 BOOST_PYTHON_FUNCTION_OVERLOADS(parselll_overloads, parseLLL, 1, 2);
-BOOST_PYTHON_FUNCTION_OVERLOADS(compile_to_lll_overloads, compileToLLL, 1, 2);
 BOOST_PYTHON_FUNCTION_OVERLOADS(printast_overloads, printAST, 1, 2);
-BOOST_PYTHON_FUNCTION_OVERLOADS(compile_overloads, compile, 1, 2);
-BOOST_PYTHON_FUNCTION_OVERLOADS(pretty_compile_overloads, prettyCompile, 1, 2);
 //BOOST_PYTHON_FUNCTION_OVERLOADS(metadata_overloads, Metadata, 0, 3);
 BOOST_PYTHON_MODULE(pyserpent)
 {
@@ -102,7 +99,7 @@ BOOST_PYTHON_MODULE(pyserpent)
     def("parse", parseSerpent, parse_overloads());
     def("parseLLL", parseLLL, parselll_overloads());
     def("rewrite", rewrite);
-    def("compile_to_lll", compileToLLL, compile_to_lll_overloads());
+    def("compile_to_lll", compileToLLL);
     def("encode_datalist", encodeDatalist);
     def("decode_datalist", decodeDatalist);
     def("compile_lll", compileLLL);
@@ -111,8 +108,8 @@ BOOST_PYTHON_MODULE(pyserpent)
     def("dereference", dereference);
     def("flatten", flatten);
     def("serialize", serialize);
-    def("compile", compile, compile_overloads());
-    def("pretty_compile", prettyCompile, pretty_compile_overloads());
+    def("compile", compile);
+    def("pretty_compile", prettyCompile);
     def("pretty_assemble", prettyAssemble);
     //class_<Node>("Node",init<>())
     to_python_converter<std::vector<Node,class std::allocator<Node> >,

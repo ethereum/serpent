@@ -189,9 +189,17 @@ Node treefy(std::vector<Node> stream) {
         if ((v == "inset" || v == "import" || v == "create") 
                 && oq.back().args.size() == 1
                 && oq.back().args[0].type == TOKEN) {
+            int lastSlashPos = tok.metadata.file.rfind("/");
+            std::string root;
+            if (lastSlashPos >= 0)
+                root = tok.metadata.file.substr(0, lastSlashPos) + "/";
+            else
+                root = "";
             std::string filename = oq.back().args[0].val;
             filename = filename.substr(1, filename.length() - 2);
-            std::string inner = get_file_contents(filename);
+            if (!exists(root + filename))
+                err("File does not exist: "+root + filename, tok.metadata);
+            std::string inner = get_file_contents(root + filename);
             oq.back().args.pop_back();
             oq.back().args.push_back(parseSerpent(inner, filename));
         }
@@ -350,7 +358,7 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         else o.push_back(out);
     }
     if (o.size() == 1) return o[0];
-    else return astnode("seq", o, o[0].metadata);
+    else return astnode("seq", o, Metadata());
 }
 
 // Parses serpent code
