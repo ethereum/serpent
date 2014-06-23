@@ -23,7 +23,10 @@ int main(int argv, char** argc) {
         secondInput = argv == 3 ? "" : argc[3];
     }
     else {
-        if (argv == 2) std::cerr << "Not enough arguments for serpent cmdline\n";
+        if (argv == 2) {
+            std::cerr << "Not enough arguments for serpent cmdline\n";
+            throw(0);
+        }
         input = argc[2];
         secondInput = argv == 3 ? "" : argc[3];
     }
