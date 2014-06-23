@@ -340,10 +340,17 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         std::vector<Node> u;
         u.push_back(o.back());
         if (bodiedContinued(o.back().val, out.val)) {
-            while (bodiedContinued(u.back().val, out.val)) {
+            while (1) {
+                if (!bodiedContinued(u.back().val, out.val)) {
+                    u.pop_back();
+                    break;
+                }
+                if (!u.back().args.size()
+                 || !bodiedContinued(u.back().val, u.back().args.back().val)) {
+                    break;
+                }
                 u.push_back(u.back().args.back());
             }
-            u.pop_back();
             u.back().args.push_back(out);
             while (u.size() > 1) {
                 Node v = u.back();

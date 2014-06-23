@@ -79,7 +79,7 @@ programData opcodeify(Node node, programAux aux=Aux()) {
     }
     // Code blocks
     if (node.val == "lll") {
-        aux.allocUsed = true;
+        if (node.args[1].val != "0") aux.allocUsed = true;
         std::vector<Node> o;
         o.push_back(finalize(opcodeify(node.args[0])));
         programData sub = opcodeify(node.args[1], aux);

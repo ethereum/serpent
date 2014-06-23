@@ -107,6 +107,7 @@ code:
         acct = msg.data[1]
     else:
         acct = sender
+
     # Safeguard against targeting accounts incorrectly
     if contract.storage[ACCOUNTS + acct - 1] or contract.storage[ACCOUNTS + acct + 3]:
         return(0)
