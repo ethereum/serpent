@@ -201,7 +201,7 @@ Node treefy(std::vector<Node> stream) {
                 err("File does not exist: "+root + filename, tok.metadata);
             std::string inner = get_file_contents(root + filename);
             oq.back().args.pop_back();
-            oq.back().args.push_back(parseSerpent(inner, filename));
+            oq.back().args.push_back(parseSerpent(filename));
         }
         // Useful for debugging
         // for (int i = 0; i < oq.size(); i++) {
@@ -362,8 +362,14 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
 }
 
 // Parses serpent code
-Node parseSerpent(std::string s, std::string file) {
-    return parseLines(splitLines(s), Metadata(file, 0, 0), 0);
+Node parseSerpent(std::string s) {
+    std::string input = s;
+    std::string file = "main";
+    if (exists(s)) {
+        file = s;
+        input = get_file_contents(s);
+    }
+    return parseLines(splitLines(input), Metadata(file, 0, 0), 0);
 }
 
 

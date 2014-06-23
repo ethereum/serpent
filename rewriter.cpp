@@ -212,12 +212,12 @@ std::string macros[][2] = {
         "(seq $init (RETURN 0 (lll $code 0)))"
     },
     {
-        "(outer (shared $shared (init $init (code $code))))",
-        "(seq $shared $init (RETURN 0 (lll (seq $shared $code) 0)))"
-    },
-    {
         "(outer $code)",
         "(outer (init (seq) $code))"
+    },
+    {
+        "(outer (shared $shared (init $init (code $code))))",
+        "(seq $shared $init (RETURN 0 (lll (seq $shared $code) 0)))"
     },
     {
         "(seq (seq) $x)",

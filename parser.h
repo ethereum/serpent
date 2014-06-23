@@ -8,6 +8,6 @@
 #include "util.h"
 
 // Serpent text -> parse tree
-Node parseSerpent(std::string s, std::string file="main");
+Node parseSerpent(std::string s);
 
 #endif

@@ -10,25 +10,8 @@
 #include "rewriter.h"
 #include "tokenize.h"
 
-struct inputPair {
-    std::string first;
-    std::string second;
-};
-
-inputPair inputData(std::string input) {
-    inputPair o;
-    o.first = input;
-    o.second = "main";
-    if (exists(input)) {
-        o.first = get_file_contents(input);
-        o.second = input;
-    }
-    return o;
-}
-
 Node compileToLLL(std::string input) {
-    inputPair o = inputData(input);
-    return rewrite(parseSerpent(o.first, o.second));
+    return rewrite(parseSerpent(input));
 }
 
 std::string compile(std::string input) {
