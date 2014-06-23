@@ -181,19 +181,11 @@ std::string macros[][2] = {
     },
     {
         "(create $endowment $code)",
-        "(seq (set $1 (MSIZE)) (CREATE $endowment (ref $1) (lll (outer $code) (MSIZE))))"
-    },
-    {
-        "(msg $gas $to $val $dataval)",
-        "(seq (set $1 $dataval) (CALL $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
+        "(seq (set $1 (MSIZE)) (CREATE $endowment (get $1) (lll (outer $code) (MSIZE))))"
     },
     {
         "(call $f $dataval)",
         "(msg (SUB (GAS) 45) $f 0 $dataval)"
-    },
-    {
-        "(msg $gas $to $val $inp $inpsz)",
-        "(seq (CALL $gas $to $val $inp (MUL 32 $inpsz) (ref $1) 32) (get $1))"
     },
     {
         "(call $f $inp $inpsz)",
@@ -202,6 +194,14 @@ std::string macros[][2] = {
     {
         "(call $f $inp $inpsz $outsz)",
         "(seq (set $1 $outsz) (set $2 (alloc (MUL 32 (get $1)))) (POP (CALL (SUB (GAS) (ADD 25 (get $1))) $f 0 $inp (MUL 32 $inpsz) (ref $2) (MUL 32 (get $1)))) (get $2))"
+    },
+    {
+        "(msg $gas $to $val $inp $inpsz)",
+        "(seq (CALL $gas $to $val $inp (MUL 32 $inpsz) (ref $1) 32) (get $1))"
+    },
+    {
+        "(msg $gas $to $val $dataval)",
+        "(seq (set $1 $dataval) (CALL $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
     },
     {
         "(msg $gas $to $val $inp $inpsz $outsz)",

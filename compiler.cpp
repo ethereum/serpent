@@ -79,6 +79,7 @@ programData opcodeify(Node node, programAux aux=Aux()) {
     }
     // Code blocks
     if (node.val == "lll") {
+        aux.allocUsed = true;
         std::vector<Node> o;
         o.push_back(finalize(opcodeify(node.args[0])));
         programData sub = opcodeify(node.args[1], aux);
@@ -397,7 +398,8 @@ std::vector<std::string> decodeDatalist(std::string ser) {
     for (int i = 0; i < ser.length(); i+= 32) {
         std::string o = "0";
         for (int j = i; j < i + 32; j++) {
-            o = decimalAdd(decimalMul(o, "256"), intToDecimal((int)ser[j]));
+            int vj = (int)(unsigned char)ser[j];
+            o = decimalAdd(decimalMul(o, "256"), intToDecimal(vj));
         }
         out.push_back(o);
     }
