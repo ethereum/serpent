@@ -35,37 +35,37 @@ int main(int argv, char** argc) {
         std::cout << printAST(parseSerpent(input), haveSec) << "\n";
     }
     else if (command == "rewrite") {
-        std::cout << printAST(rewrite(parseLLL(input)), haveSec) << "\n";
+        std::cout << printAST(rewrite(parseLLL(input, true)), haveSec) << "\n";
     }
     else if (command == "compile_to_lll") {
         std::cout << printAST(compileToLLL(input), haveSec) << "\n";
     }
     else if (command == "build_fragtree") {
-        std::cout << printAST(buildFragmentTree(parseLLL(input))) << "\n";
+        std::cout << printAST(buildFragmentTree(parseLLL(input, true))) << "\n";
     }
     else if (command == "compile_lll") {
-        std::cout << binToHex(compileLLL(parseLLL(input))) << "\n";
+        std::cout << binToHex(compileLLL(parseLLL(input, true))) << "\n";
     }
     else if (command == "dereference") {
-        std::cout << printAST(dereference(parseLLL(input)), haveSec) <<"\n";
+        std::cout << printAST(dereference(parseLLL(input, true)), haveSec) <<"\n";
     }
     else if (command == "pretty_assemble") {
-        std::cout << printTokens(prettyAssemble(parseLLL(input))) <<"\n";
+        std::cout << printTokens(prettyAssemble(parseLLL(input, true))) <<"\n";
     }
     else if (command == "pretty_compile_lll") {
-        std::cout << printTokens(prettyCompileLLL(parseLLL(input))) << "\n";
+        std::cout << printTokens(prettyCompileLLL(parseLLL(input, true))) << "\n";
     }
     else if (command == "pretty_compile") {
         std::cout << printTokens(prettyCompile(input)) << "\n";
     }
     else if (command == "assemble") {
-        std::cout << assemble(parseLLL(input)) << "\n";
+        std::cout << assemble(parseLLL(input, true)) << "\n";
     }
     else if (command == "serialize") {
         std::cout << binToHex(serialize(tokenize(input))) << "\n";
     }
     else if (command == "flatten") {
-        std::cout << printTokens(flatten(parseLLL(input))) << "\n";
+        std::cout << printTokens(flatten(parseLLL(input, true))) << "\n";
     }
     else if (command == "deserialize") {
         std::cout << printTokens(deserialize(hexToBin(input))) << "\n";

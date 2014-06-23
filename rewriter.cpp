@@ -176,12 +176,12 @@ std::string macros[][2] = {
         "(NOT (GT $x $y))"
     },
     {
-        "(create $endowment $code)",
-        "(CREATE $endowment (ref $1) (lll (outer $code) (ref $1)))"
+        "(create $code)",
+        "(create 0 $code)"
     },
     {
-        "(create $code)",
-        "(CREATE 0 (ref $1) (lll (outer $code) (ref $1)))"
+        "(create $endowment $code)",
+        "(seq (set $1 (MSIZE)) (CREATE $endowment (ref $1) (lll (outer $code) (MSIZE))))"
     },
     {
         "(msg $gas $to $val $dataval)",
@@ -212,12 +212,12 @@ std::string macros[][2] = {
         "(seq $init (RETURN 0 (lll $code 0)))"
     },
     {
-        "(outer $code)",
-        "(outer (init (seq) $code))"
-    },
-    {
         "(outer (shared $shared (init $init (code $code))))",
         "(seq $shared $init (RETURN 0 (lll (seq $shared $code) 0)))"
+    },
+    {
+        "(outer $code)",
+        "(RETURN 0 (lll $code 0))"
     },
     {
         "(seq (seq) $x)",
@@ -305,10 +305,8 @@ matchResult match(Node p, Node n) {
             o.success = true;
             o.map[p.val.substr(1)] = n;
         }
-        return o;
     }
     else if (n.type==TOKEN || p.val!=n.val || p.args.size()!=n.args.size()) {
-        return o;
     }
     else {
         for (int i = 0; i < p.args.size(); i++) {
@@ -361,12 +359,7 @@ Node apply_rules(Node node) {
     if (!nodeMacros.size()) {
         for (int i = 0; i < 9999; i++) {
             std::vector<Node> o;
-            if (macros[i][0] == "---END---") {
-                o.push_back(token(""));
-                o.push_back(token(""));
-                nodeMacros.push_back(o);
-                break;
-            }
+            if (macros[i][0] == "---END---") break;
             o.push_back(parseLLL(macros[i][0]));
             o.push_back(parseLLL(macros[i][1]));
             nodeMacros.push_back(o);
@@ -391,7 +384,6 @@ Node apply_rules(Node node) {
             Node pattern2 = nodeMacros[pos][1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
         }
-        pos++;
     }
     if (node.type == ASTNODE && node.val != "ref" && node.val != "get") {
         int i = 0;

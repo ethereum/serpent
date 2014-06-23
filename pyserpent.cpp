@@ -90,12 +90,13 @@ std::string printMetadata(Metadata m) {
 
 BOOST_PYTHON_FUNCTION_OVERLOADS(tokenize_overloads, tokenize, 1, 2);
 BOOST_PYTHON_FUNCTION_OVERLOADS(printast_overloads, printAST, 1, 2);
+BOOST_PYTHON_FUNCTION_OVERLOADS(parselll_overloads, parseLLL, 1, 2);
 //BOOST_PYTHON_FUNCTION_OVERLOADS(metadata_overloads, Metadata, 0, 3);
 BOOST_PYTHON_MODULE(pyserpent)
 {
     def("tokenize", tokenize, tokenize_overloads());
     def("parse", parseSerpent);
-    def("parseLLL", parseLLL);
+    def("parseLLL", parseLLL, parselll_overloads());
     def("rewrite", rewrite);
     def("compile_to_lll", compileToLLL);
     def("encode_datalist", encodeDatalist);

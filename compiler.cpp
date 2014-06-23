@@ -343,8 +343,8 @@ std::vector<Node> deserialize(std::string ser) {
     std::vector<Node> o;
     int backCount = 0;
     for (int i = 0; i < ser.length(); i++) {
-        int v = (int)ser[i];
-        std::string oper = op(v);
+        unsigned char v = (unsigned char)ser[i];
+        std::string oper = op((int)v);
         if (oper != "" && backCount <= 0) o.push_back(token(oper));
         else if (v >= 96 && v < 128 && backCount <= 0) {
             o.push_back(token("PUSH"+intToDecimal(v - 95)));

@@ -59,10 +59,10 @@ Node parseLLLTokenStream(std::vector<Node> inp) {
 }
 
 // Parses LLL
-Node parseLLL(std::string s) {
+Node parseLLL(std::string s, bool allowFileRead) {
     std::string input = s;
     std::string file = "main";
-    if (exists(s)) {
+    if (exists(s) && allowFileRead) {
         file = s;
         input = get_file_contents(s);
     }
