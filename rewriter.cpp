@@ -307,7 +307,6 @@ matchResult match(Node p, Node n) {
         }
     }
     else if (n.type==TOKEN || p.val!=n.val || p.args.size()!=n.args.size()) {
-        if (p.val == n.val) std::cerr << p.val << " " << n.val << " " << p.args.size() << " " << n.args.size() << "\n";
     }
     else {
         for (int i = 0; i < p.args.size(); i++) {
