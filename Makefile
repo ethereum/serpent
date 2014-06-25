@@ -1,4 +1,4 @@
-PLATFORM_OPTS = -Wl,--export-dynamic
+PLATFORM_OPTS = 
 PYTHON = /usr/include/python2.7
 CXXFLAGS = -fPIC
 # -g3 -O0
@@ -50,7 +50,7 @@ $(TARGET).o: $(TARGET).cpp $(COMMON_OBJS)
 install:
 	cp serpent /usr/local/bin
 	cp libserpent.a /usr/local/lib
-	rm -r /usr/local/include/libserpent
+	rm -rf /usr/local/include/libserpent
 	mkdir -p /usr/local/include/libserpent
 	cp $(HEADERS) /usr/local/include/libserpent
 	cp pyserpent.so /usr/lib/python2.7/lib-dynload/
