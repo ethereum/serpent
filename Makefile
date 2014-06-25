@@ -16,9 +16,9 @@ serpent : serpentc lib
 lib:
 	ar rvs libserpent.a $(COMMON_OBJS) 
 
-serpentc: $(COMMON_OBJS) cmdline.cpp
+serpentc: $(COMMON_OBJS) cmdline.o
 	rm -rf serpent
-	g++ -Wall $(COMMON_OBJS) cmdline.cpp -o serpent
+	g++ -Wall $(COMMON_OBJS) cmdline.o -o serpent
 
 bignum.o : bignum.cpp bignum.h
 
@@ -35,6 +35,8 @@ rewriter.o : rewriter.cpp rewriter.h lllparser.o util.o
 compiler.o : compiler.cpp compiler.h util.o
 
 funcs.o : funcs.cpp funcs.h
+
+cmdline.o: cmdline.cpp
 
 clean:
 	rm -f serpent *\.o $(TARGET).so libserpent.a
