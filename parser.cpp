@@ -368,7 +368,7 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
 	else if (o.size())
 		return astnode("seq", o, o[0].metadata);
 	else
-		err("Empty input.", Metadata());
+		return astnode("seq", o, Metadata());
 }
 
 // Parses serpent code
