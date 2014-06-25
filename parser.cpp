@@ -10,7 +10,7 @@
 int precedence(Node tok) {
     std::string v = tok.val;
     if (v == "!" || v == "not") return 0;
-    else if (v=="^") return 1;
+    else if (v=="^" || v == "**") return 1;
     else if (v=="*" || v=="/" || v=="@/" || v=="%" | v=="@%") return 2;
     else if (v=="+" || v=="-") return 3;
     else if (v=="<" || v==">" || v=="<=" || v==">=") return 4;

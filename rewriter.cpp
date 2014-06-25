@@ -276,6 +276,7 @@ std::string synonyms[][2] = {
     { "*", "MUL" },
     { "/", "SDIV" },
     { "^", "EXP" },
+    { "**", "EXP" },
     { "%", "SMOD" },
     { "@/", "DIV" },
     { "@%", "MOD" },
