@@ -176,7 +176,7 @@ Node treefy(std::vector<Node> stream) {
             // into 2 ( id 3 5 * ) +, effectively putting "id" as a dummy
             // function where the algo was expecting a function to call the
             // thing inside the brackets. This reverses that step
-            if (fun == "id") {
+			if (fun == "id" && args2.size()) {
                 oq.push_back(args2[0]);
             }
             else {
