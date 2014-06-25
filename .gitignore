@@ -4,3 +4,9 @@
 Session.vim
 .netrwhist
 *~
+*.o
+serpent
+libserpent.a
+pyserpent.so
+dist
+*.egg-info
