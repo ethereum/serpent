@@ -27,13 +27,13 @@ def read(fname):
 
 setup(
     name='ethereum-serpent',
-    version='1.3.2',
+    version='1.3.3',
     description='Serpent compiler',
     maintainer='Vitalik Buterin',
     maintainer_email='v@buterin.com',
     license='WTFPL',
     url='http://www.ethereum.org/',
-    long_description=read('README.md'),
+    long_description='Ethereum serpent compiler',
     cmdclass={
         'build': build_serpent,
         'install': install_serpent,
