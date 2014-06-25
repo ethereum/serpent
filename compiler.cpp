@@ -180,7 +180,7 @@ programData opcodeify(Node node, programAux aux=Aux()) {
             subs2.push_back(subs.back());
             subs.pop_back();
         }
-        subs2.push_back(token(node.val, m));
+        subs2.push_back(token(upperCase(node.val), m));
         return pd(aux, astnode("_", subs2, m));
     }
 }

@@ -100,4 +100,7 @@ std::string binToHex(std::string inp);
 //Hex to bin
 std::string hexToBin(std::string inp);
 
+//Lower to upper
+std::string upperCase(std::string inp);
+
 #endif

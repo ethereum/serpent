@@ -244,3 +244,13 @@ std::string hexToBin(std::string inp) {
     }
     return o;
 }
+
+//Lower to upper
+std::string upperCase(std::string inp) {
+    std::string o = "";
+    for (int i = 0; i < inp.length(); i++) {
+        if (inp[i] >= 97 && inp[i] <= 122) o += inp[i] - 32;
+        else o += inp[i];
+    }
+    return o;
+}

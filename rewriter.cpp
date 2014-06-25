@@ -73,71 +73,63 @@ std::string macros[][2] = {
     },
     {
         "(access msg.data $ind)",
-        "(CALLDATALOAD (MUL 32 $ind))"
+        "(calldataload (mul 32 $ind))"
     },
     {
         "(array $len)",
-        "(alloc (MUL 32 $len))"
+        "(alloc (mul 32 $len))"
     },
     {
         "(while $cond $do)",
-        "(until (NOT $cond) $do)",
+        "(until (not $cond) $do)",
     },
     {
-        "(while (NOT $cond) $do)",
+        "(while (not $cond) $do)",
         "(until $cond $do)",
     },
     {
         "(if $cond $do)",
-        "(unless (NOT $cond) $do)",
+        "(unless (not $cond) $do)",
     },
     {
-        "(if (NOT $cond) $do)",
+        "(if (not $cond) $do)",
         "(unless $cond $do)",
     },
     {
         "(access contract.storage $ind)",
-        "(SLOAD $ind)"
+        "(sload $ind)"
     },
     {
         "(access $var $ind)",
-        "(MLOAD (ADD $var (MUL 32 $ind)))"
+        "(mload (add $var (mul 32 $ind)))"
     },
     {
         "(set (access contract.storage $ind) $val)",
-        "(SSTORE $ind $val)"
+        "(sstore $ind $val)"
     },
     {
         "(set (access $var $ind) $val)",
-        "(MSTORE (ADD $var (MUL 32 $ind)) $val)"
+        "(mstore (add $var (mul 32 $ind)) $val)"
     },
     {
         "(getch $var $ind)",
-        "(MOD (MLOAD (ADD $var $ind)) 256)"
+        "(mod (mload (add $var $ind)) 256)"
     },
     {
         "(setch $var $ind $val)",
-        "(MSTORE8 (ADD $var $ind) $val)",
+        "(mstore8 (add $var $ind) $val)",
     },
     {
         "(send $to $value)",
-        "(CALL (SUB (GAS) 25) $to $value 0 0 0 0)"
+        "(call (sub (gas) 25) $to $value 0 0 0 0)"
     },
     {
         "(send $gas $to $value)",
-        "(CALL $gas $to $value 0 0 0 0)"
+        "(call $gas $to $value 0 0 0 0)"
     },
     {
         "(sha3 $x)",
-        "(seq (set $1 $x) (SHA3 (ref $1) 32))"
-    },
-    {
-        "(sha3 $start $len)",
-        "(SHA3 $start $len)"
-    },
-    {
-        "(calldataload $start $len)",
-        "(CALLDATALOAD $start (MUL 32 $len))"
+        "(seq (set $1 $x) (sha3 (ref $1) 32))"
     },
     {
         "(id $0)",
@@ -145,11 +137,11 @@ std::string macros[][2] = {
     },
     {
         "(return $x)",
-        "(seq (set $1 $x) (RETURN (ref $1) 32))"
+        "(seq (set $1 $x) (~return (ref $1) 32))"
     },
     {
         "(return $start $len)",
-        "(RETURN $start (MUL 32 $len))"
+        "(~return $start (mul 32 $len))"
     },
     {
         "(&& $x $y)",
@@ -161,19 +153,19 @@ std::string macros[][2] = {
     },
     {
         "(>= $x $y)",
-        "(NOT (SLT $x $y))"
+        "(not (slt $x $y))"
     },
     {
         "(<= $x $y)",
-        "(NOT (SGT $x $y))"
+        "(not (sgt $x $y))"
     },
     {
         "(@>= $x $y)",
-        "(NOT (LT $x $y))"
+        "(not (lt $x $y))"
     },
     {
         "(@<= $x $y)",
-        "(NOT (GT $x $y))"
+        "(not (gt $x $y))"
     },
     {
         "(create $code)",
@@ -181,43 +173,43 @@ std::string macros[][2] = {
     },
     {
         "(create $endowment $code)",
-        "(seq (set $1 (MSIZE)) (CREATE $endowment (get $1) (lll (outer $code) (MSIZE))))"
+        "(seq (set $1 (msize)) (create $endowment (get $1) (lll (outer $code) (msize))))"
     },
     {
         "(call $f $dataval)",
-        "(msg (SUB (GAS) 45) $f 0 $dataval)"
+        "(msg (sub (gas) 45) $f 0 $dataval)"
     },
     {
         "(call $f $inp $inpsz)",
-        "(msg (SUB (GAS) 25) $f 0 $inp $inpsz)"
+        "(msg (sub (gas) 25) $f 0 $inp $inpsz)"
     },
     {
         "(call $f $inp $inpsz $outsz)",
-        "(seq (set $1 $outsz) (set $2 (alloc (MUL 32 (get $1)))) (POP (CALL (SUB (GAS) (ADD 25 (get $1))) $f 0 $inp (MUL 32 $inpsz) (ref $2) (MUL 32 (get $1)))) (get $2))"
+        "(seq (set $1 $outsz) (set $2 (alloc (mul 32 (get $1)))) (pop (call (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (ref $2) (mul 32 (get $1)))) (get $2))"
     },
     {
         "(msg $gas $to $val $inp $inpsz)",
-        "(seq (CALL $gas $to $val $inp (MUL 32 $inpsz) (ref $1) 32) (get $1))"
+        "(seq (call $gas $to $val $inp (mul 32 $inpsz) (ref $1) 32) (get $1))"
     },
     {
         "(msg $gas $to $val $dataval)",
-        "(seq (set $1 $dataval) (CALL $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
+        "(seq (set $1 $dataval) (call $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
     },
     {
         "(msg $gas $to $val $inp $inpsz $outsz)",
-        "(seq (set $1 (MUL 32 $outsz)) (set $2 (alloc (get $1))) (POP (CALL $gas $to $val $inp (MUL 32 $inpsz) (ref $2) (get $1))) (get $2))"
+        "(seq (set $1 (mul 32 $outsz)) (set $2 (alloc (get $1))) (pop (call $gas $to $val $inp (mul 32 $inpsz) (ref $2) (get $1))) (get $2))"
     },
     {
         "(outer (init $init $code))",
-        "(seq $init (RETURN 0 (lll $code 0)))"
+        "(seq $init (~return 0 (lll $code 0)))"
     },
     {
         "(outer (shared $shared (init $init (code $code))))",
-        "(seq $shared $init (RETURN 0 (lll (seq $shared $code) 0)))"
+        "(seq $shared $init (~return 0 (lll (seq $shared $code) 0)))"
     },
     {
         "(outer $code)",
-        "(RETURN 0 (lll $code 0))"
+        "(~return 0 (lll $code 0))"
     },
     {
         "(seq (seq) $x)",
@@ -229,63 +221,59 @@ std::string macros[][2] = {
     },
     {
         "(create $val (import $code))",
-        "(seq (set $1 MSIZE) (create $val (get $1) (lll $code (get $1))))"
+        "(seq (set $1 (msize)) (create $val (get $1) (lll $code (get $1))))"
     },
     {
         "(create (import $x))",
-        "(seq (set $1 MSIZE) (create $val (get $1) (lll $code (get $1))))"
+        "(seq (set $1 (msize)) (create $val (get $1) (lll $code (get $1))))"
     },
     {
         "(create $x)",
-        "(seq (set $1 MSIZE) (create $val (get $1) (lll $code (get $1))))"
+        "(seq (set $1 (msize)) (create $val (get $1) (lll $code (get $1))))"
     },
-    { "msg.datasize", "(DIV (CALLDATASIZE) 32)" },
-    { "msg.sender", "(CALLER)" },
-    { "msg.value", "(CALLVALUE)" },
-    { "tx.gasprice", "(GASPRICE)" },
-    { "tx.origin", "(ORIGIN)" },
-    { "tx.gas", "(GAS)" },
-    { "contract.balance", "(BALANCE)" },
-    { "contract.address", "(ADDRESS)" },
-    { "block.prevhash", "(PREVHASH)" },
-    { "block.coinbase", "(COINBASE)" },
-    { "block.timestamp", "(TIMESTAMP)" },
-    { "block.number", "(NUMBER)" },
-    { "block.difficulty", "(DIFFICULTY)" },
-    { "block.gaslimit", "(GASLIMIT)" },
-    { "stop", "(STOP)" },
+    { "msg.datasize", "(div (calldatasize) 32)" },
+    { "msg.sender", "(caller)" },
+    { "msg.value", "(callvalue)" },
+    { "tx.gasprice", "(gasprice)" },
+    { "tx.origin", "(origin)" },
+    { "tx.gas", "(gas)" },
+    { "contract.balance", "(balance)" },
+    { "contract.address", "(address)" },
+    { "block.prevhash", "(prevhash)" },
+    { "block.coinbase", "(coinbase)" },
+    { "block.timestamp", "(timestamp)" },
+    { "block.number", "(number)" },
+    { "block.difficulty", "(difficulty)" },
+    { "block.gaslimit", "(gaslimit)" },
+    { "stop", "(stop)" },
     { "---END---", "" } //Keep this line at the end of the list
 };
 
 std::vector<std::vector<Node> > nodeMacros;
 
 std::string synonyms[][2] = {
-    { "|", "OR" },
+    { "|", "or" },
     { "or", "||" },
-    { "&", "AND" },
+    { "&", "and" },
     { "and", "&&" },
-    { "xor", "XOR" },
     { "elif", "if" },
-    { "!", "NOT" },
-    { "not", "NOT" },
-    { "not", "NOT" },
-    { "byte", "BYTE" },
+    { "!", "not" },
     { "string", "alloc" },
-    { "+", "ADD" },
-    { "-", "SUB" },
-    { "*", "MUL" },
-    { "/", "SDIV" },
-    { "^", "EXP" },
-    { "**", "EXP" },
-    { "%", "SMOD" },
-    { "@/", "DIV" },
-    { "@%", "MOD" },
-    { "@<", "LT" },
-    { "@>", "GT" },
-    { "<", "SLT" },
-    { ">", "SGT" },
+    { "+", "add" },
+    { "-", "sub" },
+    { "*", "mul" },
+    { "/", "sdiv" },
+    { "^", "exp" },
+    { "**", "exp" },
+    { "%", "smod" },
+    { "@/", "div" },
+    { "@%", "mod" },
+    { "@<", "lt" },
+    { "@>", "gt" },
+    { "<", "slt" },
+    { ">", "sgt" },
     { "=", "set" },
-    { "==", "EQ" },
+    { "==", "eq" },
     { "---END---", "" } //Keep this line at the end of the list
 };
 
@@ -398,6 +386,11 @@ Node apply_rules(Node node) {
         args.push_back(node);
         node = astnode("get", args, node.metadata);
     }
+    // This allows people to use ~x as a way of having functions with the same
+    // name and arity as macros; the idea is that ~x is a "final" form, and 
+    // should not be remacroed, but it is converted back at the end
+    if (node.type == ASTNODE && node.val[0] == '~')
+        node.val = node.val.substr(1);
     return node;
 }
 
@@ -410,28 +403,28 @@ Node optimize(Node inp) {
             && inp.args[0].type == TOKEN 
             && inp.args[1].type == TOKEN) {
       std::string o;
-      if (inp.val == "ADD") {
+      if (inp.val == "add") {
           o = decimalMod(decimalAdd(inp.args[0].val, inp.args[1].val), tt256);
       }
-      else if (inp.val == "SUB") {
+      else if (inp.val == "sub") {
           if (decimalGt(inp.args[0].val, inp.args[1].val, true))
               o = decimalSub(inp.args[0].val, inp.args[1].val);
       }
-      else if (inp.val == "MUL") {
+      else if (inp.val == "mul") {
           o = decimalMod(decimalMul(inp.args[0].val, inp.args[1].val), tt256);
       }
-      else if (inp.val == "DIV" && inp.args[1].val != "0") {
+      else if (inp.val == "div" && inp.args[1].val != "0") {
           o = decimalDiv(inp.args[0].val, inp.args[1].val);
       }
-      else if (inp.val == "SDIV" && inp.args[1].val != "0"
+      else if (inp.val == "sdiv" && inp.args[1].val != "0"
             && decimalGt(tt255, inp.args[0].val)
             && decimalGt(tt255, inp.args[1].val)) {
           o = decimalDiv(inp.args[0].val, inp.args[1].val);
       }
-      else if (inp.val == "MOD" && inp.args[1].val != "0") {
+      else if (inp.val == "mod" && inp.args[1].val != "0") {
           o = decimalMod(inp.args[0].val, inp.args[1].val);
       }
-      else if (inp.val == "SMOD" && inp.args[1].val != "0"
+      else if (inp.val == "smod" && inp.args[1].val != "0"
             && decimalGt(tt255, inp.args[0].val)
             && decimalGt(tt255, inp.args[1].val)) {
           o = decimalMod(inp.args[0].val, inp.args[1].val);
