@@ -27,7 +27,7 @@ def read(fname):
 
 setup(
     name='ethereum-serpent',
-    version='1.3',
+    version='1.3.1',
     description='Serpent compiler',
     maintainer='Vitalik Buterin',
     maintainer_email='v@buterin.com',
