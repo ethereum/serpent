@@ -123,40 +123,45 @@ std::string indentLines(std::string inp) {
     return joinLines(lines);
 }
 
+// Converts string to simple numeric format
+std::string strToNumeric(std::string inp) {
+    std::string o = "0";
+    if (inp == "") {
+        o = "";
+    }
+    else if ((inp[0] == '"' && inp[inp.length()-1] == '"')
+            || (inp[0] == '\'' && inp[inp.length()-1] == '\'')) {
+        for (int i = 1; i < inp.length() - 1; i++) {
+            o = decimalAdd(decimalMul(o,"256"), intToDecimal(inp[i]));
+        }
+    }
+    else if (inp.substr(0,2) == "0x") {
+        for (int i = 2; i < inp.length(); i++) {
+            int dig = std::string("0123456789abcdef").find(inp[i]);
+            if (dig < 0) return "";
+            o = decimalAdd(decimalMul(o,"16"), intToDecimal(dig));
+        }
+    }
+    else {
+        bool isPureNum = true;
+        for (int i = 0; i < inp.length(); i++) {
+            isPureNum = isPureNum && inp[i] >= '0' && inp[i] <= '9';
+        }
+        o = isPureNum ? inp : "";
+    }
+    return o;
+}
+
 // Does the node contain a number (eg. 124, 0xf012c, "george")
 bool isNumberLike(Node node) {
     if (node.type == ASTNODE) return false;
-    if (node.val[0] == '"' && node.val[node.val.length()-1] == '"') {
-        return true;
-    }
-    if (node.val[0] == '\'' && node.val[node.val.length()-1] == '\'') {
-        return true;
-    }
-    if (node.val.substr(0,2) == "0x") return true;
-    bool isPureNum = true;
-    for (int i = 0; i < node.val.length(); i++) {
-        isPureNum = isPureNum && node.val[i] >= '0' && node.val[i] <= '9';
-    }
-    return isPureNum;
+    return strToNumeric(node.val) != "";
 }
 
 //Normalizes number representations
 Node nodeToNumeric(Node node) {
-    std::string o = "0";
-    if ((node.val[0] == '"' && node.val[node.val.length()-1] == '"')
-            || (node.val[0] == '\'' && node.val[node.val.length()-1] == '\'')) {
-        for (int i = 1; i < node.val.length() - 1; i++) {
-            o = decimalAdd(decimalMul(o,"256"), intToDecimal(node.val[i]));
-        }
-    }
-    else if (node.val.substr(0,2) == "0x") {
-        for (int i = 2; i < node.val.length(); i++) {
-            int dig = std::string("0123456789abcdef").find(node.val[i]);
-            o = decimalAdd(decimalMul(o,"16"), intToDecimal(dig));
-        }
-    }
-    else o = node.val;
-    return token(o, node.metadata);
+    std::string o = strToNumeric(node.val);
+    return token(o == "" ? node.val : o, node.metadata);
 }
 
 Node tryNumberize(Node node) {
@@ -236,6 +241,16 @@ std::string hexToBin(std::string inp) {
         char v = (char)(std::string("0123456789abcdef").find(inp[i]) * 16 +
                 std::string("0123456789abcdef").find(inp[i+1]));
         o += v;
+    }
+    return o;
+}
+
+//Lower to upper
+std::string upperCase(std::string inp) {
+    std::string o = "";
+    for (int i = 0; i < inp.length(); i++) {
+        if (inp[i] >= 97 && inp[i] <= 122) o += inp[i] - 32;
+        else o += inp[i];
     }
     return o;
 }

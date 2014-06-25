@@ -10,7 +10,7 @@
 int precedence(Node tok) {
     std::string v = tok.val;
     if (v == "!" || v == "not") return 0;
-    else if (v=="^") return 1;
+    else if (v=="^" || v == "**") return 1;
     else if (v=="*" || v=="/" || v=="@/" || v=="%" | v=="@%") return 2;
     else if (v=="+" || v=="-") return 3;
     else if (v=="<" || v==">" || v=="<=" || v==">=") return 4;
@@ -189,11 +189,18 @@ Node treefy(std::vector<Node> stream) {
         if ((v == "inset" || v == "import" || v == "create") 
                 && oq.back().args.size() == 1
                 && oq.back().args[0].type == TOKEN) {
+            int lastSlashPos = tok.metadata.file.rfind("/");
+            std::string root;
+            if (lastSlashPos >= 0)
+                root = tok.metadata.file.substr(0, lastSlashPos) + "/";
+            else
+                root = "";
             std::string filename = oq.back().args[0].val;
             filename = filename.substr(1, filename.length() - 2);
-            std::string inner = get_file_contents(filename);
+            if (!exists(root + filename))
+                err("File does not exist: "+root + filename, tok.metadata);
             oq.back().args.pop_back();
-            oq.back().args.push_back(parseSerpent(inner, filename));
+            oq.back().args.push_back(parseSerpent(root + filename));
         }
         // Useful for debugging
         // for (int i = 0; i < oq.size(); i++) {
@@ -333,10 +340,17 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         std::vector<Node> u;
         u.push_back(o.back());
         if (bodiedContinued(o.back().val, out.val)) {
-            while (bodiedContinued(u.back().val, out.val)) {
+            while (1) {
+                if (!bodiedContinued(u.back().val, out.val)) {
+                    u.pop_back();
+                    break;
+                }
+                if (!u.back().args.size()
+                 || !bodiedContinued(u.back().val, u.back().args.back().val)) {
+                    break;
+                }
                 u.push_back(u.back().args.back());
             }
-            u.pop_back();
             u.back().args.push_back(out);
             while (u.size() > 1) {
                 Node v = u.back();
@@ -354,12 +368,18 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
 	else if (o.size())
 		return astnode("seq", o, o[0].metadata);
 	else
-		err("Empty input.", Metadata());
+		return astnode("seq", o, Metadata());
 }
 
 // Parses serpent code
-Node parseSerpent(std::string s, std::string file) {
-    return parseLines(splitLines(s), Metadata(file, 0, 0), 0);
+Node parseSerpent(std::string s) {
+    std::string input = s;
+    std::string file = "main";
+    if (exists(s)) {
+        file = s;
+        input = get_file_contents(s);
+    }
+    return parseLines(splitLines(input), Metadata(file, 0, 0), 0);
 }
 
 

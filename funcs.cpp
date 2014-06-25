@@ -10,14 +10,14 @@
 #include "rewriter.h"
 #include "tokenize.h"
 
-Node compileToLLL(std::string input, std::string inputFile) {
-    return rewrite(parseSerpent(input, inputFile));
+Node compileToLLL(std::string input) {
+    return rewrite(parseSerpent(input));
 }
 
-std::string compile(std::string input, std::string inputFile) {
-    return compileLLL(compileToLLL(input, inputFile));
+std::string compile(std::string input) {
+    return compileLLL(compileToLLL(input));
 }
 
-std::vector<Node> prettyCompile(std::string input, std::string inputFile) {
-    return prettyCompileLLL(compileToLLL(input, inputFile));
+std::vector<Node> prettyCompile(std::string input) {
+    return prettyCompileLLL(compileToLLL(input));
 }

@@ -70,6 +70,9 @@ std::string joinLines(std::vector<std::string> lines);
 // Indent all lines by 4 spaces
 std::string indentLines(std::string inp);
 
+// Converts string to simple numeric format
+std::string strToNumeric(std::string inp);
+
 // Does the node contain a number (eg. 124, 0xf012c, "george")
 bool isNumberLike(Node node);
 
@@ -96,5 +99,8 @@ std::string binToHex(std::string inp);
 
 //Hex to bin
 std::string hexToBin(std::string inp);
+
+//Lower to upper
+std::string upperCase(std::string inp);
 
 #endif

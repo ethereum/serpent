@@ -78,7 +78,8 @@ programData opcodeify(Node node, programAux aux=Aux()) {
         else return pd(aux, token(aux.vars[varname], m));
     }
     // Code blocks
-	if (node.val == "lll" && node.args.size() == 2) {
+    if (node.val == "lll" && node.args.size() == 2) {
+        if (node.args[1].val != "0") aux.allocUsed = true;
         std::vector<Node> o;
         o.push_back(finalize(opcodeify(node.args[0])));
         programData sub = opcodeify(node.args[1], aux);
@@ -179,7 +180,7 @@ programData opcodeify(Node node, programAux aux=Aux()) {
             subs2.push_back(subs.back());
             subs.pop_back();
         }
-        subs2.push_back(token(node.val, m));
+        subs2.push_back(token(upperCase(node.val), m));
         return pd(aux, astnode("_", subs2, m));
     }
 }
@@ -343,8 +344,8 @@ std::vector<Node> deserialize(std::string ser) {
     std::vector<Node> o;
     int backCount = 0;
     for (int i = 0; i < ser.length(); i++) {
-        int v = (int)ser[i];
-        std::string oper = op(v);
+        unsigned char v = (unsigned char)ser[i];
+        std::string oper = op((int)v);
         if (oper != "" && backCount <= 0) o.push_back(token(oper));
         else if (v >= 96 && v < 128 && backCount <= 0) {
             o.push_back(token("PUSH"+intToDecimal(v - 95)));
@@ -382,9 +383,9 @@ std::vector<Node> prettyCompileLLL(Node program) {
 std::string encodeDatalist(std::vector<std::string> vals) {
     std::string o;
     for (int i = 0; i < vals.size(); i++) {
-        std::vector<Node> n2 = toByteArr(vals[i], Metadata(), 32);
-        for (int j = 0; j < n2.size(); j++) {
-            int v = decimalToInt(n2[j].val);
+        std::vector<Node> n = toByteArr(strToNumeric(vals[i]), Metadata(), 32);
+        for (int j = 0; j < n.size(); j++) {
+            int v = decimalToInt(n[j].val);
             o += (char)v;
         }
     }
@@ -397,7 +398,8 @@ std::vector<std::string> decodeDatalist(std::string ser) {
     for (int i = 0; i < ser.length(); i+= 32) {
         std::string o = "0";
         for (int j = i; j < i + 32; j++) {
-            o = decimalAdd(decimalMul(o, "256"), intToDecimal((int)ser[j]));
+            int vj = (int)(unsigned char)ser[j];
+            o = decimalAdd(decimalMul(o, "256"), intToDecimal(vj));
         }
         out.push_back(o);
     }

@@ -7,11 +7,11 @@
 int main(int argv, char** argc) {
     if (argv == 1) {
         std::cerr << "Must provide a command and arguments! Try parse, rewrite, compile, assemble\n";
+        return 0;
     }
     std::string flag = "";
     std::string command = argc[1];
     std::string input;
-    std::string inputFile = "main";
     std::string secondInput;
     if (std::string(argc[1]) == "-s") {
         flag = command.substr(1);
@@ -24,56 +24,55 @@ int main(int argv, char** argc) {
         secondInput = argv == 3 ? "" : argc[3];
     }
     else {
-        if (argv == 2) std::cerr << "Not enough arguments for serpent cmdline\n";
+        if (argv == 2) {
+            std::cerr << "Not enough arguments for serpent cmdline\n";
+            throw(0);
+        }
         input = argc[2];
         secondInput = argv == 3 ? "" : argc[3];
     }
     bool haveSec = secondInput.length() > 0;
-    if (exists(input)) {
-        inputFile = input;
-        input = get_file_contents(input);
-    }
     if (command == "parse" || command == "parse_serpent") {
-        std::cout << printAST(parseSerpent(input, inputFile), haveSec) << "\n";
+        std::cout << printAST(parseSerpent(input), haveSec) << "\n";
     }
     else if (command == "rewrite") {
-        std::cout << printAST(rewrite(parseLLL(input)), haveSec) << "\n";
+        std::cout << printAST(rewrite(parseLLL(input, true)), haveSec) << "\n";
     }
     else if (command == "compile_to_lll") {
-        std::cout << printAST(compileToLLL(input, inputFile), haveSec) << "\n";
+        std::cout << printAST(compileToLLL(input), haveSec) << "\n";
     }
     else if (command == "build_fragtree") {
-        std::cout << printAST(buildFragmentTree(parseLLL(input))) << "\n";
+        std::cout << printAST(buildFragmentTree(parseLLL(input, true))) << "\n";
     }
     else if (command == "compile_lll") {
-        std::cout << binToHex(compileLLL(parseLLL(input))) << "\n";
+        std::cout << binToHex(compileLLL(parseLLL(input, true))) << "\n";
     }
     else if (command == "dereference") {
-        std::cout << printAST(dereference(parseLLL(input)), haveSec) <<"\n";
+        std::cout << printAST(dereference(parseLLL(input, true)), haveSec) <<"\n";
     }
     else if (command == "pretty_assemble") {
-        std::cout << printTokens(prettyAssemble(parseLLL(input))) <<"\n";
+        std::cout << printTokens(prettyAssemble(parseLLL(input, true))) <<"\n";
     }
     else if (command == "pretty_compile_lll") {
-        std::cout << printTokens(prettyCompileLLL(parseLLL(input))) << "\n";
+        std::cout << printTokens(prettyCompileLLL(parseLLL(input, true))) << "\n";
     }
     else if (command == "pretty_compile") {
-        std::cout << printTokens(prettyCompile(input, inputFile)) << "\n";
+        std::cout << printTokens(prettyCompile(input)) << "\n";
     }
     else if (command == "assemble") {
-        std::cout << assemble(parseLLL(input)) << "\n";
+        std::cout << assemble(parseLLL(input, true)) << "\n";
     }
     else if (command == "serialize") {
         std::cout << binToHex(serialize(tokenize(input))) << "\n";
     }
     else if (command == "flatten") {
-        std::cout << printTokens(flatten(parseLLL(input))) << "\n";
+        std::cout << printTokens(flatten(parseLLL(input, true))) << "\n";
     }
     else if (command == "deserialize") {
         std::cout << printTokens(deserialize(hexToBin(input))) << "\n";
     }
     else if (command == "compile") {
-        std::cout << binToHex(compile(input, inputFile)) << "\n";
+        std::cout << binToHex(compile(input)) << "\n";
     }
     else if (command == "encode_datalist") {
         std::vector<Node> tokens = tokenize(input);
@@ -97,7 +96,7 @@ int main(int argv, char** argc) {
         if (argv == 3)
              std::cerr << "Not enough arguments for biject\n";
         int pos = decimalToInt(secondInput);
-        std::vector<Node> n = prettyCompile(input, inputFile);
+        std::vector<Node> n = prettyCompile(input);
         if (pos >= (int)n.size())
              std::cerr << "Code position too high\n";
         Metadata m = n[pos].metadata;

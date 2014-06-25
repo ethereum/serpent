@@ -22,8 +22,8 @@
 // get_file_contents (filename -> file)    std::string -> std::string
 // exists            (does file exist?)    std::string -> bool
 
-Node compileToLLL(std::string input, std::string inputFile="");
+Node compileToLLL(std::string input);
 
-std::string compile(std::string input, std::string inputFile="");
+std::string compile(std::string input);
 
-std::vector<Node> prettyCompile(std::string input, std::string inputFile="");
+std::vector<Node> prettyCompile(std::string input);

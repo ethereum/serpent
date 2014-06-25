@@ -59,6 +59,12 @@ Node parseLLLTokenStream(std::vector<Node> inp) {
 }
 
 // Parses LLL
-Node parseLLL(std::string s, Metadata meta) {
-    return parseLLLTokenStream(tokenize(s, meta));
+Node parseLLL(std::string s, bool allowFileRead) {
+    std::string input = s;
+    std::string file = "main";
+    if (exists(s) && allowFileRead) {
+        file = s;
+        input = get_file_contents(s);
+    }
+    return parseLLLTokenStream(tokenize(s, Metadata(file, 0, 0)));
 }

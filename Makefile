@@ -1,4 +1,4 @@
-PLATFORM_OPTS = -Wl,--export-dynamic
+PLATFORM_OPTS = 
 PYTHON = /usr/include/python2.7
 CXXFLAGS = -fPIC
 # -g3 -O0
@@ -16,9 +16,9 @@ serpent : serpentc lib
 lib:
 	ar rvs libserpent.a $(COMMON_OBJS) 
 
-serpentc: $(COMMON_OBJS) cmdline.cpp
+serpentc: $(COMMON_OBJS) cmdline.o
 	rm -rf serpent
-	g++ -Wall $(COMMON_OBJS) cmdline.cpp -o serpent
+	g++ -Wall $(COMMON_OBJS) cmdline.o -o serpent
 
 bignum.o : bignum.cpp bignum.h
 
@@ -36,6 +36,8 @@ compiler.o : compiler.cpp compiler.h util.o
 
 funcs.o : funcs.cpp funcs.h
 
+cmdline.o: cmdline.cpp
+
 clean:
 	rm -f serpent *\.o $(TARGET).so libserpent.a
 
@@ -48,7 +50,7 @@ $(TARGET).o: $(TARGET).cpp $(COMMON_OBJS)
 install:
 	cp serpent /usr/local/bin
 	cp libserpent.a /usr/local/lib
-	rm -r /usr/local/include/libserpent
+	rm -rf /usr/local/include/libserpent
 	mkdir -p /usr/local/include/libserpent
 	cp $(HEADERS) /usr/local/include/libserpent
 	cp pyserpent.so /usr/lib/python2.7/lib-dynload/
