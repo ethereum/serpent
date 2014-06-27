@@ -15,6 +15,7 @@ serpent : serpentc lib
 
 lib:
 	ar rvs libserpent.a $(COMMON_OBJS) 
+	g++ $(CXXFLAGS) -shared $(COMMON_OBJS) -o libserpent.so
 
 serpentc: $(COMMON_OBJS) cmdline.o
 	rm -rf serpent
@@ -50,6 +51,7 @@ $(TARGET).o: $(TARGET).cpp $(COMMON_OBJS)
 install:
 	cp serpent /usr/local/bin
 	cp libserpent.a /usr/local/lib
+	cp libserpent.so /usr/local/lib
 	rm -rf /usr/local/include/libserpent
 	mkdir -p /usr/local/include/libserpent
 	cp $(HEADERS) /usr/local/include/libserpent
