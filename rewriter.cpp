@@ -298,7 +298,7 @@ matchResult match(Node p, Node n) {
     else if (n.type==TOKEN || p.val!=n.val || p.args.size()!=n.args.size()) {
     }
     else {
-        for (int i = 0; i < p.args.size(); i++) {
+		for (unsigned i = 0; i < p.args.size(); i++) {
             matchResult oPrime = match(p.args[i], n.args[i]);
             if (!oPrime.success) {
                 o.success = false;
@@ -335,7 +335,7 @@ Node subst(Node pattern,
     }
     else {
         std::vector<Node> args;
-        for (int i = 0; i < pattern.args.size(); i++) {
+		for (unsigned i = 0; i < pattern.args.size(); i++) {
             args.push_back(subst(pattern.args[i], dict, varflag, metadata));
         }
         return astnode(pattern.val, args, metadata);
@@ -355,7 +355,7 @@ Node apply_rules(Node node) {
         }
     }
     // Main code
-    int pos = 0;
+	unsigned pos = 0;
     std::string prefix = "_temp"+mkUniqueToken()+"_";
     while(1) {
         if (synonyms[pos][0] == "---END---") {
@@ -375,7 +375,7 @@ Node apply_rules(Node node) {
         }
     }
     if (node.type == ASTNODE && node.val != "ref" && node.val != "get") {
-        int i = 0;
+		unsigned i = 0;
         if (node.val == "set") i = 1;
         for (i = i; i < node.args.size(); i++) {
             node.args[i] = apply_rules(node.args[i]);
@@ -396,7 +396,7 @@ Node apply_rules(Node node) {
 
 Node optimize(Node inp) {
     if (inp.type == TOKEN) return tryNumberize(inp);
-    for (int i = 0; i < inp.args.size(); i++) {
+	for (unsigned i = 0; i < inp.args.size(); i++) {
         inp.args[i] = optimize(inp.args[i]);
     }
     if (inp.args.size() == 2 
@@ -449,7 +449,7 @@ Node validate(Node inp) {
             i++;
         }
     }
-    for (int i = 0; i < inp.args.size(); i++) validate(inp.args[i]);
+	for (unsigned i = 0; i < inp.args.size(); i++) validate(inp.args[i]);
     return inp;
 }
 
