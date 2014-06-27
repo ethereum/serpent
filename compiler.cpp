@@ -78,7 +78,7 @@ programData opcodeify(Node node, programAux aux=Aux()) {
         else return pd(aux, token(aux.vars[varname], m));
     }
     // Code blocks
-    if (node.val == "lll") {
+    if (node.val == "lll" && node.args.size() == 2) {
         if (node.args[1].val != "0") aux.allocUsed = true;
         std::vector<Node> o;
         o.push_back(finalize(opcodeify(node.args[0])));
