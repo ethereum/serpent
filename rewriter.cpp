@@ -185,7 +185,7 @@ std::string macros[][2] = {
     },
     {
         "(call $f $inp $inpsz $outsz)",
-        "(seq (set $1 $outsz) (set $2 (alloc (mul 32 (get $1)))) (pop (call (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (ref $2) (mul 32 (get $1)))) (get $2))"
+        "(seq (set $1 $outsz) (set $2 (alloc (mul 32 (get $1)))) (pop (call (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (get $2) (mul 32 (get $1)))) (get $2))"
     },
     {
         "(msg $gas $to $val $inp $inpsz)",
@@ -197,7 +197,7 @@ std::string macros[][2] = {
     },
     {
         "(msg $gas $to $val $inp $inpsz $outsz)",
-        "(seq (set $1 (mul 32 $outsz)) (set $2 (alloc (get $1))) (pop (call $gas $to $val $inp (mul 32 $inpsz) (ref $2) (get $1))) (get $2))"
+        "(seq (set $1 (mul 32 $outsz)) (set $2 (alloc (get $1))) (pop (call $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1))) (get $2))"
     },
     {
         "(outer (init $init $code))",
