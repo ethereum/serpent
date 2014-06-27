@@ -26,7 +26,7 @@ shared:
     ACCOUNTS = 2^161
     MERGESORT = contract.storage[0]
 init:
-    contract.storage[0] = create('mergesort.se')
+    contract.storage[0] = create('quicksort.se')
     contract.storage[LAST_EPOCH] = 0
     contract.storage[STARTING_BLOCK] = block.number
 
@@ -199,7 +199,7 @@ code:
             return(0)
     # Balance query
     elif msg.data[0] == 9:
-        return([ethbal, usdbal])
+        return([ethbal, usdbal], 2)
     # Global state query
     elif msg.data[0] == 10:
         price = contract.storage[EPOCHSTORE + last_epoch * 2]
