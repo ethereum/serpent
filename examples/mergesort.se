@@ -9,10 +9,10 @@ else:
     while i < msg.datasize:
         if msg.data[i] < msg.data[0]:
             low[lsz] = msg.data[i]
-            lsz = lsz + 1
+            lsz += 1
         else:
             high[hsz] = msg.data[i]
-            hsz = hsz + 1
+            hsz += 1
         i = i + 1
     low = call(contract.address, low, lsz, lsz)
     high = call(contract.address, high, hsz, hsz)
@@ -20,10 +20,10 @@ else:
     i = 0
     while i < lsz:
         o[i] = low[i]
-        i = i + 1
+        i += 1
     o[lsz] = msg.data[0]
     j = 0
     while j < hsz:
         o[lsz + 1 + j] = high[j]
-        j = j + 1
+        j += 1
     return(o, msg.datasize)
