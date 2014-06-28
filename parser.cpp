@@ -93,7 +93,8 @@ std::vector<Node> shuntingYard(std::vector<Node> tokens) {
             }
             int prec = precedence(tok);
             while (stack.size() 
-                  && toktype(stack.back()) == BINARY_OP 
+                  && (toktype(stack.back()) == BINARY_OP 
+                      || toktype(stack.back()) == UNARY_OP)
                   && precedence(stack.back()) <= prec) {
                 oq.push_back(stack.back());
                 stack.pop_back();

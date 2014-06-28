@@ -136,6 +136,10 @@ std::string macros[][2] = {
         "(seq (set $1 $x) (sha3 (ref $1) 32))"
     },
     {
+        "(sha3 $mstart $msize)",
+        "(~sha3 $mstart (mul 32 $msize))"
+    },
+    {
         "(id $0)",
         "$0"
     },
@@ -293,7 +297,7 @@ matchResult match(Node p, Node n) {
     matchResult o;
     o.success = false;
     if (p.type == TOKEN) {
-        if (p.val == n.val) o.success = true;
+        if (p.val == n.val && n.type == TOKEN) o.success = true;
         else if (p.val[0] == '$') {
             o.success = true;
             o.map[p.val.substr(1)] = n;
