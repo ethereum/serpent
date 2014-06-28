@@ -64,6 +64,10 @@ std::string macros[][2] = {
         "(set $a (@% $a $b))"
     },
     {
+        "(!= $a $b)",
+        "(not (eq $a $b))"
+    },
+    {
         "(if $cond $do (else $else))",
         "(if $cond $do $else)"
     },

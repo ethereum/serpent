@@ -15,7 +15,7 @@ int precedence(Node tok) {
     else if (v=="+" || v=="-") return 3;
     else if (v=="<" || v==">" || v=="<=" || v==">=") return 4;
     else if (v=="@<" || v=="@>" || v=="@<=" || v=="@>=") return 4;
-    else if (v=="&" || v=="|" || v=="xor" || v=="==") return 5;
+    else if (v=="&" || v=="|" || v=="xor" || v=="==" || v == "!=") return 5;
     else if (v=="&&" || v=="and") return 6;    
     else if (v=="||" || v=="or") return 7;
     else if (v=="=") return 10;
