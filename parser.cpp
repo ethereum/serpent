@@ -242,7 +242,7 @@ bool bodied(std::string tok) {
 bool childBlocked(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "else"
         || tok == "code" || tok == "shared" || tok == "init"
-        || tok == "while";
+        || tok == "while" || tok == "repeat" || tok == "for";
 }
 
 // Are the two commands meant to continue each other? 
