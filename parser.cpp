@@ -11,7 +11,7 @@ int precedence(Node tok) {
     std::string v = tok.val;
     if (v == "!" || v == "not") return 0;
     else if (v=="^" || v == "**") return 1;
-    else if (v=="*" || v=="/" || v=="@/" || v=="%" | v=="@%") return 2;
+	else if (v=="*" || v=="/" || v=="@/" || v=="%" || v=="@%") return 2;
     else if (v=="+" || v=="-") return 3;
     else if (v=="<" || v==">" || v=="<=" || v==">=") return 4;
     else if (v=="@<" || v=="@>" || v=="@<=" || v=="@>=") return 4;
@@ -34,9 +34,8 @@ int toktype(Node tok) {
     else if (v == ":") return COLON;
     else if (v == "!" || v == "not") return UNARY_OP;
     else if (precedence(tok) >= 0) return BINARY_OP;
-    bool isSymbolic = true;
     if (tok.val[0] != '"' && tok.val[0] != '\'') {
-        for (int i = 0; i < tok.val.length(); i++) {
+		for (unsigned i = 0; i < tok.val.length(); i++) {
             if (chartype(tok.val[i]) == SYMB) {
                 err("Invalid symbol: "+tok.val, tok.metadata);
             }
@@ -215,7 +214,8 @@ Node treefy(std::vector<Node> stream) {
     else if (oq.size() > 1) {
         err("Multiple expressions or unclosed bracket", oq[1].metadata);
     }
-    else return oq[0];
+
+	return oq[0];
 }
 
 
@@ -227,8 +227,9 @@ Node parseSerpentTokenStream(std::vector<Node> s) {
 
 // Count spaces at beginning of line
 int spaceCount(std::string s) {
-    int pos = 0;
-    while (pos < s.length() && (s[pos] == ' ' || s[pos] == '\t')) pos += 1;
+	unsigned pos = 0;
+	while (pos < s.length() && (s[pos] == ' ' || s[pos] == '\t'))
+		pos++;
     return pos;
 }
 
@@ -267,7 +268,7 @@ bool isLineEmpty(std::string line) {
 Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
     std::vector<Node> o;
     int origLine = metadata.ln;
-    int i = 0;
+	unsigned i = 0;
     while (i < lines.size()) {
         metadata.ln = origLine + i; 
         std::string main = lines[i];
@@ -279,12 +280,11 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         if (spaces != sp) {
             err("Indent mismatch", metadata);
         }
-        int lineIndex = i;
         // Tokenize current line
         std::vector<Node> tokens = tokenize(main.substr(sp), metadata);
         // Remove extraneous tokens, including if / elif
         std::vector<Node> tokens2;
-        for (int j = 0; j < tokens.size(); j++) {
+		for (unsigned j = 0; j < tokens.size(); j++) {
             if (tokens[j].val == "#" || tokens[j].val == "//") break;
             if (j >= 1 || !bodied(tokens[j].val)) {
                 tokens2.push_back(tokens[j]);
@@ -298,8 +298,9 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         int childIndent = 999999;
         std::vector<std::string> childBlock;
         while (1) {
-            i += 1;
-            if (i >= lines.size()) break;
+			i++;
+			if (i >= lines.size())
+				break;
             bool ile = isLineEmpty(lines[i]);
             if (!ile) {
                 int spaces = spaceCount(lines[i]);
@@ -311,7 +312,7 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         // Child block empty?
         bool cbe = true;
-        for (int i = 0; i < childBlock.size(); i++) {
+		for (unsigned i = 0; i < childBlock.size(); i++) {
             if (childBlock[i].length() > 0) { cbe = false; break; }
         }
         // Bring back if / elif into AST
