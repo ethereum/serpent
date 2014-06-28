@@ -129,7 +129,6 @@ code:
     else:
         acct = sender
 
-    debug(7070707070707070)
     # Useful variables
     my_acct = ACCOUNTS + msg.sender
     recv_acct = ACCOUNTS + msg.data[1]
@@ -138,7 +137,7 @@ code:
         acct = recv_acct
     else:
         acct = my_acct
-    account_last_epoch = contracts.storage[acct + 2]
+    account_last_epoch = contract.storage[acct + 2] or EPOCHSTORE
     if account_last_epoch != last_epoch:
         cur_balance = contract.storage[acct + 1]
         new_balance = cur_balance * contract.storage[last_epoch + 2] / contract.storage[account_last_epoch + 2]
@@ -150,7 +149,7 @@ code:
     ethbal = contract.storage[acct]
     usdbal = contract.storage[acct + 1]
     usdval = contract.storage[last_epoch]
-    if usdbal * 50 + usdval * ethbal * 45 < 0:
+    if usdbal * usdval * 50 + ethbal * 45 < 0:
         contract.storage[ETH_EXPOSURE] = contract.storage[ETH_EXPOSURE] - ethbal
         contract.storage[USD_EXPOSURE] = contract.storage[USD_EXPOSURE] + usdbal
         contract.storage[acct] = 0
@@ -158,28 +157,31 @@ code:
     
     # Send ETH (to, value)
     if msg.data[0] == 1:
-        if msg.data[2] > 0 and msg.data[2] < ethbal and usdbal * 50 + (ethbal - msg.data[2]) * usdval * 45 >= 0:
+        if msg.data[2] > 0 and msg.data[2] < ethbal and usdbal * usdval * 50 + (ethbal - msg.data[2]) * 45 >= 0:
             contract.storage[my_acct] = ethbal - msg.data[2]
             call(contract.address, [0, msg.data[1]], 2)
             contract.storage[recv_acct] += msg.data[2]
             return(1)
     # Send USD (to, value)
     elif msg.data[0] == 2:
-        if msg.data[2] > 0 and (usdbal - msg.data[2]) * 50 + ethbal * usdval * 45 >= 0:
+        if msg.data[2] > 0 and (usdbal - msg.data[2]) * usdval * 50 + ethbal * 45 >= 0:
             contract.storage[my_acct + 1] = usdbal - msg.data[2]
             call(contract.address,[0, msg.data[1]], 2)
             contract.storage[recv_acct + 1] += msg.data[2]
             return(1)
     # Convert USD to ETH (usdvalue)
     elif msg.data[0] == 3:
-        if msg.data[1] > 0 and msg.data[1] < usdbal:
+        if msg.data[1] > 0:
             usdminus = msg.data[1]
             ethplus = usdminus * usdval * 999 / 1000
-            if (usdbal - usdminus) * 50 + (ethbal + ethplus) * usdval * 45 >= 0:
-                contract.storage[ACCOUNTS + sender] = ethbal + ethplus
-                contract.storage[ACCOUNTS + sender + 1] = usdbal + usdminus
-                contract.storage[ETH_EXPOSURE] = contract.storage[ETH_EXPOSURE] + ethplus
-                contract.storage[USD_EXPOSURE] = contract.storage[USD_EXPOSURE] - usdminus
+            debug(usdbal - usdminus)
+            debug((usdbal - usdminus) * usdval)
+            debug(ethbal + ethplus)
+            if (usdbal - usdminus) * usdval * 50 + (ethbal + ethplus) * 45 >= 0:
+                contract.storage[my_acct] = ethbal + ethplus
+                contract.storage[my_acct + 1] = usdbal - usdminus
+                contract.storage[ETH_EXPOSURE] += ethplus
+                contract.storage[USD_EXPOSURE] -= usdminus
             return([ethbal + ethplus, usdbal - usdminus], 2)
     # Convert ETH to USD (ethvalue)
     elif msg.data[0] == 4:
@@ -187,8 +189,8 @@ code:
             usdplus = msg.data[1] / usdval * 999 / 1000
             ethminus = msg.data[1]
             if (usdbal + usdplus) * 50 + (ethbal - ethminus) * usdval * 45 >= 0:
-                contract.storage[ACCOUNTS + sender] = ethbal - ethminus
-                contract.storage[ACCOUNTS + sender + 1] = usdbal + usdplus
+                contract.storage[my_acct] = ethbal - ethminus
+                contract.storage[my_acct + 1] = usdbal + usdplus
                 contract.storage[ETH_EXPOSURE] -= ethminus
                 contract.storage[USD_EXPOSURE] += usdplus
             return([ethbal - ethminus, usdbal + usdplus], 2)
@@ -200,8 +202,8 @@ code:
     # Withdraw (ethvalue)
     elif msg.data[0] == 6:
         if msg.data[1] >= 0 and msg.data[1] <= ethbal:
-            contract.storage[ACCOUNTS + sender] = ethbal - msg.data[1]
-            contract.storage[ETH_EXPOSURE] += msg.data[1]
+            contract.storage[myacct] = ethbal - msg.data[1]
+            contract.storage[ETH_EXPOSURE] -= msg.data[1]
             send(msg.sender, msg.data[1])
             return(ethbal - msg.data[1])
     # Submit hash (hash, deposit)
@@ -232,6 +234,16 @@ code:
         return([ethbal, usdbal], 2)
     # Global state query
     elif msg.data[0] == 10:
-        price = contract.storage[EPOCHSTORE + last_epoch * 2]
-        interest = contract.storage[EPOCHSTORE + last_epoch * 2 + 1]
+        price = contract.storage[last_epoch]
+        interest = contract.storage[last_epoch + 1]
         return([last_epoch, price, interest], 3)
+    # Liquidation test any account, with bounty for success
+    elif msg.data[0] == 11:
+        ethbal = contract.storage[recv_acct]
+        usdbal = contract.storage[recv_acct + 1]
+        if usdbal * usdval * 50 + ethbal * 45 < 0:
+            contract.storage[ETH_EXPOSURE] = contract.storage[ETH_EXPOSURE] - ethbal
+            contract.storage[USD_EXPOSURE] = contract.storage[USD_EXPOSURE] + usdbal
+            send(msg.sender, ethbal / 10)
+            contract.storage[recv_acct] = 0
+            contract.storage[recv_acct + 1] = 0
