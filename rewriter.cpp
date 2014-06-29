@@ -260,9 +260,7 @@ std::string macros[][2] = {
 std::vector<std::vector<Node> > nodeMacros;
 
 std::string synonyms[][2] = {
-    { "|", "or" },
     { "or", "||" },
-    { "&", "and" },
     { "and", "&&" },
     { "elif", "if" },
     { "!", "not" },
