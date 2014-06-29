@@ -27,7 +27,6 @@
 # [7, acct]: balance query for any acct
 # [8]: global state query
 # [9]: liquidation test any account
-# [10]: interest rate update any account
 #
 # The purpose of the contract is to serve as a sort of cryptographic
 # bank account where users can store both ETH and USD. ETH must be
