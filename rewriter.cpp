@@ -24,7 +24,6 @@ std::string valid[][3] = {
     { "sha3", "1", "2" },
     { "return", "1", "2" },
     { "inset", "1", "1" },
-    { "import", "1", "1" },
     { "array_lit", "0", tt256 },
     { "seq", "0", tt256 },
     { "---END---", "", "" } //Keep this line at the end of the list
@@ -226,14 +225,6 @@ std::string macros[][2] = {
     {
         "(inset $x)",
         "$x"
-    },
-    {
-        "(create $val (import $code))",
-        "(seq (set $1 (msize)) (create $val (get $1) (lll $code (get $1))))"
-    },
-    {
-        "(create (import $x))",
-        "(seq (set $1 (msize)) (create $val (get $1) (lll $code (get $1))))"
     },
     {
         "(create $x)",
