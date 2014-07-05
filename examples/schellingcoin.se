@@ -58,11 +58,8 @@ code:
         total_deposit = 0
         while i < j / 2:
             base_index = HASHES + values[i * 2 + 1] * 3
-            contract.storage[base_index] = 0
             deposits[i] = contract.storage[base_index + 1]
-            contract.storage[base_index + 1] = 0
             addresses[i] = contract.storage[base_index + 2]
-            contract.storage[base_index + 2] = 0
             if contract.storage[VALUES + values[i * 2 + 1]]:
                 total_deposit += deposits[i]
             else:
