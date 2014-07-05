@@ -37,7 +37,7 @@ code:
     if block.number / 100 > contract.storage[0] / 100:
         # Sort all hashes
         N = contract.storage[1]
-        o = array(N)
+        o = array(N * 2)
         i = 0
         j = 0
         while i < N:
