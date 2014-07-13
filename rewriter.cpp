@@ -236,7 +236,7 @@ std::string macros[][2] = {
     { "tx.gasprice", "(gasprice)" },
     { "tx.origin", "(origin)" },
     { "tx.gas", "(gas)" },
-    { "contract.balance", "(balance)" },
+    { "contract.balance", "(balance (address))" },
     { "contract.address", "(address)" },
     { "block.prevhash", "(prevhash)" },
     { "block.coinbase", "(coinbase)" },
@@ -271,6 +271,7 @@ std::string synonyms[][2] = {
     { ">", "sgt" },
     { "=", "set" },
     { "==", "eq" },
+    { ":", "kv" },
     { "---END---", "" } //Keep this line at the end of the list
 };
 
@@ -350,7 +351,7 @@ Node array_lit_transform(Node node) {
     o2.push_back(astnode("alloc", o1, node.metadata));
     std::vector<Node> o3;
     o3.push_back(astnode("set", o2, node.metadata));
-    for (int i = 0; i < node.args.size(); i++) {
+    for (unsigned i = 0; i < node.args.size(); i++) {
         // (mstore (add (get symb) i*32) v)
         std::vector<Node> o5;
         o5.push_back(token(symb, node.metadata));
@@ -398,19 +399,24 @@ Node apply_rules(Node node) {
         if (mr.success) {
             Node pattern2 = nodeMacros[pos][1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
+            pos = 0;
         }
     }
     // Array_lit special instruction
     if (node.val == "array_lit")
         node = array_lit_transform(node);
-    if (node.type == ASTNODE && node.val != "ref" && node.val != "get") {
+    if (node.type == ASTNODE) {
 		unsigned i = 0;
-        if (node.val == "set") i = 1;
+        if (node.val == "set" || node.val == "ref" || node.val == "get") {
+            node.args[0].val = "'" + node.args[0].val;
+            i = 1;
+        }
         for (i = i; i < node.args.size(); i++) {
             node.args[i] = apply_rules(node.args[i]);
         }
     }
     else if (node.type == TOKEN && !isNumberLike(node)) {
+        node.val = "'" + node.val;
         std::vector<Node> args;
         args.push_back(node);
         node = astnode("get", args, node.metadata);
