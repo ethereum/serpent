@@ -151,5 +151,5 @@ static PyMethodDef PyextMethods[] = {
 
 PyMODINIT_FUNC initpyext(void)
 {
-     PyObject *m = Py_InitModule( "pyext", PyextMethods );
+     (void) Py_InitModule( "pyext", PyextMethods );
 }
