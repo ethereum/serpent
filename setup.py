@@ -30,10 +30,11 @@ setup(
               'compiler.cpp', 'funcs.cpp', 'pyserpent.cpp']
          )],
     py_modules=[
-        'serpent'
+        'serpent',
+        'pyserpent'
     ],
     scripts=[
-        'serpent.py',
+        'serpent.py'
     ],
     entry_points={
         'console_scripts': [
