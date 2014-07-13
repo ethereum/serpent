@@ -128,7 +128,7 @@ PYMETHOD(ps_parse_lll, FROMSTR, parseLLL, pyifyNode)
 static PyMethodDef PyextMethods[] = {
     {"compile",  ps_compile, METH_VARARGS,
         "Compile code."},
-    {"compile_to_lll",  ps_compile_to_lll, METH_VARARGS,
+    {"compile_to_lll",  ps_parse,  METH_VARARGS,
         "Compile code to LLL."},
     {"compile_lll",  ps_compile_lll, METH_VARARGS,
         "Compile LLL to EVM."},

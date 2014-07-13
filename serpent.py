@@ -1,7 +1,7 @@
 import pyext
 import sys
-import re
-import json
+
+VERSION = '1.5.4'
 
 
 class Metadata(object):
@@ -126,18 +126,17 @@ def main():
     if len(sys.argv) == 1:
         print "serpent <command> <arg1> <arg2> ..."
     else:
-        cmd = sys.argv[2] if sys.argv[1][0] == '-' else sys.argv[1]
+        cmd = sys.argv[2] if sys.argv[1] == '-2' else sys.argv[1]
         if sys.argv[1] == '-s':
             args = [sys.stdin.read()] + sys.argv[3:]
             if cmd == 'deserialize':
                 args[0] = args[0].strip().decode('hex')
+        elif sys.argv[1] == '-v':
+            print VERSION
+            sys.exit()
         else:
             cmd = sys.argv[1]
             args = sys.argv[2:]
-        try:
-            args[0] = open(args[0]).read()
-        except:
-            pass
         o = globals()[cmd](*args)
         if isinstance(o, (Token, Astnode, list)):
             print repr(o)
