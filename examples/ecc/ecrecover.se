@@ -8,16 +8,16 @@ Gy = 326705100207588169780830851305070431844712733806592432759389043357573374824
 
 x = r
 xcubed = modmul(modmul(x, x, P), x, P)
-beta = msg(EXP, 0, [modadd(xcubed, 7, P), div(P + 1, 4), P])
-if xor(mod(v, 2), mod(beta, 2)):
+beta = msg(EXP, 0, [modadd(xcubed, 7, P), div(P + 1, 4), P], 3)
+if mod(v, 2) xor mod(beta, 2):
     y = beta
 else:
     y = P - beta
-GZ = call(JORDANMUL, 0, [Gx, 1, Gy, 1, h], 5, 4)
-XY = call(JORDANMUL, 0, [x, 1, y, 1, s], 5, 4) 
-COMB = call(JORDANADD, 0, [GZ[0], GZ[1], P - GZ[2], GZ[3], XY[0], XY[1], XY[2], XY[3]], 8, 4)
-e = call(EXP, 0, [r, N - 2, N], 3)
-Q = call(JORDANMUL, 0, e, 4, 4)
+GZ = msg(JORDANMUL, 0, [Gx, 1, Gy, 1, h], 5, 4)
+XY = msg(JORDANMUL, 0, [x, 1, y, 1, s], 5, 4) 
+COMB = msg(JORDANADD, 0, [GZ[0], GZ[1], P - GZ[2], GZ[3], XY[0], XY[1], XY[2], XY[3]], 8, 4)
+e = msg(EXP, 0, [r, N - 2, N], 3)
+Q = msg(JORDANMUL, 0, e, 4, 4)
 ox = modmul(Q[0], call(EXP, 0, [Q[1], N - 2, N], 3), P)
 oy = modmul(Q[2], call(EXP, 0, [Q[3], N - 2, N], 3), P)
 return([ox, oy], 2)

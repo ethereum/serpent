@@ -20,5 +20,5 @@ else:
     dbl[5] = axd
     dbl[6] = ayn
     dbl[7] = ayd
-    return(call(JORDAN_ADD, 0, dbl, 8, 4), 4)
+    return(msg(JORDAN_ADD, 0, dbl, 8, 4), 4)
 

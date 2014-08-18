@@ -12,7 +12,7 @@ if !bxn and !byn:
     return([axn, axd, ayn, ayd])
 if modadd(modmul(axn, bxd, P), P - modmul(axd, bxn, P), P) == 0:
     if modadd(modmul(ayn, byd, P), P - modmul(ayd, byn, P), P) == 0:
-        return(msg(JORDAN_DOUBLE, [axn, axd, ayn, ayd], 4), 4)
+        return(msg(JORDAN_DOUBLE, 0, [axn, axd, ayn, ayd], 4), 4)
     else:
         return([0, 1, 0, 1], 4)
 xdiffn = modadd(modmul(axn, bxd), P - modmul(bxn, axd)) 
