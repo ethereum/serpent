@@ -149,7 +149,7 @@ static PyMethodDef PyextMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-PyMODINIT_FUNC initpyext(void)
+PyMODINIT_FUNC initserpent_pyext(void)
 {
-     Py_InitModule( "pyext", PyextMethods );
+     Py_InitModule( "serpent_pyext", PyextMethods );
 }

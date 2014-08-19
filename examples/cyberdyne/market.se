@@ -17,9 +17,9 @@
 
 init:
     # Heap for buy orders
-    contract.storage[0] = create(0, 'heap.se')
+    contract.storage[0] = create('heap.se')
     # Heap for sell orders
-    contract.storage[1] = create(0, 'heap.se')
+    contract.storage[1] = create('heap.se')
 code:
     # Initialize with [ first_subcurrency, second_subcurrency ]
     if !contract.storage[1000]:
@@ -31,7 +31,7 @@ code:
     second_subcurrency = contract.storage[2000]
     buy_heap = contract.storage[0]
     sell_heap = contract.storage[1]
-    # This contract operates in "epochs" of 1000 blocks
+    # This contract operates in "epochs" of 100 blocks
     # At the end of each epoch, we process all orders
     # simultaneously, independent of order. This algorithm
     # prevents front-running, and generates a profit from
@@ -40,13 +40,13 @@ code:
     # more valuable
     
     # Epoch transition code
-    if contract.storage[3000] < block.number / 1000:
+    if contract.storage[3000] < block.number / 100:
         done = 0
         volume = 0
         while !done:
             # Grab the top buy and sell order from each heap
-            topbuy = msg(buy_heap, 0, [2], 1)
-            topsell = msg(sell_heap, 0, [2], 1)
+            topbuy = call(buy_heap, 1)
+            topsell = call(sell_heap, 1)
             # An order is recorded in the heap as:
             # Buys: (2^48 - 1 - price) * 2^208 + units of first currency * 2^160 + from
             # Sells: price * 2^208 + units of second currency * 2^160 + from
@@ -62,26 +62,24 @@ code:
             else:
                 # Add to volume counter
                 volume += buyfcvalue
-                # Pop top values from heaps
-                o = msg(buy_heap, 0, [1], 1)
-                o = msg(sell_heap, 0, [1], 1)
                 # Calculate how much of the second currency the buyer gets, and
                 # how much of the first currency the seller gets
                 sellfcvalue = sellscvalue * sellprice
                 buyscvalue = buyfcvalue / buyprice
                 # Send the currency units along
-                o = msg(second_currency, 0, [buyer, buyscvalue], 2)
-                o = msg(first_currency, 0, [seller, sellfcvalue], 2)
+                call(second_currency, [buyer, buyscvalue], 2)
+                call(first_currency, [seller, sellfcvalue], 2)
         if volume:
             contract.storage[4000] = (buyprice + sellprice) / 2
         contract.storage[4001] = volume
+        contract.storage[3000] = block.number / 100
     # Make buy order [0, price]
     if msg.data[0] == 0:
         # We ask the first subcurrency contract what the last transaction was. The
         # way to make a buy order is to send the amount of first currency units that
         # you wish to buy with, and then immediately call this contract. For security
         # it makes sense to set up a tx which sends both messages in sequence atomically
-        data = msg(first_subcurrency, 0, [], 0, 4)
+        data = call(first_subcurrency, [], 0, 4)
         from = data[0]
         to = data[1]
         value = data[2]
@@ -89,18 +87,18 @@ code:
         if txid > contract.storage[1001] and to == contract.address:
             contract.storage[1001] = txid
             # Adds the order to the heap
-            o = msg(buy_heap, price, [0, (2^48 - 1 - price) * 2^208 + (value % 2^48) * 2^160 + from], 2) 
+            call(buy_heap, price, [0, (2^48 - 1 - price) * 2^208 + (value % 2^48) * 2^160 + from], 2) 
     # Make sell order [1, price]
     elif msg.data[0] == 1:
         # Same mechanics as buying
-        data = msg(second_subcurrency, 0, [], 0, 4)
+        data = call(second_subcurrency, [], 0, 4)
         from = data[0]
         to = data[1]
         value = data[2]
         txid = data[3]
         if txid > contract.storage[1001] and to == contract.address:
             contract.storage[1001] = txid
-            o = msg(sell_heap, price, [0, price * 2^208 + (value % 2^48) * 2^160 + from], 2) 
+            call(sell_heap, price, [0, price * 2^208 + (value % 2^48) * 2^160 + from], 2) 
     # Ask for price
     elif msg.data[0] == 2:
         return(contract.storage[4000])

@@ -1,9 +1,8 @@
-# Initialization [ admin, initial premine ]
-# Admin can issue and delete at will (set admin to something like 1 to disable)
-if !contract.storage[0]:
-    contract.storage[0] = msg.data[0]
-    contract.storage[msg.sender] = msg.data[1]
-else:
+# Initialization
+# Admin can issue and delete at will
+init:
+    contract.storage[0] = msg.sender
+code:
     # If a message with one item is sent, that's a balance query
     if msg.datasize == 1:
         addr = msg.data[0]
@@ -21,9 +20,14 @@ else:
             contract.storage[3] = to
             contract.storage[4] = value
             contract.storage[5] += 1
-    # Admin can issue at will by sending a [to, value, ?] message
     elif msg.datasize == 3 and msg.sender == contract.storage[0]:
-        contract.storage[msg.data[0]] += msg.data[1]
+        # Admin can issue at will by sending a [to, value, 0] message
+        if msg.data[2] == 0:
+            contract.storage[msg.data[0]] += msg.data[1]
+        # Change admin [ newadmin, 0, 1 ]
+        # Set admin to 0 to disable administration
+        elif msg.data[2] == 1:
+            contract.storage[0] = msg.data[0]
     # Fetch last transaction
     else:
-        return([contract.storage[1], contract.storage[2], contract.storage[3], contract.storage[4]], 4)
+        return([contract.storage[2], contract.storage[3], contract.storage[4], contract.storage[5]], 4)

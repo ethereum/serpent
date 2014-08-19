@@ -17,6 +17,7 @@ struct programAux {
 struct programData {
     programAux aux;
     Node code;
+    int outs;
 };
 
 programAux Aux() {
@@ -27,10 +28,11 @@ programAux Aux() {
     return o;
 }
 
-programData pd(programAux aux = Aux(), Node code=token("_")) {
+programData pd(programAux aux = Aux(), Node code=token("_"), int outs=0) {
     programData o;
     o.aux = aux;
     o.code = code;
+    o.outs = outs;
     return o;
 }
 
@@ -44,13 +46,21 @@ Node multiToken(Node nodes[], int len, Metadata met) {
 
 Node finalize(programData c);
 
+Node popwrap(Node node) {
+    Node nodelist[] = {
+        node,
+        token("POP", node.metadata)
+    };
+    return multiToken(nodelist, 2, node.metadata);
+}
+
 // Turns LLL tree into tree of code fragments
 programData opcodeify(Node node, programAux aux=Aux()) {
     std::string symb = "_"+mkUniqueToken();
     Metadata m = node.metadata;
     // Numbers
     if (node.type == TOKEN) {
-        return pd(aux, nodeToNumeric(node));
+        return pd(aux, nodeToNumeric(node), 1);
     }
     else if (node.val == "ref" || node.val == "get" || node.val == "set") {
         std::string varname = node.args[0].val;
@@ -66,16 +76,16 @@ programData opcodeify(Node node, programAux aux=Aux()) {
                  token(aux.vars[varname], m),
                  token("MSTORE", m),
              };
-             return pd(sub.aux, multiToken(nodelist, 3, m));                   
+             return pd(sub.aux, multiToken(nodelist, 3, m), 0);                   
         }
         // Get variable
         else if (node.val == "get") {
              Node nodelist[] = 
                   { token(aux.vars[varname], m), token("MLOAD", m) };
-             return pd(aux, multiToken(nodelist, 2, m));
+             return pd(aux, multiToken(nodelist, 2, m), 1);
         }
         // Refer variable
-        else return pd(aux, token(aux.vars[varname], m));
+        else return pd(aux, token(aux.vars[varname], m), 1);
     }
     // Code blocks
     if (node.val == "lll" && node.args.size() == 2) {
@@ -90,38 +100,61 @@ programData opcodeify(Node node, programAux aux=Aux()) {
             token("$endcode"+symb, m), token("JUMP", m),
             token("~begincode"+symb, m), code, token("~endcode"+symb, m)
         };
-        return pd(sub.aux, multiToken(nodelist, 10, m));
+        return pd(sub.aux, multiToken(nodelist, 10, m), 1);
     }
     std::vector<Node> subs;
+    std::vector<int> subouts;
 	for (unsigned i = 0; i < node.args.size(); i++) {
         programData sub = opcodeify(node.args[i], aux);
         aux = sub.aux;
         subs.push_back(sub.code);
+        subouts.push_back(sub.outs);
     }
     // Debug
     if (node.val == "debug") {
+        if (subouts[0] != 1)
+            err("Input to debug has arity 0", m);
         Node nodelist[] = {
             subs[0],
             token("DUP", m), token("POP", m), token("POP", m)
         };
-        return pd(aux, multiToken(nodelist, 4, m));
+        return pd(aux, multiToken(nodelist, 4, m), 0);
     }
     // Seq of multiple statements
     if (node.val == "seq") {
-        return pd(aux, astnode("_", subs, m));
+        int last = subouts.size() ? subouts.back() : 0;
+        std::vector<Node> children;
+        for (unsigned i = 0; i < subs.size(); i++) {
+            children.push_back(subouts[i] && i < subs.size() - 1 
+                               ? popwrap(subs[i])
+                               : subs[i]);
+        }
+        return pd(aux, astnode("_", children, m), last);
     }
     // 2-part conditional (if gets rewritten to unless in rewrites)
     else if (node.val == "unless" && node.args.size() == 2) {
+        if (subouts[0] != 1) 
+            err("Condition of if/unless statement has arity 0", m);
         Node nodelist[] = {
             subs[0],
             token("$endif"+symb, m), token("JUMPI", m),
             subs[1],
             token("~endif"+symb, m)
         };
-        return pd(aux, multiToken(nodelist, 5, m));
+        int last = subouts.size() ? subouts.back() : 0;
+        return pd(aux, multiToken(nodelist, 5, m), last);
     }
     // 3-part conditional
     else if (node.val == "if" && node.args.size() == 3) {
+        if (subouts[0] != 1) 
+            err("Condition of if/unless statement has arity 0", m);
+        // Handle cases where one conditional outputs something
+        // and the other does not
+        int outs = (subouts[1] && subouts[2]) ? 1 : 0;
+        if (subouts[1] && !subouts[2])
+            subs[2] = popwrap(subs[2]);
+        if (subouts[2] && !subouts[1])
+            subs[1] = popwrap(subs[1]);
         Node nodelist[] = {
             subs[0],
             token("NOT", m), token("$else"+symb, m), token("JUMPI", m),
@@ -130,10 +163,14 @@ programData opcodeify(Node node, programAux aux=Aux()) {
             subs[2],
             token("~endif"+symb, m)
         };
-        return pd(aux, multiToken(nodelist, 10, m));
+        return pd(aux, multiToken(nodelist, 10, m), outs);
     }
     // While (rewritten to this in rewrites)
     else if (node.val == "until") {
+        if (subouts[0] != 1) 
+            err("Condition of while/until loop has arity 0", m);
+        if (subouts[1])
+            subs[1] = popwrap(subs[1]);
         Node nodelist[] = {
             token("~beg"+symb, m),
             subs[0],
@@ -145,6 +182,8 @@ programData opcodeify(Node node, programAux aux=Aux()) {
     }
     // Memory allocations
     else if (node.val == "alloc") {
+        if (subouts[0] != 1) 
+            err("Alloc input has arity 0", m);
         aux.allocUsed = true;
         Node nodelist[] = {
             subs[0],
@@ -152,10 +191,12 @@ programData opcodeify(Node node, programAux aux=Aux()) {
             token("ADD", m), 
             token("0", m), token("SWAP", m), token("MSTORE", m)
         };
-        return pd(aux, multiToken(nodelist, 8, m));
+        return pd(aux, multiToken(nodelist, 8, m), 1);
     }
     // Array literals
     else if (node.val == "array_lit") {
+        if (subouts[0] != 1) 
+            err("Array_lit input has arity 0", m);
         aux.allocUsed = true;
         std::vector<Node> nodes;
         if (!subs.size()) {
@@ -178,17 +219,25 @@ programData opcodeify(Node node, programAux aux=Aux()) {
             }
             nodes.push_back(token("MSTORE", m));
         }
-        return pd(aux, astnode("_", nodes, m));
+        return pd(aux, astnode("_", nodes, m), 1);
     }
     // All other functions/operators
     else {
-        std::vector<Node> subs2;
+        std::vector<Node>  subs2;
+        int depth = opinputs(upperCase(node.val));
+        if (depth == -1)
+            err("Not a function or opcode: "+node.val, m);
+        if ((int)subs.size() != depth)
+            err("Invalid arity for "+node.val, m);
         while (subs.size()) {
+            if (!subouts.back())
+                err("Input has arity 0", subs.back().metadata);
             subs2.push_back(subs.back());
             subs.pop_back();
+            subouts.pop_back();
         }
         subs2.push_back(token(upperCase(node.val), m));
-        return pd(aux, astnode("_", subs2, m));
+        return pd(aux, astnode("_", subs2, m), opoutputs(upperCase(node.val)));
     }
 }
 

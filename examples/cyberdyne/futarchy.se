@@ -20,9 +20,7 @@ init:
     # The master currency of the futarchy. The futarchy will
     # assign currency units to whoever the prediction market
     # thinks will best increase the currency's value
-    master_currency = create(0, 'subcurrency.se')
-    # Set the futarchy as the admin of its currency
-    o = msg(master_currency, 0, [contract.address, 0], 2)
+    master_currency = create('subcurrency.se')
     contract.storage[2] = master_currency
 code:
     curepoch = block.number / 1000
@@ -38,8 +36,8 @@ code:
             numprop = contract.storage[1]
             while i < numprop:
                 market = contract.storage[1001 + i * 4]
-                price = msg(market, 0, [2], 1)
-                volume = msg(market, 0, [3], 1)
+                price = call(market, 2)
+                volume = call(market, 3)
                 contract.storage[1002 + i * 4] += price
                 contract.storage[1003 + i * 4] += volume * price
                 i += 1
@@ -62,7 +60,7 @@ code:
             # Reset the number of proposals to 0
             contract.storage[1] = 0
             # Reward the highest proposal
-            o = msg(contract.storage[2], 0, [best, 10^9, 0], 3)
+            call(contract.storage[2], [best, 10^9, 0], 3)
             # Record the winning market so we can later appropriately
             # compensate the participants
             contract.storage[2] = bestmarket
@@ -73,7 +71,10 @@ code:
     # Make a proposal [0, address]
     if msg.data[0] == 0 and curepoch % 100 < 50:
         pid = contract.storage[1]
-        market = create(0, 'market.se')
+        market = create('market.se')
+        c1 = create('subcurrency.se')
+        c2 = create('subcurrency.se')
+        call(market,  [c1, c2], 2)
         contract.storage[1000 + pid * 4] = msg.data[1]
         contract.storage[1001 + pid * 4] = market
         contract.storage[1] += 1        
@@ -82,12 +83,12 @@ code:
     # market entitles you to a quantity of ether that was decided
     # at the start of that epoch
     elif msg.data[0] == 1:
-        first_subcurrency = msg(contract.storage[2], 0, [3], 1)
+        first_subcurrency = call(contract.storage[2], 3)
         # We ask the first subcurrency contract what the last transaction was. The
         # way to make a claim is to send the amount of first currency units that
         # you wish to claim with, and then immediately call this contract. For security
         # it makes sense to set up a tx which sends both messages in sequence atomically
-        data = msg(first_subcurrency, 0, [], 0, 4)
+        data = call(first_subcurrency, [], 0, 4)
         from = data[0]
         to = data[1]
         value = data[2]
@@ -100,14 +101,14 @@ code:
     # market entitles you to one unit of the futarchy's master
     # currency
     elif msg.data[0] == 2:
-        second_subcurrency = msg(contract.storage[2], 0, [3], 1)
-        data = msg(first_subcurrency, 0, [], 0, 4)
+        second_subcurrency = call(contract.storage[2], 3)
+        data = call(first_subcurrency, [], 0, 4)
         from = data[0]
         to = data[1]
         value = data[2]
         txid = data[3]
         if txid > contract.storage[4] and to == contract.address:
-            o = msg(contract.storage[2], 0, [to, value], 2)
+            call(contract.storage[2], [to, value], 2)
             contract.storage[4] = txid
     # Purchase currency for ether (target releasing 10^9 units per seculum)
     # Price starts off 1 eth for 10^9 units but increases hyperbolically to
@@ -117,7 +118,7 @@ code:
         post_ema = pre_ema + msg.value
         pre_reserve = 10^18 / (10^9 + pre_ema / 10^9)
         post_reserve = 10^18 / (10^9 + post_ema / 10^9)
-        o = msg(contract.storage[2], 0, [msg.sender, pre_reserve - post_reserve], 2)
+        call(contract.storage[2], [msg.sender, pre_reserve - post_reserve], 2)
         last_sold = contract.storage[6]
         contract.storage[5] = pre_ema * (100000 + last_sold - block.number) + msg.value
         contract.storage[6] = block.number
@@ -127,9 +128,9 @@ code:
         numproposals = contract.storage[1]
         while i < numproposals:
             market = contract.storage[1001 + i * 3]
-            fc = msg(market, 0, [4], 1)
-            sc = msg(market, 0, [5], 1)
-            o = msg(fc, 0, [msg.sender, 1000], 2)
-            o = msg(sc, 0, [msg.sender, 1000], 2)
+            fc = call(market, 4)
+            sc = call(market, 5)
+            call(fc, [msg.sender, 1000], 2)
+            call(sc, [msg.sender, 1000], 2)
             i += 1
         contract.storage[8] = block.number

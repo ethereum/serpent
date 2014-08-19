@@ -1,4 +1,4 @@
-import pyext
+import serpent_pyext as pyext
 import sys
 
 VERSION = '1.5.4'

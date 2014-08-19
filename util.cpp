@@ -217,7 +217,7 @@ std::string get_file_contents(std::string filename)
 //Report error
 void err(std::string errtext, Metadata met) {
     std::string err = "Error (file \"" + met.file + "\", line " +
-        unsignedToDecimal(met.ln) + ", char " + unsignedToDecimal(met.ch) +
+        unsignedToDecimal(met.ln + 1) + ", char " + unsignedToDecimal(met.ch) +
         "): " + errtext;
     std::cerr << err << "\n";
     throw(err);
@@ -252,5 +252,12 @@ std::string upperCase(std::string inp) {
         if (inp[i] >= 97 && inp[i] <= 122) o += inp[i] - 32;
         else o += inp[i];
     }
+    return o;
+}
+
+//Three-int vector
+std::vector<int> triple(int a, int b, int c) {
+    std::vector<int> o;
+    o.push_back(a); o.push_back(b); o.push_back(c);
     return o;
 }
