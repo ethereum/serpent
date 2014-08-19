@@ -15,11 +15,13 @@ code:
         value = msg.data[1]
         if fromvalue >= value and value > 0 and to > 4:
             contract.storage[from] = fromvalue - value
-            contract.storage[to] = contract.storage[to] + value
+            contract.storage[to] += value
             contract.storage[2] = from
             contract.storage[3] = to
             contract.storage[4] = value
             contract.storage[5] += 1
+            return(1)
+        return(0)
     elif msg.datasize == 3 and msg.sender == contract.storage[0]:
         # Admin can issue at will by sending a [to, value, 0] message
         if msg.data[2] == 0:

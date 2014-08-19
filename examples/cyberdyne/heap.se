@@ -26,7 +26,8 @@ code:
     elif msg.data[0] == 1:
         sz = contract.storage[0]
         if !sz:
-            return([])
+            return(0)
+        prevtop = contract.storage[1]
         contract.storage[1] = contract.storage[sz]
         contract.storage[sz] = 0
         top = contract.storage[1]
@@ -45,7 +46,10 @@ code:
             else:
                 k = sz
         contract.storage[0] = sz - 1
-        return(contract.storage[1])
+        return(prevtop)
     # top
     elif msg.data[0] == 2:
         return(contract.storage[1])
+    # size
+    elif msg.data[0] == 3:
+        return(contract.storage[0])

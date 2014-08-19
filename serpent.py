@@ -37,7 +37,22 @@ class Astnode(object):
         return o
 
     def __repr__(self):
-        return '('+str(self.val)+' '+' '.join(map(repr, self.args))+')'
+        o = '(' + self.val
+        subs = map(repr, self.args)
+        k = 0
+        out = " "
+        while k < len(subs) and o != "(seq":
+            if '\n' in subs[k] or len(out + subs[k]) >= 80:
+                break
+            out += subs[k] + " "
+            k += 1
+        if k < len(subs):
+            o += out + "\n"
+            o += '\n  '.join('\n'.join(subs[k:]).split('\n'))
+            o += '\n)'
+        else:
+            o += out[:-1] + ')'
+        return o
 
 
 def node(li):

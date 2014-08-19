@@ -24,7 +24,9 @@ code:
     # Initialize with [ first_subcurrency, second_subcurrency ]
     if !contract.storage[1000]:
         contract.storage[1000] = msg.data[0] # First subcurrency
+        contract.storage[1001] = -1
         contract.storage[2000] = msg.data[1] # Second subcurrency
+        contract.storage[2001] = -1
         contract.storage[3000] = block.number / 1000
         stop
     first_subcurrency = contract.storage[1000]
@@ -50,11 +52,11 @@ code:
             # An order is recorded in the heap as:
             # Buys: (2^48 - 1 - price) * 2^208 + units of first currency * 2^160 + from
             # Sells: price * 2^208 + units of second currency * 2^160 + from
-            buyprice = 2^48 - 1 - topbuy / 2^208
+            buyprice = -(topbuy / 2^208)
             buyfcvalue = (topbuy / 2^160) % 2^48
             buyer = topbuy % 2^160
-            sellprice = topsell / 2^248
-            sellscvalue = (topbuy / 2^160) % 2^48
+            sellprice = topsell / 2^208
+            sellscvalue = (topsell / 2^160) % 2^48
             seller = topsell % 2^160
             # Heap empty, or no more matching orders
             if not topbuy or not topsell or buyprice < sellprice:
@@ -64,11 +66,11 @@ code:
                 volume += buyfcvalue
                 # Calculate how much of the second currency the buyer gets, and
                 # how much of the first currency the seller gets
-                sellfcvalue = sellscvalue * sellprice
-                buyscvalue = buyfcvalue / buyprice
+                sellfcvalue = sellscvalue / buyprice
+                buyscvalue = buyfcvalue * sellprice
                 # Send the currency units along
-                call(second_currency, [buyer, buyscvalue], 2)
-                call(first_currency, [seller, sellfcvalue], 2)
+                call(second_subcurrency, [buyer, buyscvalue], 2)
+                call(first_subcurrency, [seller, sellfcvalue], 2)
         if volume:
             contract.storage[4000] = (buyprice + sellprice) / 2
         contract.storage[4001] = volume
@@ -84,10 +86,11 @@ code:
         to = data[1]
         value = data[2]
         txid = data[3]
+        price = msg.data[1]
         if txid > contract.storage[1001] and to == contract.address:
             contract.storage[1001] = txid
             # Adds the order to the heap
-            call(buy_heap, price, [0, (2^48 - 1 - price) * 2^208 + (value % 2^48) * 2^160 + from], 2) 
+            call(buy_heap, [0, -price * 2^208 + (value % 2^48) * 2^160 + from], 2) 
     # Make sell order [1, price]
     elif msg.data[0] == 1:
         # Same mechanics as buying
@@ -96,9 +99,10 @@ code:
         to = data[1]
         value = data[2]
         txid = data[3]
-        if txid > contract.storage[1001] and to == contract.address:
-            contract.storage[1001] = txid
-            call(sell_heap, price, [0, price * 2^208 + (value % 2^48) * 2^160 + from], 2) 
+        price = msg.data[1]
+        if txid > contract.storage[2001] and to == contract.address:
+            contract.storage[2001] = txid
+            call(sell_heap, [0, price * 2^208 + (value % 2^48) * 2^160 + from], 2) 
     # Ask for price
     elif msg.data[0] == 2:
         return(contract.storage[4000])
