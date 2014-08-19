@@ -1,0 +1,46 @@
+# 0: size
+# 1-n: elements
+
+init:
+    contract.storage[1000] = msg.sender
+code:
+    # Only owner of the heap is allowed to modify it
+    if contract.storage[1000] != msg.sender:
+        stop
+    # push
+    if msg.data[0] == 0:
+        sz = contract.storage[0]
+        contract.storage[sz] = msg.data[1]
+        k = sz + 1
+        while k >= 1:
+            bottom = contract.storage[k]
+            top = contract.storage[k/2]
+            if bottom < top:
+                contract.storage[k] = top
+                contract.storage[k/2] = bottom
+                k /= 2
+            else:
+                k = 0
+        contract.storage[0] = sz + 1
+    # pop
+    elif msg.data[0] == 1:
+        sz = contract.storage[0]
+        contract.storage[1] = contract.storage[sz]
+        contract.storage[sz] = 0
+        top = contract.storage[1]
+        k = 1
+        while k < sz:
+            top = bottom
+            bottom = contract.storage[k * 2]
+            if bottom < top:
+                contract.storage[k] = bottom
+                contract.storage[k * 2] = top
+                tmp = bottom
+                bottom = top
+                top = tmp
+            else:
+                k = sz
+        contract.storage[0] = sz - 1
+    # top
+    elif msg.data[0] == 2:
+        return(contract.storage[1])
