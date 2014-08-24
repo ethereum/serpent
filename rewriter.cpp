@@ -156,7 +156,7 @@ std::string macros[][2] = {
     },
     {
         "(|| $x $y)",
-        "(seq (set $1 $x) (if (get $1) (get $1) $y))"
+        "(with $1 $x (if (get $1) (get $1) $y))"
     },
     {
         "(>= $x $y)",
@@ -180,7 +180,7 @@ std::string macros[][2] = {
     },
     {
         "(create $endowment $code)",
-        "(seq (set $1 (msize)) (create $endowment (get $1) (lll (outer $code) (msize))))"
+        "(with $1 (msize) (create $endowment (get $1) (lll (outer $code) (msize))))"
     },
     {
         "(call $f $dataval)",
@@ -192,7 +192,7 @@ std::string macros[][2] = {
     },
     {
         "(call $f $inp $inpsz $outsz)",
-        "(seq (set $1 $outsz) (set $2 (alloc (mul 32 (get $1)))) (pop (call (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (get $2) (mul 32 (get $1)))) (get $2))"
+        "(with $1 $outsz (with $2 (alloc (mul 32 (get $1))) (seq (call (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (get $2) (mul 32 (get $1))) (get $2))))"
     },
     {
         "(msg $gas $to $val $inp $inpsz)",
@@ -204,7 +204,7 @@ std::string macros[][2] = {
     },
     {
         "(msg $gas $to $val $inp $inpsz $outsz)",
-        "(seq (set $1 (mul 32 $outsz)) (set $2 (alloc (get $1))) (pop (call $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1))) (get $2))"
+        "(with $1 (mul 32 $outsz) (with $2 (alloc (get $1)) (call $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1)) (get $2)))"
     },
     {
         "(outer (init $init $code))",
@@ -228,7 +228,7 @@ std::string macros[][2] = {
     },
     {
         "(create $x)",
-        "(seq (set $1 (msize)) (create $val (get $1) (lll $code (get $1))))"
+        "(with $1 (msize) (create $val (get $1) (lll $code (get $1))))"
     },
     { "msg.datasize", "(div (calldatasize) 32)" },
     { "msg.sender", "(caller)" },
@@ -407,7 +407,8 @@ Node apply_rules(Node node) {
         node = array_lit_transform(node);
     if (node.type == ASTNODE) {
 		unsigned i = 0;
-        if (node.val == "set" || node.val == "ref" || node.val == "get") {
+        if (node.val == "set" || node.val == "ref" 
+                || node.val == "get" || node.val == "with") {
             node.args[0].val = "'" + node.args[0].val;
             i = 1;
         }

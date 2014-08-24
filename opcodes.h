@@ -91,6 +91,10 @@ std::pair<std::string, std::vector<int> > _opdata(std::string ops, int opi) {
             opcodes[mi.op] = triple(mi.opcode, mi.in, mi.out);
             i++;
         }
+        for (i = 1; i <= 16; i++) {
+            opcodes["DUP"+unsignedToDecimal(i)] = triple(0x7f + i, i, i+1);
+            opcodes["SWAP"+unsignedToDecimal(i)] = triple(0x8f + i, i+1, i+1);
+        }
         for (std::map<std::string, std::vector<int> >::iterator it=opcodes.begin();
              it != opcodes.end();
              it++) {

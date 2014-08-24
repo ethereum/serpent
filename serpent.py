@@ -141,7 +141,7 @@ def main():
     if len(sys.argv) == 1:
         print "serpent <command> <arg1> <arg2> ..."
     else:
-        cmd = sys.argv[2] if sys.argv[1] == '-2' else sys.argv[1]
+        cmd = sys.argv[2] if sys.argv[1] == '-s' else sys.argv[1]
         if sys.argv[1] == '-s':
             args = [sys.stdin.read()] + sys.argv[3:]
             if cmd == 'deserialize':
