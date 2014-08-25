@@ -230,6 +230,10 @@ std::string macros[][2] = {
         "(create $x)",
         "(with $1 (msize) (create $val (get $1) (lll $code (get $1))))"
     },
+    {
+        "(with (= $var $val) $cond)",
+        "(with $var $val $cond)"
+    },
     { "msg.datasize", "(div (calldatasize) 32)" },
     { "msg.sender", "(caller)" },
     { "msg.value", "(callvalue)" },
@@ -253,6 +257,8 @@ std::vector<std::vector<Node> > nodeMacros;
 std::string synonyms[][2] = {
     { "or", "||" },
     { "and", "&&" },
+    { "|", "~or" },
+    { "&", "~and" },
     { "elif", "if" },
     { "!", "not" },
     { "string", "alloc" },

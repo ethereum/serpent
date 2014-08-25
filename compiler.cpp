@@ -75,6 +75,8 @@ programData opcodeify(Node node,
         // Set variable
         if (node.val == "set") {
             programData sub = opcodeify(node.args[1], aux, height, dupvars);
+            if (!sub.outs)
+                err("Value to set variable must have nonzero arity!", m);
             if (dupvars.count(node.args[0].val)) {
                 int h = height - dupvars[node.args[0].val];
                 if (h > 16) err("Too deep for stack variable (max 16)", m);
@@ -104,7 +106,11 @@ programData opcodeify(Node node,
             return pd(aux, multiToken(nodelist, 2, m), 1);
         }
         // Refer variable
-        else return pd(aux, token(aux.vars[varname], m), 1);
+        else {
+            if (dupvars.count(node.args[0].val))
+                err("Cannot ref stack variable!", m);
+            return pd(aux, token(aux.vars[varname], m), 1);
+        }
     }
     // Code blocks
     if (node.val == "lll" && node.args.size() == 2) {
@@ -114,7 +120,7 @@ programData opcodeify(Node node,
         programData sub = opcodeify(node.args[1], aux, height, dupvars);
         Node code = astnode("____CODE", o, m);
         Node nodelist[] = {
-            token("$begincode"+symb+".endcode"+symb, m), token("DUP", m),
+            token("$begincode"+symb+".endcode"+symb, m), token("DUP1", m),
             token("$begincode"+symb, m), sub.code, token("CODECOPY", m),
             token("$endcode"+symb, m), token("JUMP", m),
             token("~begincode"+symb, m), code, token("~endcode"+symb, m)
@@ -280,8 +286,9 @@ programData opcodeify(Node node,
             for (int i = 0; i <= (int)node.args.size(); i++)
                 subs2.push_back(token("POP", m));
         }
-        subs2.push_back(token(upperCase(node.val), m));
-        return pd(aux, astnode("_", subs2, m), opoutputs(upperCase(node.val)));
+        else subs2.push_back(token(upperCase(node.val), m));
+        int outdepth = node.val == "debug" ? 0 : opoutputs(upperCase(node.val));
+        return pd(aux, astnode("_", subs2, m), outdepth);
     }
 }
 
@@ -497,7 +504,7 @@ std::vector<std::string> decodeDatalist(std::string ser) {
     std::vector<std::string> out;
     for (unsigned i = 0; i < ser.length(); i+= 32) {
         std::string o = "0";
-        for (unsigned j = i; j < i + 32; j++) {
+		for (unsigned j = i; j < i + 32; j++) {
             int vj = (int)(unsigned char)ser[j];
             o = decimalAdd(decimalMul(o, "256"), unsignedToDecimal(vj));
         }

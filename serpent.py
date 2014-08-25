@@ -47,7 +47,7 @@ class Astnode(object):
             out += subs[k] + " "
             k += 1
         if k < len(subs):
-            o += out + "\n"
+            o += out + "\n  "
             o += '\n  '.join('\n'.join(subs[k:]).split('\n'))
             o += '\n)'
         else:

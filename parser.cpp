@@ -239,14 +239,16 @@ int spaceCount(std::string s) {
 
 // Is this a command that takes an argument on the same line?
 bool bodied(std::string tok) {
-    return tok == "if" || tok == "elif" || tok == "while";
+    return tok == "if" || tok == "elif" || tok == "while"
+        || tok == "with" || tok == "def";
 }
 
 // Is this a command that takes an argument as a child block?
 bool childBlocked(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "else"
         || tok == "code" || tok == "shared" || tok == "init"
-        || tok == "while" || tok == "repeat" || tok == "for";
+        || tok == "while" || tok == "repeat" || tok == "for"
+        || tok == "with" || tok == "def";
 }
 
 // Are the two commands meant to continue each other? 
