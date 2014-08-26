@@ -82,7 +82,7 @@ programData opcodeify(Node node,
                 if (h > 16) err("Too deep for stack variable (max 16)", m);
                 Node nodelist[] = {
                     sub.code,
-                    token("SWAP"+unsignedToDecimal(h), m),
+                    token("SWAP1"+unsignedToDecimal(h), m),
                     token("POP", m)
                 };
                 return pd(sub.aux, multiToken(nodelist, 3, m), 0);                   
@@ -141,7 +141,7 @@ programData opcodeify(Node node,
         };
         programData o = pd(sub.aux, multiToken(nodelist, 2, m), sub.outs);
         if (sub.outs)
-            o.code.args.push_back(token("SWAP", m));
+            o.code.args.push_back(token("SWAP1", m));
         o.code.args.push_back(token("POP", m));
         return o;
     }
@@ -224,9 +224,9 @@ programData opcodeify(Node node,
         aux.allocUsed = true;
         Node nodelist[] = {
             bytez.code,
-            token("MSIZE", m), token("SWAP", m), token("MSIZE", m),
+            token("MSIZE", m), token("SWAP1", m), token("MSIZE", m),
             token("ADD", m), 
-            token("0", m), token("SWAP", m), token("MSTORE", m)
+            token("0", m), token("SWAP1", m), token("MSTORE", m)
         };
         return pd(aux, multiToken(nodelist, 8, m), 1);
     }

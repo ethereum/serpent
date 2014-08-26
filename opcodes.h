@@ -62,8 +62,6 @@ Mapping mapping[] = {
     Mapping("DIFFICULTY", 0x44, 0, 1),
     Mapping("GASLIMIT", 0x45, 0, 1),
     Mapping("POP", 0x50, 1, 0),
-    Mapping("DUP", 0x51, 1, 2),
-    Mapping("SWAP", 0x52, 2, 2),
     Mapping("MLOAD", 0x53, 1, 1),
     Mapping("MSTORE", 0x54, 2, 0),
     Mapping("MSTORE8", 0x55, 2, 0),
