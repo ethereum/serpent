@@ -1,13 +1,13 @@
-b = msg.data[0]
-e = msg.data[1]
-m = msg.data[2]
-if e == 0:
-    return(1)
-elif e == 1:
-    return(b)
-elif !(e%2):
-    sub = call(contract.address, [b, div(e, 2), m], 3)
-    return(mulmod(sub, sub, m))
-else:
-    sub = call(contract.address, [b, div(e, 2), m], 3)
-    return(mulmod(mulmod(sub, sub, m), b, m))
+with b = msg.data[0]:
+    with e = msg.data[1]:
+        with m = msg.data[2]:
+            with o = 1:
+                with bit = 2 ^ 255:
+                    while gt(bit, 0):
+                        # A touch of loop unrolling for 20% efficiency gain
+                        o = mulmod(mulmod(o, o, m), b ^ !(!(e & bit)), m)
+                        o = mulmod(mulmod(o, o, m), b ^ !(!(e & div(bit, 2))), m)
+                        o = mulmod(mulmod(o, o, m), b ^ !(!(e & div(bit, 4))), m)
+                        o = mulmod(mulmod(o, o, m), b ^ !(!(e & div(bit, 8))), m)
+                        bit = div(bit, 16)
+                    return(o)

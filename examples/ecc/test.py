@@ -1,18 +1,109 @@
 import bitcoin as b
 import random
+import sys
+import math
 from pyethereum import tester as t
+import substitutes
+
+vals = [random.randrange(2**256) for i in range(12)]
+
+test_points = [list(p[0]) + list(p[1]) for p in
+               [b.jordan_multiply(((b.Gx, 1), (b.Gy, 1)), r) for r in vals]]
+
+G = [b.Gx, 1, b.Gy, 1]
+Z = [0, 1, 0, 1]
+
+
+def neg_point(p):
+    return [p[0], b.P - p[1], p[2], b.P - p[3]]
+
 s = t.state()
-t.gas_limit = 10000000
-h = b.encode(random.randrange(2**256), 256, 32)
-k = random.randrange(2**256)
-print h
-print k
-V, R, S = b.ecdsa_raw_sign(h, k)
-print V, R, S
-print 'actual pubkey', b.fast_multiply(b.G, k)
-print 'pybitcointools ecrecovered pubkey', b.ecdsa_raw_recover(h, (V, R, S))
-print '################'
+
+t.gas_limit = 1000000
+
+
+c = s.contract('modexp.se')
+print "Starting modexp tests"
+
+for i in range(0, len(vals) - 2, 3):
+    o1 = substitutes.modexp_substitute(vals[i], vals[i+1], vals[i+2])
+    o2 = s.profile(t.k0, c, 0, vals[i:i+3])
+    assert o1["gas"] == o2["gas"], (o1, o2)
+    assert o1["output"] == o2["output"], (o1, o2)
+
+c = s.contract('jacobian_add.se')
+print "Starting addition tests"
+
+for i in range(2):
+    P = test_points[i * 2]
+    Q = test_points[i * 2 + 1]
+    NP = neg_point(P)
+
+    o1 = substitutes.jacobian_add_substitute(*(P + Q))
+    o2 = s.profile(t.k0, c, 0, P + Q)
+    assert o1["gas"] == o2["gas"], (o1, o2)
+    assert o1["output"] == o2["output"], (o1, o2)
+
+    o1 = substitutes.jacobian_add_substitute(*(P + NP))
+    o2 = s.profile(t.k0, c, 0, P + NP)
+    assert o1["gas"] == o2["gas"], (o1, o2)
+    assert o1["output"] == o2["output"], (o1, o2)
+
+    o1 = substitutes.jacobian_add_substitute(*(P + P))
+    o2 = s.profile(t.k0, c, 0, P + P)
+    assert o1["gas"] == o2["gas"], (o1, o2)
+    assert o1["output"] == o2["output"], (o1, o2)
+
+    o1 = substitutes.jacobian_add_substitute(*(P + Z))
+    o2 = s.profile(t.k0, c, 0, P + Z)
+    assert o1["gas"] == o2["gas"], (o1, o2)
+    assert o1["output"] == o2["output"], (o1, o2)
+
+    o1 = substitutes.jacobian_add_substitute(*(Z + P))
+    o2 = s.profile(t.k0, c, 0, Z + P)
+    assert o1["gas"] == o2["gas"], (o1, o2)
+    assert o1["output"] == o2["output"], (o1, o2)
+
+
+c = s.contract('jacobian_mul.se')
+print "Starting multiplication tests"
+
+
+mul_tests = [
+    Z + [0],
+    Z + [vals[0]],
+    test_points[0] + [0],
+    test_points[1] + [b.N],
+    test_points[2] + [1],
+    test_points[2] + [2],
+    test_points[2] + [3],
+    test_points[2] + [4],
+    test_points[3] + [5],
+    test_points[3] + [6],
+    test_points[4] + [7],
+    test_points[4] + [2**254],
+    test_points[4] + [vals[1]],
+    test_points[4] + [vals[2]],
+    test_points[4] + [vals[3]],
+    test_points[5] + [2**256 - 1],
+]
+
+for test in mul_tests:
+    print 'trying mul_test', test
+    o1 = substitutes.jacobian_mul_substitute(*test)
+    o2 = s.profile(t.k0, c, 0, test)
+    assert o1["gas"] == o2["gas"], (o1, o2, test)
+    assert o1["output"] == o2["output"], (o1, o2, test)
+
 c = s.contract('ecrecover.se')
-# print t.serpent.deserialize(s.block.get_code(c))
-# t.enable_logging()
-print 'serpent ecrecovered pubkey', s.send(t.k0, c, 0, [h, V, R, S])
+print "Starting ecrecover tests"
+
+for i in range(5):
+    print 'trying ecrecover_test', vals[i*2], vals[i*2+1]
+    k = vals[i*2]
+    h = vals[i*2+1]
+    V, R, S = b.ecdsa_raw_sign(b.encode(h, 256, 32), k)
+    o1 = substitutes.ecrecover_substitute(h, V, R, S)
+    o2 = s.profile(t.k0, c, 0, [h, V, R, S])
+    assert o1["gas"] == o2["gas"], (o1, o2, h, V, R, S)
+    assert o1["output"] == o2["output"], (o1, o2, test)

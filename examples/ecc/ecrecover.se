@@ -1,14 +1,19 @@
+# So I looked up on Wikipedia what Jacobian form actually is, and noticed that it's 
+# actually a rather different and more clever construction than the naive version
+# that I created. It may possible to achieve a further 20-50% savings by applying 
+# that version.
+
 init:
-    contract.storage[0] = create('jordanmul.se')
-    contract.storage[1] = create('jordanadd.se')
+    contract.storage[0] = create('jacobian_mul.se')
+    contract.storage[1] = create('jacobian_add.se')
     contract.storage[2] = create('modexp.se')
 code:
-    v = msg.data[1]
-    r = msg.data[2]
-    s = msg.data[3]
-    P = -4294968273
     N = -432420386565659656852420866394968145599
+    P = -4294968273
     h = mod(msg.data[0], N)
+    v = msg.data[1]
+    r = mod(msg.data[2], P)
+    s = mod(msg.data[3], N)
     Gx = 55066263022277343669578718895168534326250603453777594175500187360389116729240
     Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
     JORDANMUL = contract.storage[0]
@@ -17,10 +22,11 @@ code:
     x = r
     xcubed = mulmod(mulmod(x, x, P), x, P)
     beta = call(EXP, [addmod(xcubed, 7, P), div(P + 1, 4), P], 3)
-    if mod(v, 2) xor mod(beta, 2):
-        y = beta
-    else:
-        y = P - beta
+
+    # Static-gascost ghetto conditional
+    y_is_positive = mod(v, 2) xor mod(beta, 2)
+    y = beta * y_is_positive + (P - beta) * (1 - y_is_positive)
+
     GZ = call(JORDANMUL, [Gx, 1, Gy, 1, N - h], 5, 4)
     XY = call(JORDANMUL, [x, 1, y, 1, s], 5, 4) 
     COMB = call(JORDANADD, [GZ[0], GZ[1], GZ[2], GZ[3], XY[0], XY[1], XY[2], XY[3]], 8, 5)
