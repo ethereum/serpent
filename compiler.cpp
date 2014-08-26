@@ -82,7 +82,7 @@ programData opcodeify(Node node,
                 if (h > 16) err("Too deep for stack variable (max 16)", m);
                 Node nodelist[] = {
                     sub.code,
-                    token("SWAP1"+unsignedToDecimal(h), m),
+                    token("SWAP"+unsignedToDecimal(h), m),
                     token("POP", m)
                 };
                 return pd(sub.aux, multiToken(nodelist, 3, m), 0);                   

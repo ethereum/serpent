@@ -106,4 +106,19 @@ for i in range(5):
     o1 = substitutes.ecrecover_substitute(h, V, R, S)
     o2 = s.profile(t.k0, c, 0, [h, V, R, S])
     assert o1["gas"] == o2["gas"], (o1, o2, h, V, R, S)
-    assert o1["output"] == o2["output"], (o1, o2, test)
+    assert o1["output"] == o2["output"], (o1, o2, h, V, R, S)
+
+# Explicit tests
+
+data = [[
+    0xf007a9c78a4b2213220adaaf50c89a49d533fbefe09d52bbf9b0da55b0b90b60,
+    0x1b,
+    0x5228fc9e2fabfe470c32f459f4dc17ef6a0a81026e57e4d61abc3bc268fc92b5,
+    0x697d4221cd7bc5943b482173de95d3114b9f54c5f37cc7f02c6910c6dd8bd107
+]]
+
+for datum in data:
+    o1 = substitutes.ecrecover_substitute(*datum)
+    o2 = s.profile(t.k0, c, 0, datum)
+    assert o1["gas"] == o2["gas"], (o1, o2, datum)
+    assert o1["output"] == o2["output"], (o1, o2, datum)
