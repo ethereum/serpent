@@ -85,8 +85,11 @@ std::vector<Node> shuntingYard(std::vector<Node> tokens) {
             }
             oq.push_back(tok);
         }
+        else if (toktyp == UNARY_OP) {
+            stack.push_back(tok);
+        }
         // If binary op, keep popping from stack while higher bedmas precedence
-        else if (toktyp == UNARY_OP || toktyp == BINARY_OP) {
+        else if (toktyp == BINARY_OP) {
             if (tok.val == "-" && prevtyp != ALPHANUM && prevtyp != RPAREN) {
                 oq.push_back(token("0", tok.metadata));
             }
