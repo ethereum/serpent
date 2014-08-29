@@ -71,7 +71,7 @@ programData opcodeify(Node node,
         if (!aux.vars.count(varname)) {
             aux.vars[varname] = unsignedToDecimal(aux.vars.size() * 32);
         }
-        if (varname == "msg.data") aux.calldataUsed = true;
+        if (varname == "'msg.data") aux.calldataUsed = true;
         // Set variable
         if (node.val == "set") {
             programData sub = opcodeify(node.args[1], aux, height, dupvars);
