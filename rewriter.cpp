@@ -79,6 +79,10 @@ std::string macros[][2] = {
         "(calldataload (mul 32 $ind))"
     },
     {
+        "(slice $arr $pos)",
+        "(add $arr (mul 32 $pos))",
+    },
+    {
         "(array $len)",
         "(alloc (mul 32 $len))"
     },
