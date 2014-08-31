@@ -1,0 +1,125 @@
+# Exists in state:
+# (i) last committed block
+# (ii) chain of uncommitted blocks (linear only)
+# (iii) transactions, each tx with an associated block number
+#
+# Uncommitted block =
+#     deltas [[k1, v1], [k2, v2], [k3, v3] ... ]
+#
+# Block checking process
+#
+# Suppose last committed state is m
+# Last uncommitted state is n
+# Contested block is b
+#
+# 1. Set temp state to pre-b state
+# 2. Run code, get list of changes
+# 3. Check is list of changes matches deltas
+#   * if yes, do nothing
+#   * if no, set last uncommitted state to pre-b
+#
+# Storage variables:
+#
+# Last committed block: 0
+# Last uncommitted block: 1
+# Current running sub-contract: 2
+# Uncommitted map: 3
+# Block b: 2^160 + b * 2^40:
+#             + 0: num_of_kvs
+#             + 1: submission blknum
+#             + 2: submitter
+#             + 3 + [2i, 2i+1]: k/v pair i
+# Last committed storage:
+#             sha3(k): index k
+# Running code: c
+
+# Auto-update state after 1000 blocks
+last_committed_block = contract.storage[0]
+last_uncommitted_block = contract.storage[1]
+lcb_storage_index = 2^160 + last_committed_block * 2^40
+while contract.storage[lcb_storage_index + 1] < block.number - 1000 and last_committed_block < last_uncommitted_block:
+    kvpairs = contract.storage[lcb_storage_index]
+    i = 0
+    while i < kvpairs:
+        k = contract.storage[lcb_storage_index + 3 + i * 2]
+        v = contract.storage[lcb_storage_index + 4 + i * 2]
+        contract.storage[sha3(k)] = v
+        i += 1
+    last_committed_block += 1
+    lcb_storage_index += 2^40
+contract.storage[0] = last_committed_block
+    
+
+# Propose block: [ 0, b, k1, v1, k2, v2 ... ]
+if msg.data[0] == 0:
+    blknumber = msg.data[1]
+    # Block number must be correct
+    if blknumber != contract.storage[1]:
+        stop
+    # Deposit requirement
+    if msg.value < 10^19:
+        stop
+    start_index = 2^160 + blknumber * 2^40
+    k = (msg.datasize - 2) / 2
+    contract.storage[start_index] = k
+    contract.storage[start_index + 1] = block.number
+    1ontract.storage[start_index + 2] = msg.sender
+    i = 0
+    while i < k:
+        contract.storage[start_index + 2 * i + 3] = msg.data[2 * i + 2]
+        contract.storage[start_index + 2 * i + 4] = msg.data[2 * i + 3]
+        i += 1
+    contract.storage[1] = blknumber + 1
+
+# Challenge block: [ 1, b ]
+elif msg.data[0] == 1:
+    blknumber = msg.data[1]
+    last_uncommitted_block = contract.storage[1]
+    last_committed_block = contract.storage[0]
+    lcb_storage_index = 2^160 + last_committed_block * 2^40
+    if blknumber <= last_uncommitted_block or blknumber > last_committed_block:
+        stop
+    tempstore = create('map.se')
+    while last_committed_block < blknumber:
+        kvcount = contract.storage[lcb_storage_index]
+        i = 0
+        while i < kvcount:
+            k = contract.storage[lcb_storage_index + 3 + i * 2]
+            v = contract.storage[lcb_storage_index + 4 + i * 2]
+            call(tempstore, [1, k, v], 3)
+            i += 1
+        last_committed_block += 1
+        lcb_storage_index += 2^40
+    # TODO: make this actually work
+    c = create(CODE)
+    if contract.storage[2]:
+        stop
+    contract.storage[2] = c
+    contract.storage[3] = tempstore
+    kvcount = contract.storage[lcb_storage_index]
+    o = call(code, [], 0, kvcount * 2)
+    i = 0
+    while i < kvcount:
+        k = contract.storage[lcb_storage_index + 2 + i * 2]
+        v = contract.storage[lcb_storage_index + 3 + i * 2]
+        if k != msg.data[i * 2] or v != msg.data[i * 2 + 1]:
+            send(msg.sender, 10^19)
+            contract.storage[0] = last_committed_block
+            stop
+        i += 1
+    call(tempstore, 2)
+
+
+# Read data [2, k]
+elif msg.data[0] == 2:
+    tempstore = contract.storage[3]
+    o = call(tempstore, [0, msg.data[1]], 2, 2)
+    if o[0]:
+        return(o[1])
+    else:
+        return contract.storage[sha3(msg.data[1])]
+
+# Write data [3, k, v]
+elif msg.data[0] == 3:
+    tempstore = contract.storage[3]
+    call(tempstore, [1, msg.data[1], msg.data[2]], 3, 2)
