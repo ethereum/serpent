@@ -17,6 +17,8 @@ std::string valid[][3] = {
     { "alloc", "1", "1" },
     { "array", "1", "1" },
     { "call", "2", "4" },
+    { "post", "4", "5" },
+    { "postcall", "3", "4" },
     { "create", "1", "4" },
     { "msg", "4", "6" },
     { "getch", "2", "2" },
@@ -129,6 +131,22 @@ std::string macros[][2] = {
     {
         "(send $to $value)",
         "(call (sub (gas) 25) $to $value 0 0 0 0)"
+    },
+    {
+        "(post $gas $to $value $datain $datainsz)",
+        "(~post $gas $to $value $datain (mul $datainsz 32))"
+    },
+    {
+        "(post $gas $to $value $datain)",
+        "(seq (set $1 $datain) (~post $gas $to $value (ref $1) 32))"
+    },
+    {
+        "(postcall $gas $to $datain)",
+        "(post $gas $to 0 $datain)",
+    },
+    {
+        "(postcall $gas $to $datain $datainsz)",
+        "(post $gas $to 0 $datain $datainsz)",
     },
     {
         "(send $gas $to $value)",
