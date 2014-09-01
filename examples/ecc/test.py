@@ -18,7 +18,7 @@ def neg_point(p):
     return [p[0], b.P - p[1], p[2], b.P - p[3]]
 
 s = t.state()
-
+s.block.gas_limit = 10000000
 t.gas_limit = 1000000
 
 

@@ -8,8 +8,14 @@
 
 #define PYMETHOD(name, FROM, method, TO) \
     static PyObject * name(PyObject *, PyObject *args) { \
+        try { \
         FROM(med) \
         return TO(method(med)); \
+        } \
+        catch (std::string e) { \
+           PyErr_SetString(PyExc_Exception, e.c_str()); \
+           return NULL; \
+        } \
     }
 
 #define FROMSTR(v) \
