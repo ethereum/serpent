@@ -76,6 +76,7 @@ Mapping mapping[] = {
     Mapping("CALL", 0xf1, 7, 1),
     Mapping("RETURN", 0xf2, 2, 0),
     Mapping("POST", 0xf3, 5, 0),
+    Mapping("CALL_STATELESS", 0xf4, 7, 1),
     Mapping("SUICIDE", 0xff, 1, 0),
     Mapping("---END---", 0x00, 0, 0),
 };

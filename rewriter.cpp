@@ -17,10 +17,12 @@ std::string valid[][3] = {
     { "alloc", "1", "1" },
     { "array", "1", "1" },
     { "call", "2", "4" },
+    { "call_stateless", "2", "4" },
     { "post", "4", "5" },
     { "postcall", "3", "4" },
     { "create", "1", "4" },
     { "msg", "4", "6" },
+    { "msg_stateless", "4", "6" },
     { "getch", "2", "2" },
     { "setch", "3", "3" },
     { "sha3", "1", "2" },
@@ -204,6 +206,7 @@ std::string macros[][2] = {
         "(create $endowment $code)",
         "(with $1 (msize) (create $endowment (get $1) (lll (outer $code) (msize))))"
     },
+    // Call and msg
     {
         "(call $f $dataval)",
         "(msg (sub (gas) 45) $f 0 $dataval)"
@@ -228,6 +231,32 @@ std::string macros[][2] = {
         "(msg $gas $to $val $inp $inpsz $outsz)",
         "(with $1 (mul 32 $outsz) (with $2 (alloc (get $1)) (call $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1)) (get $2)))"
     },
+    // Call stateless and msg stateless
+    {
+        "(call_stateless $f $dataval)",
+        "(msg_stateless (sub (gas) 45) $f 0 $dataval)"
+    },
+    {
+        "(call_stateless $f $inp $inpsz)",
+        "(msg_stateless (sub (gas) 25) $f 0 $inp $inpsz)"
+    },
+    {
+        "(call_stateless $f $inp $inpsz $outsz)",
+        "(with $1 $outsz (with $2 (alloc (mul 32 (get $1))) (seq (call_stateless (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (get $2) (mul 32 (get $1))) (get $2))))"
+    },
+    {
+        "(msg_stateless $gas $to $val $inp $inpsz)",
+        "(seq (call_stateless $gas $to $val $inp (mul 32 $inpsz) (ref $1) 32) (get $1))"
+    },
+    {
+        "(msg_stateless $gas $to $val $dataval)",
+        "(seq (set $1 $dataval) (call_stateless $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
+    },
+    {
+        "(msg_stateless $gas $to $val $inp $inpsz $outsz)",
+        "(with $1 (mul 32 $outsz) (with $2 (alloc (get $1)) (call_stateless $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1)) (get $2)))"
+    },
+    // Wrappers
     {
         "(outer (init $init $code))",
         "(seq $init (~return 0 (lll $code 0)))"
