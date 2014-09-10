@@ -71,11 +71,15 @@ def takelist(x):
 
 
 compile = lambda x: pyext.compile(x)
+compile_chunk = lambda x: pyext.compile_chunk(x)
 compile_to_lll = lambda x: node(pyext.compile_to_lll(x))
+compile_chunk_to_lll = lambda x: node(pyext.compile_chunk_to_lll(x))
 compile_lll = lambda x: pyext.compile_lll(take(x))
 parse = lambda x: node(pyext.parse(x))
 rewrite = lambda x: node(pyext.rewrite(take(x)))
+rewrite_chunk = lambda x: node(pyext.rewrite_chunk(take(x)))
 pretty_compile = lambda x: map(node, pyext.pretty_compile(x))
+pretty_compile_chunk = lambda x: map(node, pyext.pretty_compile_chunk(x))
 pretty_compile_lll = lambda x: map(node, pyext.pretty_compile_lll(take(x)))
 serialize = lambda x: pyext.serialize(takelist(x))
 deserialize = lambda x: map(node, pyext.deserialize(x))

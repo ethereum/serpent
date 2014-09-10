@@ -561,4 +561,8 @@ Node rewrite(Node inp) {
     return optimize(apply_rules(validate(preprocess(inp))));
 }
 
+Node rewriteChunk(Node inp) {
+    return optimize(apply_rules(validate(inp)));
+}
+
 using namespace std;
