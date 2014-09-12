@@ -104,6 +104,7 @@ programData opcodeify(Node node,
             }
             Node nodelist[] = 
                  { token(aux.vars[varname], m), token("MLOAD", m) };
+            std::cout << "<--- " << aux.vars[varname] << " " << varname << "\n";
             return pd(aux, multiToken(nodelist, 2, m), 1);
         }
         // Refer variable
