@@ -69,9 +69,9 @@ programData opcodeify(Node node,
     else if (node.val == "ref" || node.val == "get" || node.val == "set") {
         std::string varname = node.args[0].val;
         if (!aux.vars.count(varname)) {
-            std::cout << aux.vars.size() << " " << node.args[0].val << " " << node.val << "\n";
             aux.vars[varname] = unsignedToDecimal(aux.vars.size() * 32);
         }
+        std::cout << aux.vars[varname] << " " << varname << " " << node.val << "\n";
         if (varname == "'msg.data") aux.calldataUsed = true;
         // Set variable
         if (node.val == "set") {
