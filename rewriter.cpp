@@ -229,7 +229,7 @@ std::string macros[][2] = {
     },
     {
         "(msg $gas $to $val $inp $inpsz $outsz)",
-        "(with $1 (mul 32 $outsz) (with $2 (alloc (get $1)) (call $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1)) (get $2)))"
+        "(with $1 (mul 32 $outsz) (with $2 (alloc (get $1)) (seq (call $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1)) (get $2))))"
     },
     // Call stateless and msg stateless
     {
