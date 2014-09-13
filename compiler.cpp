@@ -309,8 +309,8 @@ Node finalize(programData c) {
     // If msg.data is being used as an array, then we need to copy it
     if (c.aux.calldataUsed) {
         Node nodelist[] = {
-            token("MSIZE", m), token("CALLDATASIZE", m), token("MSIZE", m),
-            token("0", m), token("CALLDATACOPY", m),
+            token("MSIZE", m), token("CALLDATASIZE", m), token("0", m),
+            token("MSIZE", m), token("CALLDATACOPY", m),
             token(c.aux.vars["'msg.data"], m), token("MSTORE", m)
         };
         bottom.push_back(multiToken(nodelist, 7, m));
