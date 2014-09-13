@@ -71,7 +71,6 @@ programData opcodeify(Node node,
         if (!aux.vars.count(varname)) {
             aux.vars[varname] = unsignedToDecimal(aux.vars.size() * 32);
         }
-        std::cout << aux.vars[varname] << " " << varname << " " << node.val << "\n";
         if (varname == "'msg.data") aux.calldataUsed = true;
         // Set variable
         if (node.val == "set") {
@@ -104,7 +103,6 @@ programData opcodeify(Node node,
             }
             Node nodelist[] = 
                  { token(aux.vars[varname], m), token("MLOAD", m) };
-            std::cout << "<--- " << aux.vars[varname] << " " << varname << "\n";
             return pd(aux, multiToken(nodelist, 2, m), 1);
         }
         // Refer variable
@@ -300,7 +298,7 @@ Node finalize(programData c) {
     Metadata m = c.code.metadata;
     // If we are using both alloc and variables, we need to pre-zfill
     // some memory
-    if (c.aux.allocUsed && c.aux.vars.size() > 0) {
+    if ((c.aux.allocUsed || c.aux.calldataUsed) && c.aux.vars.size() > 0) {
         Node nodelist[] = {
             token("0", m), 
             token(unsignedToDecimal(c.aux.vars.size() * 32 - 1)),
