@@ -1,12 +1,14 @@
 init:
     contract.storage[0] = msg.sender
 code:
-    # [ 0, to, value, datasz, data1 ... datan, to, value, datasz, data1 ... datan ... ]
-    pos = 1
-    while pos < msg.datasize:
-        to = msg.data[pos]
-        value = msg.data[pos+1]
-        datasz = msg.data[pos+2]
-        data = slice(msg.data, pos+3)
-        send(to, value, data, datasz)
-        pos = pos + 3 + datasz
+    if msg.sender != contract.storage[0]:
+        stop
+    i = 0
+    while i < ~calldatasize():
+        to = ~calldataload(i)
+        value = ~calldataload(i+20) / 256^12
+        datasize = ~calldataload(i+32) / 256^30
+        data = alloc(datasize)
+        ~calldatacopy(data, i+34, datasize)
+        ~call(tx.gas - 25, to, value, data, datasize, 0, 0)
+        i += 34 + datasize

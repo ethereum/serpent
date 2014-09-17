@@ -1,6 +1,9 @@
+# An implementation of a contract for storing a key/value binding
 init:
+    # Set owner
     contract.storage[0] = msg.sender
 code:
+    # Check ownership
     if msg.sender == contract.storage[0]:
         # Get: returns (found, val)
         if msg.data[0] == 0:
