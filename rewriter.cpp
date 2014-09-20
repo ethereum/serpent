@@ -28,6 +28,8 @@ std::string valid[][3] = {
     { "sha3", "1", "2" },
     { "return", "1", "2" },
     { "inset", "1", "1" },
+    { "min", "2", "2" },
+    { "max", "2", "2" },
     { "array_lit", "0", tt256 },
     { "seq", "0", tt256 },
     { "---END---", "", "" } //Keep this line at the end of the list
@@ -69,6 +71,14 @@ std::string macros[][2] = {
     {
         "(!= $a $b)",
         "(not (eq $a $b))"
+    },
+    {
+        "(min a b)",
+        "(with $1 a (with $2 b (if (lt $1 $2) $1 $2)))"
+    },
+    {
+        "(max a b)",
+        "(with $1 a (with $2 b (if (lt $1 $2) $2 $1)))"
     },
     {
         "(if $cond $do (else $else))",
