@@ -1,7 +1,8 @@
 import serpent_pyext as pyext
 import sys
+import re
 
-VERSION = '1.6.5'
+VERSION = '1.6.6'
 
 
 class Metadata(object):
@@ -107,11 +108,17 @@ def numberize(b):
         return frombytes(b[1:-1])
     elif b[:2] == '0x':
         return fromhex(b[2:])
-    else:
+    elif re.match('^[0-9]*$', b):
         return int(b)
+    elif len(b) == 40:
+        return fromhex(b)
+    else:
+        raise Exception("Cannot identify data type: %r" % b)
 
 
-def encode_datalist(vals):
+def encode_datalist(*args):
+    vals = ' '.join(args)
+
     def enc(n):
         if is_numeric(n):
             return ''.join(map(chr, tobytearr(n, 32)))
@@ -128,7 +135,7 @@ def encode_datalist(vals):
     elif vals == '':
         return ''
     else:
-        # Assume you're getting in numbers or 0x...
+        # Assume you're getting in numbers or addresses or 0x...
         return ''.join(map(enc, map(numberize, vals.split(' '))))
 
 
