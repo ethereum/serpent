@@ -8,19 +8,20 @@
 # id+2i+5: ith contributor
 # id+2i+6: ith contribution
 
-# Start a campaign, data [0, recipient, goal, time limit]
+# Start a campaign, data [0, id, recipient, goal, time limit]
 if msg.data[0] == 0:
-    id = contract.storage[-1] + 2^128
-    contract.storage[-1] = id
-    contract.storage[id] = msg.data[1] # Campaign recipient
-    contract.storage[id + 1] = msg.data[2] # Goal
-    contract.storage[id + 2] = block.timestamp + msg.data[3] # Time limit
+    id = msg.data[1] * 2 ^ 128
+    if contract.storage[id]:
+        return(0)
+    contract.storage[id] = msg.data[2] # Campaign recipient
+    contract.storage[id + 1] = msg.data[3] # Goal
+    contract.storage[id + 2] = block.timestamp + msg.data[4] # Time limit
     contract.storage[id + 3] = id + 5 # Index of next contribution
-    return(id)
+    return(msg.data[1])
 
 # Contribute to a campaign [1, id]
 elif msg.data[0] == 1:
-    id = msg.data[1]
+    id = msg.data[1] * 2^128
 
     # Update contribution total
     total_contributed = contract.storage[id + 4] + msg.value
@@ -58,4 +59,4 @@ elif msg.data[0] == 1:
 
 # Progress report [2, id]
 elif msg.data[0] == 2:
-    return(contract.storage[msg.data[1]] + 4)
+    return(contract.storage[msg.data[1] * 2^128] + 4)

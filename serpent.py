@@ -117,8 +117,10 @@ def numberize(b):
 
 
 def encode_datalist(*args):
-    vals = ' '.join(args)
-
+    if len(args) == 1 and isinstance(args, str):
+        vals = args[0].split(' ')
+    else:
+        vals = args
     def enc(n):
         if is_numeric(n):
             return ''.join(map(chr, tobytearr(n, 32)))
@@ -136,7 +138,7 @@ def encode_datalist(*args):
         return ''
     else:
         # Assume you're getting in numbers or addresses or 0x...
-        return ''.join(map(enc, map(numberize, vals.split(' '))))
+        return ''.join(map(enc, map(numberize, vals)))
 
 
 def decode_datalist(arr):
