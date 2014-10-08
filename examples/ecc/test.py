@@ -88,8 +88,8 @@ mul_tests = [
     test_points[5] + [2**256 - 1],
 ]
 
-for test in mul_tests:
-    print 'trying mul_test', test
+for i, test in enumerate(mul_tests):
+    print 'trying mul_test %i' % i, test
     o1 = substitutes.jacobian_mul_substitute(*test)
     o2 = s.profile(t.k0, c, 0, test)
     assert o1["gas"] == o2["gas"], (o1, o2, test)

@@ -191,13 +191,13 @@ programData opcodeify(Node node,
         if (elsed.outs > outs) elsed.code = popwrap(elsed.code);
         Node nodelist[] = {
             ifd.code,
-            token("NOT", m), token("JUMPDEST", m),
+            token("NOT", m),
             token("$else"+symb, m), token("JUMPI", m),
             thend.code,
             token("$endif"+symb, m), token("JUMP", m),
             token("~else"+symb, m), token("JUMPDEST", m),
             elsed.code,
-            token("~endif"+symb, m)
+            token("~endif"+symb, m), token("JUMPDEST", m)
         };
         return pd(aux, multiToken(nodelist, 12, m), outs);
     }

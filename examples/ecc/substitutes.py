@@ -17,25 +17,25 @@ def binary_length(n):
 
 def jacobian_mul_substitute(A, B, C, D, N):
     if A == 0 and C == 0 or (N % b.N) == 0:
-        return {"gas": 87, "output": [0, 1, 0, 1]}
+        return {"gas": 86, "output": [0, 1, 0, 1]}
     else:
         output = b.jordan_multiply(((A, B), (C, D)), N)
         return {
-            "gas": 34239 + 94 * binary_length(N % b.N) + 349 * hamming_weight(N % b.N),
+            "gas": 35262 + 95 * binary_length(N % b.N) + 355 * hamming_weight(N % b.N),
             "output": signed(list(output[0]) + list(output[1]))
         }
 
 
 def jacobian_add_substitute(A, B, C, D, E, F, G, H):
     if A == 0 or E == 0:
-        gas = 144
+        gas = 149
     elif (A * F - B * E) % b.P == 0:
         if (C * H - D * G) % b.P == 0:
-            gas = 434
+            gas = 442
         else:
             gas = 177
     else:
-        gas = 294
+        gas = 301
     output = b.jordan_add(((A, B), (C, D)), ((E, F), (G, H)))
     return {
         "gas": gas,
@@ -45,7 +45,7 @@ def jacobian_add_substitute(A, B, C, D, E, F, G, H):
 
 def modexp_substitute(base, exp, mod):
     return {
-        "gas": 5084,
+        "gas": 5150,
         "output": signed([pow(base, exp, mod) if mod > 0 else 0])
     }
 
@@ -72,7 +72,7 @@ def ecrecover_substitute(z, v, r, s):
     OY_PREMIUM = modexp_substitute(Q[1][1], P - 2, P)["gas"]
     Q = b.from_jordan(Q)
     return {
-        "gas": 993 + BETA_PREMIUM + GZ_PREMIUM + XY_PREMIUM + QR_PREMIUM +
+        "gas": 991 + BETA_PREMIUM + GZ_PREMIUM + XY_PREMIUM + QR_PREMIUM +
         Q_PREMIUM + R_PREMIUM + OX_PREMIUM + OY_PREMIUM,
         "output": signed(Q)
     }
