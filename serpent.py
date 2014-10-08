@@ -2,7 +2,7 @@ import serpent_pyext as pyext
 import sys
 import re
 
-VERSION = '1.6.6'
+VERSION = '1.6.7'
 
 
 class Metadata(object):
@@ -117,10 +117,6 @@ def numberize(b):
 
 
 def encode_datalist(*args):
-    if len(args) == 1 and isinstance(args, str):
-        vals = args[0].split(' ')
-    else:
-        vals = args
     def enc(n):
         if is_numeric(n):
             return ''.join(map(chr, tobytearr(n, 32)))
@@ -132,13 +128,13 @@ def encode_datalist(*args):
             return 1
         elif n is False or n is None:
             return 0
-    if isinstance(vals, (tuple, list)):
-        return ''.join(map(enc, vals))
-    elif vals == '':
+    if isinstance(args, (tuple, list)):
+        return ''.join(map(enc, args))
+    elif not len(args) or args[0] == '':
         return ''
     else:
         # Assume you're getting in numbers or addresses or 0x...
-        return ''.join(map(enc, map(numberize, vals)))
+        return ''.join(map(enc, map(numberize, args)))
 
 
 def decode_datalist(arr):
