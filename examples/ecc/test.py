@@ -4,6 +4,7 @@ import sys
 import math
 from pyethereum import tester as t
 import substitutes
+import time
 
 vals = [random.randrange(2**256) for i in range(12)]
 
@@ -103,8 +104,12 @@ for i in range(5):
     k = vals[i*2]
     h = vals[i*2+1]
     V, R, S = b.ecdsa_raw_sign(b.encode(h, 256, 32), k)
+    aa = time.time()
     o1 = substitutes.ecrecover_substitute(h, V, R, S)
+    print 'sub', time.time() - aa
+    a = time.time()
     o2 = s.profile(t.k0, c, 0, [h, V, R, S])
+    print time.time() - a
     assert o1["gas"] == o2["gas"], (o1, o2, h, V, R, S)
     assert o1["output"] == o2["output"], (o1, o2, h, V, R, S)
 
