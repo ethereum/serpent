@@ -30,6 +30,7 @@ std::string valid[][3] = {
     { "max", "2", "2" },
     { "array_lit", "0", tt256 },
     { "seq", "0", tt256 },
+    { "log", "1", "6" },
     { "---END---", "", "" } //Keep this line at the end of the list
 };
 
@@ -276,6 +277,22 @@ std::string macros[][2] = {
     {
         "(with (= $var $val) $cond)",
         "(with $var $val $cond)"
+    },
+    {
+        "(log $t1)",
+        "(~log1 $t1 0 0)"
+    },
+    {
+        "(log $t1 $t2)",
+        "(~log2 $t1 $t2 0 0)"
+    },
+    {
+        "(log $t1 $t2 $t3)",
+        "(~log3 $t1 $t2 $t30 0)"
+    },
+    {
+        "(log $t1 $t2 $t3 $t4)",
+        "(~log4 $t1 $t2 $t3 $t4 0 0)"
     },
     { "msg.datasize", "(div (calldatasize) 32)" },
     { "msg.sender", "(caller)" },
