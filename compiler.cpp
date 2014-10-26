@@ -123,8 +123,8 @@ programData opcodeify(Node node,
             token("$begincode"+symb+".endcode"+symb, m), token("DUP1", m),
             token("$begincode"+symb, m), sub.code, token("CODECOPY", m),
             token("$endcode"+symb, m), token("JUMP", m),
-            token("~begincode"+symb, m), code, token("~endcode"+symb, m),
-            token("JUMPDEST", m)
+            token("~begincode"+symb, m), code, 
+            token("JUMPDEST", m), token("~endcode"+symb, m)
         };
         return pd(sub.aux, multiToken(nodelist, 11, m), 1);
     }
@@ -172,7 +172,7 @@ programData opcodeify(Node node,
             cond.code,
             token("$endif"+symb, m), token("JUMPI", m),
             action.code,
-            token("~endif"+symb, m), token("JUMPDEST", m)
+            token("JUMPDEST", m), token("~endif"+symb, m)
         };
         return pd(aux, multiToken(nodelist, 6, m), 0);
     }
@@ -195,9 +195,9 @@ programData opcodeify(Node node,
             token("$else"+symb, m), token("JUMPI", m),
             thend.code,
             token("$endif"+symb, m), token("JUMP", m),
-            token("~else"+symb, m), token("JUMPDEST", m),
+            token("JUMPDEST", m), token("~else"+symb, m),
             elsed.code,
-            token("~endif"+symb, m), token("JUMPDEST", m)
+            token("JUMPDEST", m), token("~endif"+symb, m)
         };
         return pd(aux, multiToken(nodelist, 12, m), outs);
     }
@@ -210,12 +210,12 @@ programData opcodeify(Node node,
             err("Condition of while/until loop has arity 0", m);
         if (action.outs) action.code = popwrap(action.code);
         Node nodelist[] = {
-            token("~beg"+symb, m), token("JUMPDEST", m),
+            token("JUMPDEST", m), token("~beg"+symb, m),
             cond.code,
             token("$end"+symb, m), token("JUMPI", m),
             action.code,
             token("$beg"+symb, m), token("JUMP", m),
-            token("~end"+symb, m), token("JUMPDEST", m)
+            token("JUMPDEST", m), token("~end"+symb, m)
         };
         return pd(aux, multiToken(nodelist, 10, m));
     }
