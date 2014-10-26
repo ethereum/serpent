@@ -288,7 +288,7 @@ std::string macros[][2] = {
     },
     {
         "(log $t1 $t2 $t3)",
-        "(~log3 $t1 $t2 $t30 0)"
+        "(~log3 $t1 $t2 $t3 0 0)"
     },
     {
         "(log $t1 $t2 $t3 $t4)",
