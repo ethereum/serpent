@@ -182,17 +182,19 @@ programData opcodeify(Node node,
                     innerList.push_back(token(unsignedToDecimal(cum), m));
                     innerList.push_back(token(unsignedToDecimal(nextVarMem + i * 32), m));
                     innerList.push_back(token("CALLDATACOPY", m));
+                    cum += (until - i) * 32;
                     i = until;
                 }
                 else {
+                    innerList.push_back(token(unsignedToDecimal(32 - varSizes[i]), m));
+                    innerList.push_back(token("256", m));
+                    innerList.push_back(token("EXP", m));
                     innerList.push_back(token(unsignedToDecimal(cum), m));
                     innerList.push_back(token("CALLDATALOAD", m));
-                    innerList.push_back(token("256", m));
-                    innerList.push_back(token(unsignedToDecimal(32 - varSizes[i]), m));
-                    innerList.push_back(token("EXP", m));
                     innerList.push_back(token("DIV", m));
                     innerList.push_back(token(unsignedToDecimal(nextVarMem + i * 32), m));
                     innerList.push_back(token("MSTORE", m));
+                    cum += varSizes[i];
                     i += 1;
                 }
             }
