@@ -12,6 +12,13 @@ struct programAux {
     bool calldataUsed;
     int step;
     int labelLength;
+    int functionCount;
+};
+
+struct programVerticalAux {
+    int height;
+    std::map<std::string, int> dupvars;
+    std::map<std::string, int> funvars;
 };
 
 struct programData {
@@ -25,6 +32,14 @@ programAux Aux() {
     o.allocUsed = false;
     o.calldataUsed = false;
     o.step = 0;
+    return o;
+}
+
+programVerticalAux verticalAux() {
+    programVerticalAux o;
+    o.height = 0;
+    o.dupvars = std::map<std::string, int>();
+    o.funvars = std::map<std::string, int>();
     return o;
 }
 
@@ -57,9 +72,7 @@ Node popwrap(Node node) {
 // Turns LLL tree into tree of code fragments
 programData opcodeify(Node node,
                       programAux aux=Aux(),
-                      int height=0,
-                      std::map<std::string, int> dupvars=
-                          std::map<std::string, int>()) {
+                      programVerticalAux vaux=verticalAux()) {
     std::string symb = "_"+mkUniqueToken();
     Metadata m = node.metadata;
     // Numbers
@@ -74,11 +87,11 @@ programData opcodeify(Node node,
         if (varname == "'msg.data") aux.calldataUsed = true;
         // Set variable
         if (node.val == "set") {
-            programData sub = opcodeify(node.args[1], aux, height, dupvars);
+            programData sub = opcodeify(node.args[1], aux, vaux);
             if (!sub.outs)
                 err("Value to set variable must have nonzero arity!", m);
-            if (dupvars.count(node.args[0].val)) {
-                int h = height - dupvars[node.args[0].val];
+            if (vaux.dupvars.count(node.args[0].val)) {
+                int h = vaux.height - vaux.dupvars[node.args[0].val];
                 if (h > 16) err("Too deep for stack variable (max 16)", m);
                 Node nodelist[] = {
                     sub.code,
@@ -96,8 +109,8 @@ programData opcodeify(Node node,
         }
         // Get variable
         else if (node.val == "get") {
-             if (dupvars.count(node.args[0].val)) {
-                 int h = height - dupvars[node.args[0].val];
+             if (vaux.dupvars.count(node.args[0].val)) {
+                 int h = vaux.height - vaux.dupvars[node.args[0].val];
                 if (h > 16) err("Too deep for stack variable (max 16)", m);
                 return pd(aux, token("DUP"+unsignedToDecimal(h)), 1);                   
             }
@@ -107,7 +120,7 @@ programData opcodeify(Node node,
         }
         // Refer variable
         else {
-            if (dupvars.count(node.args[0].val))
+            if (vaux.dupvars.count(node.args[0].val))
                 err("Cannot ref stack variable!", m);
             return pd(aux, token(aux.vars[varname], m), 1);
         }
@@ -117,7 +130,7 @@ programData opcodeify(Node node,
         if (node.args[1].val != "0") aux.allocUsed = true;
         std::vector<Node> o;
         o.push_back(finalize(opcodeify(node.args[0])));
-        programData sub = opcodeify(node.args[1], aux, height, dupvars);
+        programData sub = opcodeify(node.args[1], aux, vaux);
         Node code = astnode("____CODE", o, m);
         Node nodelist[] = {
             token("$begincode"+symb+".endcode"+symb, m), token("DUP1", m),
@@ -130,12 +143,13 @@ programData opcodeify(Node node,
     }
     // Stack variables
     if (node.val == "with") {
-        std::map<std::string, int> dupvars2 = dupvars;
-        dupvars2[node.args[0].val] = height;
-        programData initial = opcodeify(node.args[1], aux, height, dupvars);
+        programData initial = opcodeify(node.args[1], aux, vaux);
+        programVerticalAux vaux2 = vaux;
+        vaux2.dupvars[node.args[0].val] = vaux.height;
+        vaux2.height += 1;
         if (!initial.outs)
             err("Initial variable value must have nonzero arity!", m);
-        programData sub = opcodeify(node.args[2], initial.aux, height + 1, dupvars2);
+        programData sub = opcodeify(node.args[2], initial.aux, vaux2);
         Node nodelist[] = {
             initial.code,
             sub.code
@@ -151,7 +165,7 @@ programData opcodeify(Node node,
         std::vector<Node> children;
         int lastOut = 0;
         for (unsigned i = 0; i < node.args.size(); i++) {
-            programData sub = opcodeify(node.args[i], aux, height, dupvars);
+            programData sub = opcodeify(node.args[i], aux, vaux);
             aux = sub.aux;
             if (sub.outs == 1) {
                 if (i < node.args.size() - 1) sub.code = popwrap(sub.code);
@@ -163,8 +177,8 @@ programData opcodeify(Node node,
     }
     // 2-part conditional (if gets rewritten to unless in rewrites)
     else if (node.val == "unless" && node.args.size() == 2) {
-        programData cond = opcodeify(node.args[0], aux, height, dupvars);
-        programData action = opcodeify(node.args[1], cond.aux, height, dupvars);
+        programData cond = opcodeify(node.args[0], aux, vaux);
+        programData action = opcodeify(node.args[1], cond.aux, vaux);
         aux = action.aux;
         if (!cond.outs) err("Condition of if/unless statement has arity 0", m);
         if (action.outs) action.code = popwrap(action.code);
@@ -178,9 +192,9 @@ programData opcodeify(Node node,
     }
     // 3-part conditional
     else if (node.val == "if" && node.args.size() == 3) {
-        programData ifd = opcodeify(node.args[0], aux, height, dupvars);
-        programData thend = opcodeify(node.args[1], ifd.aux, height, dupvars);
-        programData elsed = opcodeify(node.args[2], thend.aux, height, dupvars);
+        programData ifd = opcodeify(node.args[0], aux, vaux);
+        programData thend = opcodeify(node.args[1], ifd.aux, vaux);
+        programData elsed = opcodeify(node.args[2], thend.aux, vaux);
         aux = elsed.aux;
         if (!ifd.outs)
             err("Condition of if/unless statement has arity 0", m);
@@ -203,8 +217,8 @@ programData opcodeify(Node node,
     }
     // While (rewritten to this in rewrites)
     else if (node.val == "until") {
-        programData cond = opcodeify(node.args[0], aux, height, dupvars);
-        programData action = opcodeify(node.args[1], cond.aux, height, dupvars);
+        programData cond = opcodeify(node.args[0], aux, vaux);
+        programData action = opcodeify(node.args[1], cond.aux, vaux);
         aux = action.aux;
         if (!cond.outs)
             err("Condition of while/until loop has arity 0", m);
@@ -221,7 +235,7 @@ programData opcodeify(Node node,
     }
     // Memory allocations
     else if (node.val == "alloc") {
-        programData bytez = opcodeify(node.args[0], aux, height, dupvars);
+        programData bytez = opcodeify(node.args[0], aux, vaux);
         aux = bytez.aux;
         if (!bytez.outs)
             err("Alloc input has arity 0", m);
@@ -251,7 +265,9 @@ programData opcodeify(Node node,
         for (unsigned i = 0; i < node.args.size(); i++) {
             Metadata m2 = node.args[i].metadata;
             nodes.push_back(token("DUP1", m2));
-            programData sub = opcodeify(node.args[i], aux, height + 2, dupvars);
+            programVerticalAux vaux2 = vaux;
+            vaux2.height += 2;
+            programData sub = opcodeify(node.args[i], aux, vaux2);
             if (!sub.outs)
                 err("Array_lit item " + unsignedToDecimal(i) + " has zero arity", m2);
             aux = sub.aux;
@@ -276,10 +292,9 @@ programData opcodeify(Node node,
                 err("Invalid arity for "+node.val, m);
         }
         for (int i = node.args.size() - 1; i >= 0; i--) {
-            programData sub = opcodeify(node.args[i],
-                                        aux,
-                                        height - i - 1 + node.args.size(),
-                                        dupvars);
+            programVerticalAux vaux2 = vaux;
+            vaux2.height = vaux.height - i - 1 + node.args.size();
+            programData sub = opcodeify(node.args[i], aux, vaux2);
             aux = sub.aux;
             if (!sub.outs)
                 err("Input "+unsignedToDecimal(i)+" has arity 0", sub.code.metadata);
