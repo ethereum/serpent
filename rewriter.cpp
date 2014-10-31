@@ -483,7 +483,14 @@ Node apply_rules(Node node) {
         }
         if (node.val == "def") {
             for (unsigned j = 0; j < node.args[0].args.size(); j++) {
-                node.args[0].args[j].val = "'" + node.args[0].args[j].val;
+                if (node.args[0].args[j].val == ":") {
+                    node.args[0].args[j].val = "kv";
+                    node.args[0].args[j].args[0].val =
+                         "'" + node.args[0].args[j].args[0].val;
+                }
+                else {
+                    node.args[0].args[j].val = "'" + node.args[0].args[j].val;
+                }
             }
         }
         for (; i < node.args.size(); i++) {

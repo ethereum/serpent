@@ -178,9 +178,9 @@ programData opcodeify(Node node,
                     unsigned until = i+1;
                     while (until < varNames.size() && varSizes[until] == 32)
                         until += 1;
-                    innerList.push_back(token(unsignedToDecimal(nextVarMem + i * 32), m));
-                    innerList.push_back(token(unsignedToDecimal(cum), m));
                     innerList.push_back(token(unsignedToDecimal((until - i) * 32), m));
+                    innerList.push_back(token(unsignedToDecimal(cum), m));
+                    innerList.push_back(token(unsignedToDecimal(nextVarMem + i * 32), m));
                     innerList.push_back(token("CALLDATACOPY", m));
                     i = until;
                 }
@@ -202,6 +202,7 @@ programData opcodeify(Node node,
                 token("CALLER", m),
                 token("ORIGIN", m),
                 token("EQ", m),
+                token("ISZERO", m),
                 token("$maincode", m),
                 token("JUMPI", m),
                 ilnode,
@@ -209,7 +210,7 @@ programData opcodeify(Node node,
                 token("JUMPDEST", m),
                 sub.code
             };
-            inner = pd(sub.aux, multiToken(nodelist, 9, m), 0);
+            inner = pd(sub.aux, multiToken(nodelist, 10, m), 0);
         }
         Node nodelist2[] = {
             token("0", m),
