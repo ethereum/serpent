@@ -476,9 +476,15 @@ Node apply_rules(Node node) {
     if (node.type == ASTNODE) {
 		unsigned i = 0;
         if (node.val == "set" || node.val == "ref" 
-                || node.val == "get" || node.val == "with") {
+                || node.val == "get" || node.val == "with"
+                || node.val == "def") {
             node.args[0].val = "'" + node.args[0].val;
             i = 1;
+        }
+        if (node.val == "def") {
+            for (unsigned j = 0; j < node.args[0].args.size(); j++) {
+                node.args[0].args[j].val = "'" + node.args[0].args[j].val;
+            }
         }
         for (; i < node.args.size(); i++) {
             node.args[i] = apply_rules(node.args[i]);
@@ -564,6 +570,27 @@ Node validate(Node inp) {
 
 Node preprocess(Node inp) {
     std::vector<Node> args;
+    if (inp.val == "seq") {
+        for (unsigned i = 0; i < inp.args.size(); i++) {
+            if (inp.args[i].val == "def") {
+                if (inp.args[i].args.size() == 0)
+                    err("Empty def", inp.metadata);
+                if (inp.args[i].args[0].val == "init") {
+                    if (inp.args[i].args[0].args.size())
+                        err("Init cannot have arguments", inp.metadata);
+                    std::vector<Node> new_outer;   
+                    new_outer.push_back(inp.args[i].args[1]);
+                    std::vector<Node> new_inner;
+                    for (unsigned j = 0; j < inp.args.size(); j++) {
+                        if (j != i) new_inner.push_back(inp.args[j]);
+                    }
+                    new_outer.push_back(astnode("seq", new_inner, inp.metadata));
+                    args.push_back(astnode("init", new_outer, inp.metadata));
+                    return astnode("outer", args, inp.metadata);
+                }
+            }
+        }
+    }
     args.push_back(inp);
     return astnode("outer", args, inp.metadata);
 }

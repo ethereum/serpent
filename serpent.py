@@ -150,8 +150,10 @@ def decode_datalist(arr):
 
 def encode_abi(funid, *args):
     o = chr(int(funid))
+    if len(args) == 1 and isinstance(args[0], list):
+        args = args[0]
     for arg in args:
-        if ':' in arg:
+        if isinstance(arg, str) and ':' in arg:
             val, length = arg.split(':')
             o += enc(numberize(val))[32 - int(length):]
         else:
@@ -163,6 +165,8 @@ def decode_abi(arr, *lens):
     o = []
     pos = 1
     i = 0
+    if len(lens) == 1 and isinstance(lens[0], list):
+        lens = lens[0]
     while pos < len(arr):
         bytez = int(lens[i]) if i < len(lens) else 32
         o.append(frombytes(arr[pos: pos + bytez]))

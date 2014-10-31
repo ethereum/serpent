@@ -34,6 +34,7 @@ programAux Aux() {
     o.calldataUsed = false;
     o.step = 0;
     o.nextVarMem = 0;
+    o.functionCount = 0;
     return o;
 }
 
@@ -133,32 +134,41 @@ programData opcodeify(Node node,
         std::vector<int> varSizes;
         bool useLt32 = false;
         int totalSz = 0;
-        for (unsigned i = 1; i < node.args[1].args.size(); i++) {
-            if (node.args[1].args[i].val == ":") {
-                varNames.push_back(node.args[1].args[i].args[0].val);
+        if (node.args.size() != 2)
+            err("Malformed def!", m);
+        for (unsigned i = 0; i < node.args[0].args.size(); i++) {
+            if (node.args[0].args[i].val == "kv") {
+                if (node.args[0].args[i].args.size() != 2)
+                    err("Malformed def!", m);
+                varNames.push_back(node.args[0].args[i].args[0].val);
                 varSizes.push_back(
-                    decimalToUnsigned(node.args[1].args[i].args[1].val));
+                    decimalToUnsigned(node.args[0].args[i].args[1].val));
                 if (varSizes.back() > 32)
                     err("Max argument width: 32 bytes", m);
                 useLt32 = true;
             }
             else {
-                varNames.push_back(node.args[i].val);
+                varNames.push_back(node.args[0].args[i].val);
                 varSizes.push_back(32);
             }
-            aux.vars[varNames.back()] = aux.nextVarMem + 32 * i;
+            aux.vars[varNames.back()] = unsignedToDecimal(aux.nextVarMem + 32 * i);
             totalSz += varSizes.back();
         }
+        int functionCount = aux.functionCount;
+        int nextVarMem = aux.nextVarMem;
+        aux.nextVarMem += 32 * varNames.size();
+        aux.functionCount += 1;
         programData inner;
         if (!useLt32) {
-            programData sub = opcodeify(node.args[2], aux, vaux);
+            programData sub = opcodeify(node.args[1], aux, vaux);
             Node nodelist[] = {
-                token(unsignedToDecimal(aux.nextVarMem)),
+                token(unsignedToDecimal(totalSz), m),
                 token("1", m),
-                token(unsignedToDecimal(totalSz)),
+                token(unsignedToDecimal(nextVarMem), m),
+                token("CALLDATACOPY", m),
                 sub.code
             };
-            inner = pd(sub.aux, multiToken(nodelist, 4, m), 0);
+            inner = pd(sub.aux, multiToken(nodelist, 5, m), 0);
         }
         else {
             std::vector<Node> innerList;
@@ -168,7 +178,7 @@ programData opcodeify(Node node,
                     unsigned until = i+1;
                     while (until < varNames.size() && varSizes[until] == 32)
                         until += 1;
-                    innerList.push_back(token(unsignedToDecimal(aux.nextVarMem + i * 32), m));
+                    innerList.push_back(token(unsignedToDecimal(nextVarMem + i * 32), m));
                     innerList.push_back(token(unsignedToDecimal(cum), m));
                     innerList.push_back(token(unsignedToDecimal((until - i) * 32), m));
                     innerList.push_back(token("CALLDATACOPY", m));
@@ -181,12 +191,12 @@ programData opcodeify(Node node,
                     innerList.push_back(token(unsignedToDecimal(32 - varSizes[i]), m));
                     innerList.push_back(token("EXP", m));
                     innerList.push_back(token("DIV", m));
-                    innerList.push_back(token(unsignedToDecimal(aux.nextVarMem + i * 32), m));
+                    innerList.push_back(token(unsignedToDecimal(nextVarMem + i * 32), m));
                     innerList.push_back(token("MSTORE", m));
                     i += 1;
                 }
             }
-            programData sub = opcodeify(node.args[2], aux, vaux);
+            programData sub = opcodeify(node.args[1], aux, vaux);
             Node ilnode = astnode("", innerList, m);
             Node nodelist[] = {
                 token("CALLER", m),
@@ -202,10 +212,11 @@ programData opcodeify(Node node,
             inner = pd(sub.aux, multiToken(nodelist, 9, m), 0);
         }
         Node nodelist2[] = {
+            token("0", m),
             token("CALLDATALOAD", m),
             token("0", m),
             token("BYTE", m),
-            token(unsignedToDecimal(aux.functionCount), m),
+            token(unsignedToDecimal(functionCount), m),
             token("EQ", m),
             token("ISZERO", m),
             token("$endcode"+symb, m),
@@ -214,9 +225,7 @@ programData opcodeify(Node node,
             token("~endcode"+symb, m),
             token("JUMPDEST", m),
         };
-        inner.aux.nextVarMem += 32 * varNames.size();
-        inner.aux.functionCount += 1;
-        return pd(inner.aux, multiToken(nodelist2, 11, m), 0);
+        return pd(inner.aux, multiToken(nodelist2, 12, m), 0);
     }
     // Code blocks
     if (node.val == "lll" && node.args.size() == 2) {
