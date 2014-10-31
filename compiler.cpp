@@ -8,6 +8,7 @@
 
 struct programAux {
     std::map<std::string, std::string> vars;
+    int nextVarMem;
     bool allocUsed;
     bool calldataUsed;
     int step;
@@ -32,6 +33,7 @@ programAux Aux() {
     o.allocUsed = false;
     o.calldataUsed = false;
     o.step = 0;
+    o.nextVarMem = 0;
     return o;
 }
 
@@ -82,7 +84,8 @@ programData opcodeify(Node node,
     else if (node.val == "ref" || node.val == "get" || node.val == "set") {
         std::string varname = node.args[0].val;
         if (!aux.vars.count(varname)) {
-            aux.vars[varname] = unsignedToDecimal(aux.vars.size() * 32);
+            aux.vars[varname] = unsignedToDecimal(aux.nextVarMem);
+            aux.nextVarMem += 32;
         }
         if (varname == "'msg.data") aux.calldataUsed = true;
         // Set variable
@@ -125,6 +128,96 @@ programData opcodeify(Node node,
             return pd(aux, token(aux.vars[varname], m), 1);
         }
     }
+    if (node.val == "def") {
+        std::vector<std::string> varNames;
+        std::vector<int> varSizes;
+        bool useLt32 = false;
+        int totalSz = 0;
+        for (unsigned i = 1; i < node.args[1].args.size(); i++) {
+            if (node.args[1].args[i].val == ":") {
+                varNames.push_back(node.args[1].args[i].args[0].val);
+                varSizes.push_back(
+                    decimalToUnsigned(node.args[1].args[i].args[1].val));
+                if (varSizes.back() > 32)
+                    err("Max argument width: 32 bytes", m);
+                useLt32 = true;
+            }
+            else {
+                varNames.push_back(node.args[i].val);
+                varSizes.push_back(32);
+            }
+            aux.vars[varNames.back()] = aux.nextVarMem + 32 * i;
+            totalSz += varSizes.back();
+        }
+        programData inner;
+        if (!useLt32) {
+            programData sub = opcodeify(node.args[2], aux, vaux);
+            Node nodelist[] = {
+                token(unsignedToDecimal(aux.nextVarMem)),
+                token("1", m),
+                token(unsignedToDecimal(totalSz)),
+                sub.code
+            };
+            inner = pd(sub.aux, multiToken(nodelist, 4, m), 0);
+        }
+        else {
+            std::vector<Node> innerList;
+            int cum = 1;
+            for (unsigned i = 0; i < varNames.size();) {
+                if (varSizes[i] == 32) {
+                    unsigned until = i+1;
+                    while (until < varNames.size() && varSizes[until] == 32)
+                        until += 1;
+                    innerList.push_back(token(unsignedToDecimal(aux.nextVarMem + i * 32), m));
+                    innerList.push_back(token(unsignedToDecimal(cum), m));
+                    innerList.push_back(token(unsignedToDecimal((until - i) * 32), m));
+                    innerList.push_back(token("CALLDATACOPY", m));
+                    i = until;
+                }
+                else {
+                    innerList.push_back(token(unsignedToDecimal(cum), m));
+                    innerList.push_back(token("CALLDATALOAD", m));
+                    innerList.push_back(token("256", m));
+                    innerList.push_back(token(unsignedToDecimal(32 - varSizes[i]), m));
+                    innerList.push_back(token("EXP", m));
+                    innerList.push_back(token("DIV", m));
+                    innerList.push_back(token(unsignedToDecimal(aux.nextVarMem + i * 32), m));
+                    innerList.push_back(token("MSTORE", m));
+                    i += 1;
+                }
+            }
+            programData sub = opcodeify(node.args[2], aux, vaux);
+            Node ilnode = astnode("", innerList, m);
+            Node nodelist[] = {
+                token("CALLER", m),
+                token("ORIGIN", m),
+                token("EQ", m),
+                token("$maincode", m),
+                token("JUMPI", m),
+                ilnode,
+                token("~maincode", m),
+                token("JUMPDEST", m),
+                sub.code
+            };
+            inner = pd(sub.aux, multiToken(nodelist, 9, m), 0);
+        }
+        Node nodelist2[] = {
+            token("CALLDATALOAD", m),
+            token("0", m),
+            token("BYTE", m),
+            token(unsignedToDecimal(aux.functionCount), m),
+            token("EQ", m),
+            token("ISZERO", m),
+            token("$endcode"+symb, m),
+            token("JUMPI", m),
+            inner.code,
+            token("~endcode"+symb, m),
+            token("JUMPDEST", m),
+        };
+        inner.aux.nextVarMem += 32 * varNames.size();
+        inner.aux.functionCount += 1;
+        return pd(inner.aux, multiToken(nodelist2, 11, m), 0);
+    }
     // Code blocks
     if (node.val == "lll" && node.args.size() == 2) {
         if (node.args[1].val != "0") aux.allocUsed = true;
@@ -137,7 +230,7 @@ programData opcodeify(Node node,
             token("$begincode"+symb, m), sub.code, token("CODECOPY", m),
             token("$endcode"+symb, m), token("JUMP", m),
             token("~begincode"+symb, m), code, 
-            token("JUMPDEST", m), token("~endcode"+symb, m)
+            token("~endcode"+symb, m), token("JUMPDEST", m)
         };
         return pd(sub.aux, multiToken(nodelist, 11, m), 1);
     }
@@ -186,7 +279,7 @@ programData opcodeify(Node node,
             cond.code,
             token("$endif"+symb, m), token("JUMPI", m),
             action.code,
-            token("JUMPDEST", m), token("~endif"+symb, m)
+            token("~endif"+symb, m), token("JUMPDEST", m)
         };
         return pd(aux, multiToken(nodelist, 6, m), 0);
     }
@@ -205,13 +298,13 @@ programData opcodeify(Node node,
         if (elsed.outs > outs) elsed.code = popwrap(elsed.code);
         Node nodelist[] = {
             ifd.code,
-            token("NOT", m),
+            token("ISZERO", m),
             token("$else"+symb, m), token("JUMPI", m),
             thend.code,
             token("$endif"+symb, m), token("JUMP", m),
-            token("JUMPDEST", m), token("~else"+symb, m),
+            token("~else"+symb, m), token("JUMPDEST", m),
             elsed.code,
-            token("JUMPDEST", m), token("~endif"+symb, m)
+            token("~endif"+symb, m), token("JUMPDEST", m)
         };
         return pd(aux, multiToken(nodelist, 12, m), outs);
     }
@@ -224,12 +317,12 @@ programData opcodeify(Node node,
             err("Condition of while/until loop has arity 0", m);
         if (action.outs) action.code = popwrap(action.code);
         Node nodelist[] = {
-            token("JUMPDEST", m), token("~beg"+symb, m),
+            token("~beg"+symb, m), token("JUMPDEST", m),
             cond.code,
             token("$end"+symb, m), token("JUMPI", m),
             action.code,
             token("$beg"+symb, m), token("JUMP", m),
-            token("JUMPDEST", m), token("~end"+symb, m)
+            token("~end"+symb, m), token("JUMPDEST", m),
         };
         return pd(aux, multiToken(nodelist, 10, m));
     }

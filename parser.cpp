@@ -9,7 +9,7 @@
 // Extended BEDMAS precedence order
 int precedence(Node tok) {
     std::string v = tok.val;
-    if (v == "!" || v == "not") return 0;
+    if (v == "!" || v == "iszero") return 0;
     else if (v=="^" || v == "**") return 1;
 	else if (v=="*" || v=="/" || v=="@/" || v=="%" || v=="@%") return 2;
     else if (v=="+" || v=="-") return 3;
@@ -32,7 +32,7 @@ int toktype(Node tok) {
     if (v == "(" || v == "[" || v == "{") return LPAREN;
     else if (v == ")" || v == "]" || v == "}") return RPAREN;
     else if (v == ",") return COMMA;
-    else if (v == "!" || v == "not" || v == "neg") return UNARY_OP;
+    else if (v == "!" || v == "~") return UNARY_OP;
     else if (precedence(tok) >= 0) return BINARY_OP;
     if (tok.val[0] != '"' && tok.val[0] != '\'') {
 		for (unsigned i = 0; i < tok.val.length(); i++) {
@@ -91,7 +91,8 @@ std::vector<Node> shuntingYard(std::vector<Node> tokens) {
         // If binary op, keep popping from stack while higher bedmas precedence
         else if (toktyp == BINARY_OP) {
             if (tok.val == "-" && prevtyp != ALPHANUM && prevtyp != RPAREN) {
-                stack.push_back(token("neg", tok.metadata));
+                stack.push_back(tok);
+                oq.push_back(token("0", tok.metadata));
             }
             else {
                 int prec = precedence(tok);

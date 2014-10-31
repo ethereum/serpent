@@ -69,7 +69,7 @@ std::string macros[][2] = {
     },
     {
         "(!= $a $b)",
-        "(not (eq $a $b))"
+        "(iszero (eq $a $b))"
     },
     {
         "(min a b)",
@@ -101,18 +101,18 @@ std::string macros[][2] = {
     },
     {
         "(while $cond $do)",
-        "(until (not $cond) $do)",
+        "(until (iszero $cond) $do)",
     },
     {
-        "(while (not $cond) $do)",
+        "(while (iszero $cond) $do)",
         "(until $cond $do)",
     },
     {
         "(if $cond $do)",
-        "(unless (not $cond) $do)",
+        "(unless (iszero $cond) $do)",
     },
     {
-        "(if (not $cond) $do)",
+        "(if (iszero $cond) $do)",
         "(unless $cond $do)",
     },
     {
@@ -177,19 +177,19 @@ std::string macros[][2] = {
     },
     {
         "(>= $x $y)",
-        "(not (slt $x $y))"
+        "(iszero (slt $x $y))"
     },
     {
         "(<= $x $y)",
-        "(not (sgt $x $y))"
+        "(iszero (sgt $x $y))"
     },
     {
         "(@>= $x $y)",
-        "(not (lt $x $y))"
+        "(iszero (lt $x $y))"
     },
     {
         "(@<= $x $y)",
-        "(not (gt $x $y))"
+        "(iszero (gt $x $y))"
     },
     {
         "(create $code)",
@@ -320,7 +320,9 @@ std::string synonyms[][2] = {
     { "|", "~or" },
     { "&", "~and" },
     { "elif", "if" },
-    { "!", "not" },
+    { "!", "iszero" },
+    { "~", "~not" },
+    { "not", "iszero" },
     { "string", "alloc" },
     { "+", "add" },
     { "-", "sub" },
