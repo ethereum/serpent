@@ -2,7 +2,7 @@ import serpent_pyext as pyext
 import sys
 import re
 
-VERSION = '1.7.2'
+VERSION = '1.7.3'
 
 
 class Metadata(object):

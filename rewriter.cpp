@@ -16,8 +16,8 @@ std::string valid[][3] = {
     { "shared", "2", "3" },
     { "alloc", "1", "1" },
     { "array", "1", "1" },
-    { "call", "2", "4" },
-    { "call_code", "2", "4" },
+    { "call", "2", tt256 },
+    { "call_code", "2", tt256 },
     { "create", "1", "4" },
     { "msg", "4", "6" },
     { "msg_stateless", "4", "6" },
@@ -141,11 +141,11 @@ std::string macros[][2] = {
     },
     {
         "(send $to $value)",
-        "(call (sub (gas) 25) $to $value 0 0 0 0)"
+        "(~call (sub (gas) 25) $to $value 0 0 0 0)"
     },
     {
         "(send $gas $to $value)",
-        "(call $gas $to $value 0 0 0 0)"
+        "(~call $gas $to $value 0 0 0 0)"
     },
     {
         "(sha3 $x)",
@@ -198,56 +198,6 @@ std::string macros[][2] = {
     {
         "(create $endowment $code)",
         "(with $1 (msize) (create $endowment (get $1) (lll (outer $code) (msize))))"
-    },
-    // Call and msg
-    {
-        "(call $f $dataval)",
-        "(msg (sub (gas) 45) $f 0 $dataval)"
-    },
-    {
-        "(call $f $inp $inpsz)",
-        "(msg (sub (gas) 25) $f 0 $inp $inpsz)"
-    },
-    {
-        "(call $f $inp $inpsz $outsz)",
-        "(with $1 $outsz (with $2 (alloc (mul 32 (get $1))) (seq (call (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (get $2) (mul 32 (get $1))) (get $2))))"
-    },
-    {
-        "(msg $gas $to $val $inp $inpsz)",
-        "(seq (call $gas $to $val $inp (mul 32 $inpsz) (ref $1) 32) (get $1))"
-    },
-    {
-        "(msg $gas $to $val $dataval)",
-        "(seq (set $1 $dataval) (call $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
-    },
-    {
-        "(msg $gas $to $val $inp $inpsz $outsz)",
-        "(with $1 (mul 32 $outsz) (with $2 (alloc (get $1)) (seq (call $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1)) (get $2))))"
-    },
-    // Call stateless and msg stateless
-    {
-        "(call_code $f $dataval)",
-        "(msg_code (sub (gas) 45) $f 0 $dataval)"
-    },
-    {
-        "(call_code $f $inp $inpsz)",
-        "(msg_code (sub (gas) 25) $f 0 $inp $inpsz)"
-    },
-    {
-        "(call_code $f $inp $inpsz $outsz)",
-        "(with $1 $outsz (with $2 (alloc (mul 32 (get $1))) (seq (call_code (sub (gas) (add 25 (get $1))) $f 0 $inp (mul 32 $inpsz) (get $2) (mul 32 (get $1))) (get $2))))"
-    },
-    {
-        "(msg_code $gas $to $val $inp $inpsz)",
-        "(seq (call_code $gas $to $val $inp (mul 32 $inpsz) (ref $1) 32) (get $1))"
-    },
-    {
-        "(msg_code $gas $to $val $dataval)",
-        "(seq (set $1 $dataval) (call_code $gas $to $val (ref $1) 32 (ref $2) 32) (get $2))"
-    },
-    {
-        "(msg_code $gas $to $val $inp $inpsz $outsz)",
-        "(with $1 (mul 32 $outsz) (with $2 (alloc (get $1)) (call_code $gas $to $val $inp (mul 32 $inpsz) (get $2) (get $1)) (get $2)))"
     },
     // Wrappers
     {
@@ -437,6 +387,150 @@ Node array_lit_transform(Node node) {
     return astnode("seq", o3, node.metadata);
 }
 
+// call transform
+
+#define psn std::pair<std::string, Node>
+
+Node call_transform(Node node, std::string op) {
+    std::string prefix = "_temp"+mkUniqueToken()+"_";
+    std::map<std::string, Node> kwargs;
+    kwargs["value"] = token("0", node.metadata);
+    kwargs["gas"] = parseLLL("(- (gas) 25)");
+    std::vector<Node> args;
+    for (unsigned i = 0; i < node.args.size(); i++) {
+        if (node.args[i].val == "=" || node.args[i].val == "set") {
+            kwargs[node.args[i].args[0].val] = node.args[i].args[1];
+        }
+        else args.push_back(node.args[i]);
+    }
+    if (args.size() < 2) err("Too few arguments for call!", node.metadata);
+    kwargs["to"] = args[0];
+    kwargs["funid"] = args[1];
+    std::vector<Node> inputs;
+    for (unsigned i = 2; i < args.size(); i++) {
+        inputs.push_back(args[i]);
+    }
+    std::vector<psn> with;
+    std::vector<Node> precompute;
+    std::vector<Node> post;
+    if (kwargs.count("data")) {
+        if (!kwargs.count("datasz")) {
+            err("Required param datasz", node.metadata);
+        }
+        // store data: data array start
+        with.push_back(psn(prefix+"data", kwargs["data"]));
+        // store data: prior: data array - 32
+        std::vector<Node> argz;
+        argz.push_back(token(prefix+"data", node.metadata));
+        argz.push_back(token("32", node.metadata));
+        with.push_back(psn(prefix+"prior", astnode("sub", argz, node.metadata)));
+        // store data: priormem: data array - 32 prior memory value
+        std::vector<Node> argz2;
+        argz2.push_back(token(prefix+"prior", node.metadata));
+        with.push_back(psn(prefix+"priormem", astnode("mload", argz2, node.metadata)));
+        // post: reinstate prior mem at data array - 32
+        std::vector<Node> argz3;
+        argz3.push_back(token(prefix+"prior", node.metadata));
+        argz3.push_back(token(prefix+"priormem", node.metadata));
+        post.push_back(astnode("mstore", argz3, node.metadata));
+        // store data: datastart: data array - 1
+        std::vector<Node> argz4;
+        argz4.push_back(token(prefix+"data", node.metadata));
+        argz4.push_back(token("1", node.metadata));
+        with.push_back(psn(prefix+"datastart", astnode("sub", argz4, node.metadata)));
+        // push funid byte to datastart
+        std::vector<Node> argz5;
+        argz5.push_back(token(prefix+"datastart", node.metadata));
+        argz5.push_back(kwargs["funid"]);
+        precompute.push_back(astnode("mstore8", argz5, node.metadata));
+        // set data array start loc
+        kwargs["datain"] = token(prefix+"datastart", node.metadata);
+        std::vector<Node> argz6;
+        argz6.push_back(token("32", node.metadata));
+        argz6.push_back(kwargs["datasz"]);
+        std::vector<Node> argz7;
+        argz7.push_back(astnode("mul", argz6, node.metadata));
+        argz7.push_back(token("1", node.metadata));
+        kwargs["datainsz"] = astnode("add", argz7, node.metadata);
+    }
+    else {
+        // Pre-declare variables; relies on declared variables being sequential
+        std::vector<Node> argz;
+        argz.push_back(token(prefix+"prebyte", node.metadata));
+        precompute.push_back(astnode("declare", argz, node.metadata));
+        for (unsigned i = 0; i < inputs.size(); i++) {
+            std::vector<Node> argz;
+            argz.push_back(token(prefix+unsignedToDecimal(i), node.metadata));
+            precompute.push_back(astnode("declare", argz, node.metadata));
+        }
+        // Set up variables
+        std::vector<Node> argz1;
+        argz1.push_back(token(prefix+"prebyte", node.metadata));
+        std::vector<Node> argz2;
+        argz2.push_back(astnode("ref", argz1, node.metadata));
+        argz2.push_back(token("31", node.metadata));
+        std::vector<Node> argz3;
+        argz3.push_back(astnode("add", argz2, node.metadata));
+        argz3.push_back(kwargs["funid"]);
+        precompute.push_back(astnode("mstore8", argz3, node.metadata));
+        for (unsigned i = 0; i < inputs.size(); i++) {
+            std::vector<Node> argz;
+            argz.push_back(token(prefix+unsignedToDecimal(i), node.metadata));
+            argz.push_back(inputs[i]);
+            precompute.push_back(astnode("set", argz, node.metadata));
+        }
+        kwargs["datain"] = astnode("add", argz2, node.metadata);
+        kwargs["datainsz"] = token(unsignedToDecimal(inputs.size() * 32 + 1), node.metadata);
+    }
+    if (!kwargs.count("outsz")) {
+        std::vector<Node> argz11;
+        argz11.push_back(token(prefix+"dataout", node.metadata));
+        precompute.push_back(astnode("declare", argz11, node.metadata));
+        kwargs["dataout"] = astnode("ref", argz11, node.metadata);
+        kwargs["dataoutsz"] = token("32", node.metadata);
+        std::vector<Node> argz12;
+        argz12.push_back(token(prefix+"dataout", node.metadata));
+        post.push_back(astnode("get", argz12, node.metadata));
+    }
+    else {
+        kwargs["dataout"] = kwargs["out"];
+        kwargs["dataoutsz"] = kwargs["outsz"];
+        std::vector<Node> argz12;
+        argz12.push_back(token(prefix+"dataout", node.metadata));
+        post.push_back(astnode("ref", argz12, node.metadata));
+    }
+        
+    std::vector<Node> main;
+    for (unsigned i = 0; i < precompute.size(); i++) {
+        main.push_back(precompute[i]);
+    }
+    std::vector<Node> call;
+    call.push_back(kwargs["gas"]);
+    call.push_back(kwargs["to"]);
+    call.push_back(kwargs["value"]);
+    call.push_back(kwargs["datain"]);
+    call.push_back(kwargs["datainsz"]);
+    call.push_back(kwargs["dataout"]);
+    call.push_back(kwargs["dataoutsz"]);
+    std::vector<Node> argz20;
+    argz20.push_back(astnode("~"+op, call, node.metadata));
+    main.push_back(astnode("pop", argz20, node.metadata));
+    for (unsigned i = 0; i < post.size(); i++) {
+        main.push_back(post[i]);
+    }
+    Node mainNode = astnode("seq", main, node.metadata);
+    for (int i = with.size() - 1; i >= 0; i--) {
+        std::string varname = with[i].first;
+        Node varnode = with[i].second;
+        std::vector<Node> argz30;
+        argz30.push_back(token(varname, node.metadata));
+        argz30.push_back(varnode);
+        argz30.push_back(mainNode);
+        mainNode = astnode("with", argz30, node.metadata);
+    }
+    return mainNode;
+}
+
 // Recursively applies rewrite rules
 Node apply_rules(Node node) {
     // If the rewrite rules have not yet been parsed, parse them
@@ -464,7 +558,7 @@ Node apply_rules(Node node) {
     for (pos = 0; pos < nodeMacros.size(); pos++) {
         Node pattern = nodeMacros[pos][0];
         matchResult mr = match(pattern, node);
-        if (mr.success) {
+        if (mr.success && node.val != "call" && node.val != "call_code") {
             Node pattern2 = nodeMacros[pos][1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
             pos = 0;
@@ -473,6 +567,10 @@ Node apply_rules(Node node) {
     // Array_lit special instruction
     if (node.val == "array_lit")
         node = array_lit_transform(node);
+    if (node.val == "call")
+        node = call_transform(node, "call");
+    if (node.val == "call_code")
+        node = call_transform(node, "call_code");
     if (node.type == ASTNODE) {
 		unsigned i = 0;
         if (node.val == "set" || node.val == "ref" 

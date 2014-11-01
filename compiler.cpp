@@ -33,7 +33,7 @@ programAux Aux() {
     o.allocUsed = false;
     o.calldataUsed = false;
     o.step = 0;
-    o.nextVarMem = 0;
+    o.nextVarMem = 32;
     o.functionCount = 0;
     return o;
 }
@@ -82,7 +82,8 @@ programData opcodeify(Node node,
     if (node.type == TOKEN) {
         return pd(aux, nodeToNumeric(node), 1);
     }
-    else if (node.val == "ref" || node.val == "get" || node.val == "set") {
+    else if (node.val == "ref" || node.val == "get" ||
+             node.val == "set" || node.val == "declare") {
         std::string varname = node.args[0].val;
         if (!aux.vars.count(varname)) {
             aux.vars[varname] = unsignedToDecimal(aux.nextVarMem);
@@ -123,10 +124,15 @@ programData opcodeify(Node node,
             return pd(aux, multiToken(nodelist, 2, m), 1);
         }
         // Refer variable
-        else {
+        else if (node.val == "ref") {
             if (vaux.dupvars.count(node.args[0].val))
                 err("Cannot ref stack variable!", m);
             return pd(aux, token(aux.vars[varname], m), 1);
+        }
+        // Declare variable
+        else {
+            Node nodelist[] = { };
+            return pd(aux, multiToken(nodelist, 0, m), 0);
         }
     }
     if (node.val == "def") {
@@ -201,18 +207,22 @@ programData opcodeify(Node node,
             programData sub = opcodeify(node.args[1], aux, vaux);
             Node ilnode = astnode("", innerList, m);
             Node nodelist[] = {
+                token(unsignedToDecimal(32 * varNames.size()), m),
+                token("1", m),
+                token(unsignedToDecimal(nextVarMem), m),
+                token("CALLDATACOPY", m),
                 token("CALLER", m),
                 token("ORIGIN", m),
                 token("EQ", m),
                 token("ISZERO", m),
-                token("$maincode", m),
+                token("$maincode"+symb, m),
                 token("JUMPI", m),
                 ilnode,
-                token("~maincode", m),
+                token("~maincode"+symb, m),
                 token("JUMPDEST", m),
                 sub.code
             };
-            inner = pd(sub.aux, multiToken(nodelist, 10, m), 0);
+            inner = pd(sub.aux, multiToken(nodelist, 14, m), 0);
         }
         Node nodelist2[] = {
             token("0", m),
@@ -425,7 +435,7 @@ Node finalize(programData c) {
     if ((c.aux.allocUsed || c.aux.calldataUsed) && c.aux.vars.size() > 0) {
         Node nodelist[] = {
             token("0", m), 
-            token(unsignedToDecimal(c.aux.vars.size() * 32 - 1)),
+            token(unsignedToDecimal(c.aux.nextVarMem - 1)),
             token("MSTORE8", m)
         };
         bottom.push_back(multiToken(nodelist, 3, m));

@@ -1,2 +1,2 @@
 x = create("mul2.se")
-return(call(x, 5))
+return(call(x, 0, data=[5], datasz=1))
