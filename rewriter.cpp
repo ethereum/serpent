@@ -11,16 +11,11 @@ std::string valid[][3] = {
     { "unless", "2", "2" },
     { "while", "2", "2" },
     { "until", "2", "2" },
-    { "code", "1", "2" },
-    { "init", "2", "2" },
-    { "shared", "2", "3" },
     { "alloc", "1", "1" },
     { "array", "1", "1" },
     { "call", "2", tt256 },
     { "call_code", "2", tt256 },
     { "create", "1", "4" },
-    { "msg", "4", "6" },
-    { "msg_stateless", "4", "6" },
     { "getch", "2", "2" },
     { "setch", "3", "3" },
     { "sha3", "1", "2" },
@@ -31,6 +26,7 @@ std::string valid[][3] = {
     { "array_lit", "0", tt256 },
     { "seq", "0", tt256 },
     { "log", "1", "6" },
+    { "outer", "1", "1" },
     { "---END---", "", "" } //Keep this line at the end of the list
 };
 
@@ -116,7 +112,7 @@ std::string macros[][2] = {
         "(unless $cond $do)",
     },
     {
-        "(access contract.storage $ind)",
+        "(access (. self storage) $ind)",
         "(sload $ind)"
     },
     {
@@ -124,7 +120,7 @@ std::string macros[][2] = {
         "(mload (add $var (mul 32 $ind)))"
     },
     {
-        "(set (access contract.storage $ind) $val)",
+        "(set (access (. self storage) $ind) $val)",
         "(sstore $ind $val)"
     },
     {
@@ -199,19 +195,6 @@ std::string macros[][2] = {
         "(create $endowment $code)",
         "(with $1 (msize) (create $endowment (get $1) (lll (outer $code) (msize))))"
     },
-    // Wrappers
-    {
-        "(outer (init $init $code))",
-        "(seq $init (~return 0 (lll $code 0)))"
-    },
-    {
-        "(outer (shared $shared (init $init (code $code))))",
-        "(seq $shared $init (~return 0 (lll (seq $shared $code) 0)))"
-    },
-    {
-        "(outer $code)",
-        "(~return 0 (lll $code 0))"
-    },
     {
         "(seq (seq) $x)",
         "$x"
@@ -244,20 +227,20 @@ std::string macros[][2] = {
         "(log $t1 $t2 $t3 $t4)",
         "(~log4 $t1 $t2 $t3 $t4 0 0)"
     },
-    { "msg.datasize", "(div (calldatasize) 32)" },
-    { "msg.sender", "(caller)" },
-    { "msg.value", "(callvalue)" },
-    { "tx.gasprice", "(gasprice)" },
-    { "tx.origin", "(origin)" },
-    { "tx.gas", "(gas)" },
-    { "contract.balance", "(balance (address))" },
-    { "contract.address", "(address)" },
-    { "block.prevhash", "(prevhash)" },
-    { "block.coinbase", "(coinbase)" },
-    { "block.timestamp", "(timestamp)" },
-    { "block.number", "(number)" },
-    { "block.difficulty", "(difficulty)" },
-    { "block.gaslimit", "(gaslimit)" },
+    { "(. msg datasize)", "(div (calldatasize) 32)" },
+    { "(. msg sender)", "(caller)" },
+    { "(. msg value)", "(callvalue)" },
+    { "(. tx gasprice)", "(gasprice)" },
+    { "(. tx origin)", "(origin)" },
+    { "(. tx gas)", "(gas)" },
+    { "(. $x balance)", "(balance $x)" },
+    { "self", "(address)" },
+    { "(. block prevhash)", "(prevhash)" },
+    { "(. block coinbase)", "(coinbase)" },
+    { "(. block timestamp)", "(timestamp)" },
+    { "(. block number)", "(number)" },
+    { "(. block difficulty)", "(difficulty)" },
+    { "(. block gaslimit)", "(gaslimit)" },
     { "stop", "(stop)" },
     { "---END---", "" } //Keep this line at the end of the list
 };
@@ -297,6 +280,19 @@ struct matchResult {
     bool success;
     std::map<std::string, Node> map;
 };
+
+class preprocessAux {
+    public:
+        preprocessAux() {
+            globalExterns = std::map<std::string, int>();
+            localExterns = std::map<std::string, std::map<std::string, int> >();
+            localExterns["self"] = std::map<std::string, int>();
+        }
+        std::map<std::string, int> globalExterns;
+        std::map<std::string, std::map<std::string, int> > localExterns;
+};
+
+#define preprocessResult std::pair<Node, preprocessAux>
 
 // Returns two values. First, a boolean to determine whether the node matches
 // the pattern, second, if the node does match then a map mapping variables
@@ -531,8 +527,114 @@ Node call_transform(Node node, std::string op) {
     return mainNode;
 }
 
+preprocessResult preprocess(Node inp) {
+    inp = inp.args[0];
+    if (inp.val != "seq") {
+        std::vector<Node> args;
+        args.push_back(inp);
+        inp = astnode("seq", args, inp.metadata);
+    }
+    std::vector<Node> empty;
+    Node init = astnode("seq", empty, inp.metadata);
+    Node shared = astnode("seq", empty, inp.metadata);
+    std::vector<Node> any;
+    std::vector<Node> functions;
+    preprocessAux out = preprocessAux();
+    out.localExterns["self"] = std::map<std::string, int>();
+    int functionCount = 0;
+    for (unsigned i = 0; i < inp.args.size(); i++) {
+        if (inp.args[i].val == "def") {
+            if (inp.args[i].args.size() == 0)
+                err("Empty def", inp.metadata);
+            std::string funName = inp.args[i].args[0].val;
+            if (funName == "init" || funName == "shared" || funName == "any") {
+                if (inp.args[i].args[0].args.size())
+                    err(funName+" cannot have arguments", inp.metadata);
+            }
+            if (funName == "init") init = inp.args[i].args[1];
+            else if (funName == "shared") shared = inp.args[i].args[1];
+            else if (funName == "any") any.push_back(inp.args[i].args[1]);
+            else {
+                functions.push_back(inp.args[i]);
+                out.localExterns["self"][inp.args[i].args[0].val] = functionCount;
+                functionCount++;
+            }
+        }
+        else if (inp.args[i].val == "extern") {
+            std::string externName = inp.args[i].args[0].args[0].val;
+            Node al = inp.args[i].args[0].args[1];
+            if (!out.localExterns.count(externName))
+                out.localExterns[externName] = std::map<std::string, int>();
+            for (unsigned i = 0; i < al.args.size(); i++) {
+                out.globalExterns[al.args[i].val] = i;
+                out.localExterns[externName][al.args[i].val] = i;
+            }
+        }
+        else any.push_back(inp.args[i]);
+    }
+    std::vector<Node> main;
+    main.push_back(shared);
+    main.push_back(init);
+
+    std::vector<Node> code;
+    code.push_back(shared);
+    for (unsigned i = 0; i < any.size(); i++)
+        code.push_back(any[i]);
+    for (unsigned i = 0; i < functions.size(); i++)
+        code.push_back(functions[i]);
+    std::vector<Node> lllcodezero;
+    lllcodezero.push_back(astnode("seq", code, inp.metadata));
+    lllcodezero.push_back(token("0", inp.metadata));
+    std::vector<Node> returnzerolll;
+    returnzerolll.push_back(token("0", inp.metadata));
+    returnzerolll.push_back(astnode("lll", lllcodezero, inp.metadata));
+    main.push_back(astnode("~return", returnzerolll, inp.metadata));
+    return preprocessResult(astnode("seq", main, inp.metadata), out);
+}
+
+Node dotTransform(Node node, preprocessAux aux) {
+    Node pre = node.args[0].args[0];
+    std::string post = node.args[0].args[1].val;
+    if (node.args[0].args[1].type == ASTNODE)
+        err("Function name must be static", node.metadata);
+    std::string as = "";
+    bool call_code = false;
+    for (unsigned i = 1; i < node.args.size(); i++) {
+        if (node.args[i].val == "=" || node.args[i].val == "set") {
+            if (node.args[i].args[0].val == "as")
+                as = node.args[i].args[1].val;
+            if (node.args[i].args[0].val == "call" && 
+                    node.args[i].args[1].val == "code")
+                call_code = true;
+        }
+    } 
+    if (pre.val == "self") {
+        if (as.size()) err("Cannot use as when calling self!", node.metadata);
+        as = pre.val;
+    }
+    std::vector<Node> args;
+    args.push_back(pre);
+    if (as.size() > 0 && aux.localExterns.count(as)) {
+        if (!aux.localExterns[as].count(post))
+            err("Invalid call: "+pre.val+"."+post, node.metadata);
+        std::string key = unsignedToDecimal(aux.localExterns[as][post]);
+        args.push_back(token(key, node.metadata));
+    }
+    else if (!as.size()) {
+        if (!aux.globalExterns.count(post))
+            err("Invalid call: "+pre.val+"."+post, node.metadata);
+        std::string key = unsignedToDecimal(aux.globalExterns[post]);
+        args.push_back(token(key, node.metadata));
+    }
+    else err("Invalid call: "+pre.val+"."+post, node.metadata);
+    for (unsigned i = 1; i < node.args.size(); i++)
+        args.push_back(node.args[i]);
+    return astnode(call_code ? "call_code" : "call", args, node.metadata);
+}
+
 // Recursively applies rewrite rules
-Node apply_rules(Node node) {
+Node apply_rules(preprocessResult pr) {
+    Node node = pr.first;
     // If the rewrite rules have not yet been parsed, parse them
     if (!nodeMacros.size()) {
         for (int i = 0; i < 9999; i++) {
@@ -564,9 +666,16 @@ Node apply_rules(Node node) {
             pos = 0;
         }
     }
-    // Array_lit special instruction
+    // Special transformations
+    if (node.val == "outer") {
+        pr = preprocess(node);
+        node = pr.first;
+    }
     if (node.val == "array_lit")
         node = array_lit_transform(node);
+    if (node.val == "fun" && node.args[0].val == ".") {
+        node = dotTransform(node, pr.second);
+    }
     if (node.val == "call")
         node = call_transform(node, "call");
     if (node.val == "call_code")
@@ -575,7 +684,7 @@ Node apply_rules(Node node) {
 		unsigned i = 0;
         if (node.val == "set" || node.val == "ref" 
                 || node.val == "get" || node.val == "with"
-                || node.val == "def") {
+                || node.val == "def" || node.val == "declare") {
             node.args[0].val = "'" + node.args[0].val;
             i = 1;
         }
@@ -592,7 +701,7 @@ Node apply_rules(Node node) {
             }
         }
         for (; i < node.args.size(); i++) {
-            node.args[i] = apply_rules(node.args[i]);
+            node.args[i] = apply_rules(preprocessResult(node.args[i], pr.second));
         }
     }
     else if (node.type == TOKEN && !isNumberLike(node)) {
@@ -673,39 +782,18 @@ Node validate(Node inp) {
     return inp;
 }
 
-Node preprocess(Node inp) {
+Node outerWrap(Node inp) {
     std::vector<Node> args;
-    if (inp.val == "seq") {
-        for (unsigned i = 0; i < inp.args.size(); i++) {
-            if (inp.args[i].val == "def") {
-                if (inp.args[i].args.size() == 0)
-                    err("Empty def", inp.metadata);
-                if (inp.args[i].args[0].val == "init") {
-                    if (inp.args[i].args[0].args.size())
-                        err("Init cannot have arguments", inp.metadata);
-                    std::vector<Node> new_outer;   
-                    new_outer.push_back(inp.args[i].args[1]);
-                    std::vector<Node> new_inner;
-                    for (unsigned j = 0; j < inp.args.size(); j++) {
-                        if (j != i) new_inner.push_back(inp.args[j]);
-                    }
-                    new_outer.push_back(astnode("seq", new_inner, inp.metadata));
-                    args.push_back(astnode("init", new_outer, inp.metadata));
-                    return astnode("outer", args, inp.metadata);
-                }
-            }
-        }
-    }
     args.push_back(inp);
     return astnode("outer", args, inp.metadata);
 }
 
 Node rewrite(Node inp) {
-    return optimize(apply_rules(validate(preprocess(inp))));
+    return optimize(apply_rules(preprocessResult(validate(outerWrap(inp)), preprocessAux())));
 }
 
 Node rewriteChunk(Node inp) {
-    return optimize(apply_rules(validate(inp)));
+    return optimize(apply_rules(preprocessResult(validate(inp), preprocessAux())));
 }
 
 using namespace std;

@@ -22,7 +22,8 @@ const int TOKEN = 0,
           COLON = 11,
           UNARY_OP = 12,
           BINARY_OP = 13,
-          COMPOUND = 14;
+          COMPOUND = 14,
+          TOKEN_SPLITTER = 15;
 
 // Stores metadata about each token
 class Metadata {
