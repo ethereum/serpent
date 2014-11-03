@@ -261,7 +261,8 @@ int spaceCount(std::string s) {
 // Is this a command that takes an argument on the same line?
 bool bodied(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "while"
-        || tok == "with" || tok == "def" || tok == "extern";
+        || tok == "with" || tok == "def" || tok == "extern"
+        || tok == "data";
 }
 
 // Is this a command that takes an argument as a child block?

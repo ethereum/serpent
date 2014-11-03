@@ -8,8 +8,10 @@ const std::string tt256 =
 ;
 
 const std::string tt255 =
-"57896044618658097711785492504343953926634992332820282019728792003956564819968"
-;
+"57896044618658097711785492504343953926634992332820282019728792003956564819968";
+
+const std::string tt176 =
+"95780971304118053647396689196894323976171195136475136";
 
 std::string unsignedToDecimal(unsigned branch);
 
@@ -22,6 +24,8 @@ std::string decimalSub(std::string a, std::string b);
 std::string decimalDiv(std::string a, std::string b);
 
 std::string decimalMod(std::string a, std::string b);
+
+std::string decimalModExp(std::string b, std::string e, std::string m);
 
 bool decimalGt(std::string a, std::string b, bool eqAllowed=false);
 

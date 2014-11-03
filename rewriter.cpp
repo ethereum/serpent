@@ -281,6 +281,13 @@ struct matchResult {
     std::map<std::string, Node> map;
 };
 
+struct svObj {
+    std::map<std::string, std::string> offsets;
+    std::map<std::string, int> indices;
+    std::map<std::string, std::vector<std::string> > multipliers;
+    std::string globalOffset;
+};
+
 class preprocessAux {
     public:
         preprocessAux() {
@@ -290,6 +297,7 @@ class preprocessAux {
         }
         std::map<std::string, int> globalExterns;
         std::map<std::string, std::map<std::string, int> > localExterns;
+        svObj storageVars;
 };
 
 #define preprocessResult std::pair<Node, preprocessAux>
@@ -381,6 +389,107 @@ Node array_lit_transform(Node node) {
     o8.push_back(token(symb, node.metadata));
     o3.push_back(astnode("get", o8));
     return astnode("seq", o3, node.metadata);
+}
+
+// Is the given node something of the form
+// self.cow
+// self.horse[0]
+// self.a[6][7][self.storage[3]].chicken[9]
+bool isNodeStorageVariable(Node node) {
+    while (1) {
+        if (node.type == TOKEN) return false;
+        if (node.args.size() == 0) return false;
+        if (node.val != "." && node.val != "access") return false;
+        if (node.args[0].val == "self") return true;
+        node = node.args[0];
+    }
+}
+
+Node optimize(Node inp);
+
+Node apply_rules(preprocessResult pr);
+
+// Convert:
+// self.cow -> ["cow"]
+// self.horse[0] -> ["horse", "0"]
+// self.a[6][7][self.storage[3]].chicken[9] -> 
+//     ["6", "7", (sload 3), "chicken", "9"]
+std::vector<Node> listfyStorageAccess(Node node, bool staticCheck=false) {
+    std::vector<Node> out;
+    std::vector<Node> nodez;
+    nodez.push_back(node);
+    while (1) {
+        if (nodez.back().type == TOKEN) {
+            out.push_back(token("--" + nodez.back().val, node.metadata));
+            std::vector<Node> outrev;
+            for (int i = (signed)out.size() - 1; i >= 0; i--) {
+                outrev.push_back(out[i]);
+            }
+            return outrev;
+        }
+        if (nodez.back().val == ".")
+            nodez.back().args[1].val = "--" + nodez.back().args[1].val;
+        if (nodez.back().args.size() == 0)
+            err("Error parsing storage variable statement", node.metadata);
+        if (nodez.back().args.size() == 1)
+            out.push_back(token(tt256, node.metadata));
+        else {
+            if (staticCheck) {
+                nodez.back().args[1] = optimize(apply_rules(preprocessResult(
+                                       nodez.back().args[1], preprocessAux())));
+                if (nodez.back().args[1].type != TOKEN)
+                    err("Array size must be fixed value", node.metadata);
+            }
+            out.push_back(nodez.back().args[1]);
+        }
+        nodez.push_back(nodez.back().args[0]);
+    }
+}
+
+void printStringList(std::vector<std::string> s, std::string suffix="") {
+    for (unsigned i = 0; i < s.size(); i++) std::cerr << s[i] << " ";
+    std::cerr << suffix << "\n";
+}
+
+svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
+    if (!pre.globalOffset.size()) pre.globalOffset = "0";
+    std::vector<Node> h;
+    if (node.val == "access" || node.type == TOKEN) {
+        std::string tot = "1";
+        std::vector<Node> h = listfyStorageAccess(node, true);
+        std::vector<std::string> multipliers;
+        multipliers.push_back("1");
+        for (unsigned i = h.size() - 1; i >= 1; i--) {
+            multipliers.push_back(decimalMul(multipliers.back(), h[i].val));
+        }
+        pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
+        pre.multipliers[prefix+h[0].val.substr(2)] = multipliers;
+        pre.globalOffset = decimalAdd(pre.globalOffset, multipliers.back());
+    }
+    else if (node.val == "fun") {
+        svObj sub = pre;
+        sub.globalOffset = "0";
+        h = listfyStorageAccess(node.args[0], true);
+        for (unsigned i = 1; i < node.args.size(); i++) {
+            sub = getStorageVars(sub,
+                                 node.args[i],
+                                 prefix+h[0].val.substr(2)+".",
+                                 i-1);
+        }
+        std::vector<std::string> multipliers;
+        multipliers.push_back(sub.globalOffset);
+        for (unsigned i = h.size() - 1; i >= 1; i--) {
+             multipliers.push_back(decimalMul(multipliers.back(), h[i].val));
+        }
+        pre.offsets = sub.offsets;
+        pre.multipliers = sub.multipliers;
+        pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
+        pre.indices[prefix+h[0].val.substr(2)] = index;
+        pre.multipliers[prefix+h[0].val.substr(2)] = multipliers;
+        if (decimalGt(tt176, multipliers.back()))
+            pre.globalOffset = decimalAdd(pre.globalOffset, multipliers.back());
+    }
+    return pre;
 }
 
 // call transform
@@ -556,7 +665,8 @@ preprocessResult preprocess(Node inp) {
             else if (funName == "any") any.push_back(inp.args[i].args[1]);
             else {
                 functions.push_back(inp.args[i]);
-                out.localExterns["self"][inp.args[i].args[0].val] = functionCount;
+                out.localExterns["self"][inp.args[i].args[0].val] 
+                    = functionCount;
                 functionCount++;
             }
         }
@@ -569,6 +679,10 @@ preprocessResult preprocess(Node inp) {
                 out.globalExterns[al.args[i].val] = i;
                 out.localExterns[externName][al.args[i].val] = i;
             }
+        }
+        else if (inp.args[i].val == "data") {
+            out.storageVars =
+                getStorageVars(out.storageVars, inp.args[i].args[0]);
         }
         else any.push_back(inp.args[i]);
     }
@@ -632,6 +746,72 @@ Node dotTransform(Node node, preprocessAux aux) {
     return astnode(call_code ? "call_code" : "call", args, node.metadata);
 }
 
+Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
+    std::vector<Node> hlist = listfyStorageAccess(node);
+    std::vector<Node> terms;
+    std::string offset = "0";
+    std::string prefix = "";
+    int c = 0;
+    std::vector<std::string> multipliers;
+    multipliers.push_back("");
+    for (unsigned i = 1; i < hlist.size(); i++) {
+        if (hlist[i].val.substr(0, 2) == "--") {
+            prefix += hlist[i].val.substr(2) + ".";
+            std::string tempPrefix = prefix.substr(0, prefix.size()-1);
+            if (!aux.storageVars.offsets.count(tempPrefix))
+                return node;
+            if (c < (signed)multipliers.size() - 1) {
+                err("Too few array index lookups", node.metadata);
+            }
+            if (c > (signed)multipliers.size() - 1) {
+                err("Too many array index lookups", node.metadata);
+            }
+            multipliers = aux.storageVars.multipliers[tempPrefix];
+            if (decimalGt(multipliers.back(), tt176) && !mapstyle)
+                return storageTransform(node, aux, true);
+            offset = decimalAdd(offset, aux.storageVars.offsets[tempPrefix]);
+            c = 0;
+            if (mapstyle)
+                terms.push_back(token(unsignedToDecimal(
+                    aux.storageVars.indices[tempPrefix])));
+        }
+        else if (mapstyle) {
+            terms.push_back(hlist[i]);
+            c += 1;
+        }
+        else {
+            std::vector<Node> termz;
+            termz.push_back(hlist[i]);
+            termz.push_back(token(multipliers[multipliers.size() - 2 - c], node.metadata));
+            terms.push_back(astnode("mul", termz, node.metadata));
+            c += 1;
+        }
+    }
+    if (mapstyle) {
+        Node out = astnode("array_lit", terms, node.metadata);
+        std::vector<Node> temp3;
+        temp3.push_back(out);
+        temp3.push_back(token(unsignedToDecimal(terms.size()), node.metadata));
+        std::vector<Node> temp4;
+        temp4.push_back(astnode("sha3", temp3, node.metadata));
+        return astnode("sload", temp4, node.metadata);
+    }
+    else {
+        Node out = token(offset, node.metadata);
+        for (unsigned i = 0; i < terms.size(); i++) {
+            std::vector<Node> temp;
+            temp.push_back(out);
+            temp.push_back(terms[i]);
+            out = astnode("add", temp, node.metadata);
+        }
+        std::vector<Node> temp2;
+        temp2.push_back(out);
+        return astnode("sload", temp2, node.metadata);
+    }
+    return parseLLL("(sload 404040)");
+}
+
+
 // Recursively applies rewrite rules
 Node apply_rules(preprocessResult pr) {
     Node node = pr.first;
@@ -643,6 +823,19 @@ Node apply_rules(preprocessResult pr) {
             o.push_back(parseLLL(macros[i][0]));
             o.push_back(parseLLL(macros[i][1]));
             nodeMacros.push_back(o);
+        }
+    }
+    // Special storage transformation
+    if (isNodeStorageVariable(node)) {
+        node = storageTransform(node, pr.second);
+    }
+    if (node.val == "=" && isNodeStorageVariable(node.args[0])) {
+        Node t = storageTransform(node.args[0], pr.second);
+        if (t.val == "sload") {
+            std::vector<Node> o;
+            o.push_back(t.args[0]);
+            o.push_back(node.args[1]);
+            node = astnode("sstore", o, node.metadata);
         }
     }
     // Main code
@@ -728,6 +921,24 @@ Node optimize(Node inp) {
 	for (unsigned i = 0; i < inp.args.size(); i++) {
         inp.args[i] = optimize(inp.args[i]);
     }
+    if (inp.args.size() == 2) {
+        if (inp.val == "add" && inp.args[0].type == TOKEN && 
+                inp.args[0].val == "0") {
+            inp = inp.args[1];
+        }
+        if (inp.val == "add" && inp.args[1].type == TOKEN && 
+                inp.args[1].val == "0") {
+            inp = inp.args[0];
+        }
+        if (inp.val == "mul" && inp.args[0].type == TOKEN && 
+                inp.args[0].val == "1") {
+            inp = inp.args[1];
+        }
+        if (inp.val == "mul" && inp.args[1].type == TOKEN && 
+                inp.args[1].val == "1") {
+            inp = inp.args[0];
+        }
+    }
     if (inp.args.size() == 2 
             && inp.args[0].type == TOKEN 
             && inp.args[1].type == TOKEN) {
@@ -758,6 +969,9 @@ Node optimize(Node inp) {
             && decimalGt(tt255, inp.args[1].val)) {
           o = decimalMod(inp.args[0].val, inp.args[1].val);
       }    
+      else if (inp.val == "exp") {
+          o = decimalModExp(inp.args[0].val, inp.args[1].val, tt256);
+      }
       if (o.length()) return token(o, inp.metadata);
     }
     return inp;
