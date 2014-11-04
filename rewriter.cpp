@@ -27,6 +27,7 @@ std::string valid[][3] = {
     { "seq", "0", tt256 },
     { "log", "1", "6" },
     { "outer", "1", "1" },
+    { "set", "2", "2" },
     { "---END---", "", "" } //Keep this line at the end of the list
 };
 
@@ -414,7 +415,7 @@ Node apply_rules(preprocessResult pr);
 // self.horse[0] -> ["horse", "0"]
 // self.a[6][7][self.storage[3]].chicken[9] -> 
 //     ["6", "7", (sload 3), "chicken", "9"]
-std::vector<Node> listfyStorageAccess(Node node, bool staticCheck=false) {
+std::vector<Node> listfyStorageAccess(Node node) {
     std::vector<Node> out;
     std::vector<Node> nodez;
     nodez.push_back(node);
@@ -432,16 +433,9 @@ std::vector<Node> listfyStorageAccess(Node node, bool staticCheck=false) {
         if (nodez.back().args.size() == 0)
             err("Error parsing storage variable statement", node.metadata);
         if (nodez.back().args.size() == 1)
-            out.push_back(token(tt256, node.metadata));
-        else {
-            if (staticCheck) {
-                nodez.back().args[1] = optimize(apply_rules(preprocessResult(
-                                       nodez.back().args[1], preprocessAux())));
-                if (nodez.back().args[1].type != TOKEN)
-                    err("Array size must be fixed value", node.metadata);
-            }
+            out.push_back(token(tt256m1, node.metadata));
+        else
             out.push_back(nodez.back().args[1]);
-        }
         nodez.push_back(nodez.back().args[0]);
     }
 }
@@ -451,64 +445,100 @@ void printStringList(std::vector<std::string> s, std::string suffix="") {
     std::cerr << suffix << "\n";
 }
 
+// Populate an svObj with the arguments needed to determine
+// the storage position of a node
 svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
+    Metadata m = node.metadata;
     if (!pre.globalOffset.size()) pre.globalOffset = "0";
     std::vector<Node> h;
+    std::vector<std::string> multipliers;
+    // Array accesses or atoms
     if (node.val == "access" || node.type == TOKEN) {
         std::string tot = "1";
-        std::vector<Node> h = listfyStorageAccess(node, true);
-        std::vector<std::string> multipliers;
+        h = listfyStorageAccess(node);
         multipliers.push_back("1");
         for (unsigned i = h.size() - 1; i >= 1; i--) {
+            // Array sizes must be constant or at least arithmetically
+            // evaluable at compile time
+            h[i] = optimize(apply_rules(preprocessResult(
+                                       h[i], preprocessAux())));
+            if (!isNumberLike(h[i]))
+                err("Array size must be fixed value", m);
+            // Create a list of the coefficient associated with each
+            // array index
             multipliers.push_back(decimalMul(multipliers.back(), h[i].val));
         }
-        pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
-        pre.multipliers[prefix+h[0].val.substr(2)] = multipliers;
-        pre.globalOffset = decimalAdd(pre.globalOffset, multipliers.back());
     }
-    else if (node.val == "fun") {
+    // Tuples
+    else {
+        int startc;
+        // Handle the (fun <fun_astnode> args...) case
+        if (node.val == "fun") {
+            startc = 1;
+            h = listfyStorageAccess(node.args[0]);
+        }
+        // Handle the (<fun_name> args...) case, which
+        // the serpent parser produces when the function
+        // is a simple name and not a complex astnode
+        else {
+            startc = 0;
+            h = listfyStorageAccess(token(node.val, m));
+        }
         svObj sub = pre;
         sub.globalOffset = "0";
-        h = listfyStorageAccess(node.args[0], true);
-        for (unsigned i = 1; i < node.args.size(); i++) {
+        for (unsigned i = startc; i < node.args.size(); i++) {
             sub = getStorageVars(sub,
                                  node.args[i],
                                  prefix+h[0].val.substr(2)+".",
                                  i-1);
         }
-        std::vector<std::string> multipliers;
         multipliers.push_back(sub.globalOffset);
         for (unsigned i = h.size() - 1; i >= 1; i--) {
-             multipliers.push_back(decimalMul(multipliers.back(), h[i].val));
+            // Array sizes must be constant or at least arithmetically
+            // evaluable at compile time
+            h[i] = optimize(apply_rules(preprocessResult(
+                                      h[i], preprocessAux())));
+            if (!isNumberLike(h[i]))
+               err("Array size must be fixed value", m);
+            // Create a list of the coefficient associated with each
+            // array index
+            multipliers.push_back(decimalMul(multipliers.back(), h[i].val));
         }
         pre.offsets = sub.offsets;
         pre.multipliers = sub.multipliers;
-        pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
-        pre.indices[prefix+h[0].val.substr(2)] = index;
-        pre.multipliers[prefix+h[0].val.substr(2)] = multipliers;
-        if (decimalGt(tt176, multipliers.back()))
-            pre.globalOffset = decimalAdd(pre.globalOffset, multipliers.back());
     }
+    pre.multipliers[prefix+h[0].val.substr(2)] = multipliers;
+    pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
+    pre.indices[prefix+h[0].val.substr(2)] = index;
+    if (decimalGt(tt176, multipliers.back()))
+        pre.globalOffset = decimalAdd(pre.globalOffset, multipliers.back());
     return pre;
 }
 
-// call transform
+// Transform a node of the form (call to funid vars...) into
+// a call
 
 #define psn std::pair<std::string, Node>
 
 Node call_transform(Node node, std::string op) {
+    Metadata m = node.metadata;
+    // We're gonna make lots of temporary variables,
+    // so set up a unique flag for them
     std::string prefix = "_temp"+mkUniqueToken()+"_";
+    // kwargs = map of special arguments
     std::map<std::string, Node> kwargs;
-    kwargs["value"] = token("0", node.metadata);
+    kwargs["value"] = token("0", m);
     kwargs["gas"] = parseLLL("(- (gas) 25)");
     std::vector<Node> args;
     for (unsigned i = 0; i < node.args.size(); i++) {
         if (node.args[i].val == "=" || node.args[i].val == "set") {
+            if (node.args[i].args.size() != 2)
+                err("Malformed set", m);
             kwargs[node.args[i].args[0].val] = node.args[i].args[1];
         }
         else args.push_back(node.args[i]);
     }
-    if (args.size() < 2) err("Too few arguments for call!", node.metadata);
+    if (args.size() < 2) err("Too few arguments for call!", m);
     kwargs["to"] = args[0];
     kwargs["funid"] = args[1];
     std::vector<Node> inputs;
@@ -519,92 +549,90 @@ Node call_transform(Node node, std::string op) {
     std::vector<Node> precompute;
     std::vector<Node> post;
     if (kwargs.count("data")) {
-        if (!kwargs.count("datasz")) {
-            err("Required param datasz", node.metadata);
-        }
+        if (!kwargs.count("datasz")) err("Required param datasz", m);
+        // The strategy here is, we store the function ID byte at the index
+        // before the start of the byte, but then we store the value that was
+        // there before and reinstate it once the process is over
         // store data: data array start
         with.push_back(psn(prefix+"data", kwargs["data"]));
         // store data: prior: data array - 32
-        std::vector<Node> argz;
-        argz.push_back(token(prefix+"data", node.metadata));
-        argz.push_back(token("32", node.metadata));
-        with.push_back(psn(prefix+"prior", astnode("sub", argz, node.metadata)));
+        Node prior = astnode("sub", token(prefix+"data", m), token("32", m), m);
+        with.push_back(psn(prefix+"prior", prior));
         // store data: priormem: data array - 32 prior memory value
-        std::vector<Node> argz2;
-        argz2.push_back(token(prefix+"prior", node.metadata));
-        with.push_back(psn(prefix+"priormem", astnode("mload", argz2, node.metadata)));
+        Node priormem = astnode("mload", token(prefix+"prior", m), m);
+        with.push_back(psn(prefix+"priormem", priormem));
         // post: reinstate prior mem at data array - 32
-        std::vector<Node> argz3;
-        argz3.push_back(token(prefix+"prior", node.metadata));
-        argz3.push_back(token(prefix+"priormem", node.metadata));
-        post.push_back(astnode("mstore", argz3, node.metadata));
+        post.push_back(astnode("mstore", 
+                               token(prefix+"prior", m),
+                               token(prefix+"priormem", m),
+                               m));
         // store data: datastart: data array - 1
-        std::vector<Node> argz4;
-        argz4.push_back(token(prefix+"data", node.metadata));
-        argz4.push_back(token("1", node.metadata));
-        with.push_back(psn(prefix+"datastart", astnode("sub", argz4, node.metadata)));
+        Node datastart = astnode("sub",
+                                 token(prefix+"data", m),
+                                 token("1", m),
+                                 m);
+        with.push_back(psn(prefix+"datastart", datastart));
         // push funid byte to datastart
-        std::vector<Node> argz5;
-        argz5.push_back(token(prefix+"datastart", node.metadata));
-        argz5.push_back(kwargs["funid"]);
-        precompute.push_back(astnode("mstore8", argz5, node.metadata));
+        precompute.push_back(astnode("mstore8", 
+                                     token(prefix+"datastart", m),
+                                     kwargs["funid"],
+                                     m));
         // set data array start loc
-        kwargs["datain"] = token(prefix+"datastart", node.metadata);
-        std::vector<Node> argz6;
-        argz6.push_back(token("32", node.metadata));
-        argz6.push_back(kwargs["datasz"]);
-        std::vector<Node> argz7;
-        argz7.push_back(astnode("mul", argz6, node.metadata));
-        argz7.push_back(token("1", node.metadata));
-        kwargs["datainsz"] = astnode("add", argz7, node.metadata);
+        kwargs["datain"] = token(prefix+"datastart", m);
+        kwargs["datainsz"] = astnode("add", 
+                                     token("1", m),
+                                     astnode("mul",
+                                             token("32", m),
+                                             kwargs["datasz"],
+                                             m),
+                                     m);
     }
     else {
+        // Here, there is no data array, instead there are function arguments.
+        // This actually lets us be much more efficient with how we set things
+        // up.
         // Pre-declare variables; relies on declared variables being sequential
-        std::vector<Node> argz;
-        argz.push_back(token(prefix+"prebyte", node.metadata));
-        precompute.push_back(astnode("declare", argz, node.metadata));
+        precompute.push_back(astnode("declare",
+                                     token(prefix+"prebyte", m),
+                                     m));
         for (unsigned i = 0; i < inputs.size(); i++) {
-            std::vector<Node> argz;
-            argz.push_back(token(prefix+unsignedToDecimal(i), node.metadata));
-            precompute.push_back(astnode("declare", argz, node.metadata));
+            precompute.push_back(astnode("declare",
+                                         token(prefix+unsignedToDecimal(i), m),
+                                         m));
         }
-        // Set up variables
-        std::vector<Node> argz1;
-        argz1.push_back(token(prefix+"prebyte", node.metadata));
-        std::vector<Node> argz2;
-        argz2.push_back(astnode("ref", argz1, node.metadata));
-        argz2.push_back(token("31", node.metadata));
-        std::vector<Node> argz3;
-        argz3.push_back(astnode("add", argz2, node.metadata));
-        argz3.push_back(kwargs["funid"]);
-        precompute.push_back(astnode("mstore8", argz3, node.metadata));
+        // Set up variables to store the function arguments, and store the
+        // function ID at the byte before the start
+        Node datastart = astnode("add",
+                                 token("31", m),
+                                 astnode("ref",
+                                         token(prefix+"prebyte", m),
+                                         m),
+                                 m);
+        precompute.push_back(astnode("mstore8",
+                                     datastart,
+                                     kwargs["funid"],
+                                     m));
         for (unsigned i = 0; i < inputs.size(); i++) {
-            std::vector<Node> argz;
-            argz.push_back(token(prefix+unsignedToDecimal(i), node.metadata));
-            argz.push_back(inputs[i]);
-            precompute.push_back(astnode("set", argz, node.metadata));
+            precompute.push_back(astnode("set", 
+                                         token(prefix+unsignedToDecimal(i), m),
+                                         inputs[i],
+                                         m));
+
         }
-        kwargs["datain"] = astnode("add", argz2, node.metadata);
-        kwargs["datainsz"] = token(unsignedToDecimal(inputs.size() * 32 + 1), node.metadata);
+        kwargs["datain"] = datastart;
+        kwargs["datainsz"] = token(unsignedToDecimal(inputs.size() * 32 + 1), m);
     }
     if (!kwargs.count("outsz")) {
-        std::vector<Node> argz11;
-        argz11.push_back(token(prefix+"dataout", node.metadata));
-        precompute.push_back(astnode("declare", argz11, node.metadata));
-        kwargs["dataout"] = astnode("ref", argz11, node.metadata);
+        kwargs["dataout"] = astnode("ref", token(prefix+"dataout", m), m);
         kwargs["dataoutsz"] = token("32", node.metadata);
-        std::vector<Node> argz12;
-        argz12.push_back(token(prefix+"dataout", node.metadata));
-        post.push_back(astnode("get", argz12, node.metadata));
+        post.push_back(astnode("get", token(prefix+"dataout", m), m));
     }
     else {
         kwargs["dataout"] = kwargs["out"];
         kwargs["dataoutsz"] = kwargs["outsz"];
-        std::vector<Node> argz12;
-        argz12.push_back(token(prefix+"dataout", node.metadata));
-        post.push_back(astnode("ref", argz12, node.metadata));
+        post.push_back(astnode("ref", token(prefix+"dataout", m), m));
     }
-        
+    // Set up main call
     std::vector<Node> main;
     for (unsigned i = 0; i < precompute.size(); i++) {
         main.push_back(precompute[i]);
@@ -617,62 +645,78 @@ Node call_transform(Node node, std::string op) {
     call.push_back(kwargs["datainsz"]);
     call.push_back(kwargs["dataout"]);
     call.push_back(kwargs["dataoutsz"]);
-    std::vector<Node> argz20;
-    argz20.push_back(astnode("~"+op, call, node.metadata));
-    main.push_back(astnode("pop", argz20, node.metadata));
+    main.push_back(astnode("pop", astnode("~"+op, call, m), m));
     for (unsigned i = 0; i < post.size(); i++) {
         main.push_back(post[i]);
     }
     Node mainNode = astnode("seq", main, node.metadata);
+    // Add with variables
     for (int i = with.size() - 1; i >= 0; i--) {
-        std::string varname = with[i].first;
-        Node varnode = with[i].second;
-        std::vector<Node> argz30;
-        argz30.push_back(token(varname, node.metadata));
-        argz30.push_back(varnode);
-        argz30.push_back(mainNode);
-        mainNode = astnode("with", argz30, node.metadata);
+        mainNode = astnode("with",
+                           token(with[i].first, m),
+                           with[i].second,
+                           mainNode,
+                           m);
     }
     return mainNode;
 }
 
+// Preprocess input containing functions
+//
+// localExterns is a map of the form, eg,
+//
+// { x: { foo: 0, bar: 1, baz: 2 }, y: { qux: 0, foo: 1 } ... }
+//
+// Signifying that x.foo = 0, x.baz = 2, y.foo = 1, etc
+//
+// globalExterns is a one-level map, eg from above
+//
+// { foo: 1, bar: 1, baz: 2, qux: 0 }
+//
+// Note that globalExterns may be ambiguous
 preprocessResult preprocess(Node inp) {
     inp = inp.args[0];
+    Metadata m = inp.metadata;
     if (inp.val != "seq") {
         std::vector<Node> args;
         args.push_back(inp);
-        inp = astnode("seq", args, inp.metadata);
+        inp = astnode("seq", args, m);
     }
     std::vector<Node> empty;
-    Node init = astnode("seq", empty, inp.metadata);
-    Node shared = astnode("seq", empty, inp.metadata);
+    Node init = astnode("seq", empty, m);
+    Node shared = astnode("seq", empty, m);
     std::vector<Node> any;
     std::vector<Node> functions;
     preprocessAux out = preprocessAux();
     out.localExterns["self"] = std::map<std::string, int>();
     int functionCount = 0;
+    int storageDataCount = 0;
     for (unsigned i = 0; i < inp.args.size(); i++) {
-        if (inp.args[i].val == "def") {
-            if (inp.args[i].args.size() == 0)
-                err("Empty def", inp.metadata);
-            std::string funName = inp.args[i].args[0].val;
+        Node obj = inp.args[i];
+        // Functions
+        if (obj.val == "def") {
+            if (obj.args.size() == 0)
+                err("Empty def", m);
+            std::string funName = obj.args[0].val;
+            // Init, shared and any are special functions
             if (funName == "init" || funName == "shared" || funName == "any") {
-                if (inp.args[i].args[0].args.size())
-                    err(funName+" cannot have arguments", inp.metadata);
+                if (obj.args[0].args.size())
+                    err(funName+" cannot have arguments", m);
             }
-            if (funName == "init") init = inp.args[i].args[1];
-            else if (funName == "shared") shared = inp.args[i].args[1];
-            else if (funName == "any") any.push_back(inp.args[i].args[1]);
+            if (funName == "init") init = obj.args[1];
+            else if (funName == "shared") shared = obj.args[1];
+            else if (funName == "any") any.push_back(obj.args[1]);
             else {
-                functions.push_back(inp.args[i]);
-                out.localExterns["self"][inp.args[i].args[0].val] 
-                    = functionCount;
+                // Other functions
+                functions.push_back(obj);
+                out.localExterns["self"][obj.args[0].val] = functionCount;
                 functionCount++;
             }
         }
-        else if (inp.args[i].val == "extern") {
-            std::string externName = inp.args[i].args[0].args[0].val;
-            Node al = inp.args[i].args[0].args[1];
+        // Extern declarations
+        else if (obj.val == "extern") {
+            std::string externName = obj.args[0].args[0].val;
+            Node al = obj.args[0].args[1];
             if (!out.localExterns.count(externName))
                 out.localExterns[externName] = std::map<std::string, int>();
             for (unsigned i = 0; i < al.args.size(); i++) {
@@ -680,92 +724,112 @@ preprocessResult preprocess(Node inp) {
                 out.localExterns[externName][al.args[i].val] = i;
             }
         }
-        else if (inp.args[i].val == "data") {
-            out.storageVars =
-                getStorageVars(out.storageVars, inp.args[i].args[0]);
+        // Storage variables/structures
+        else if (obj.val == "data") {
+            out.storageVars = getStorageVars(out.storageVars,
+                                             obj.args[0],
+                                             "",
+                                             storageDataCount);
+            storageDataCount += 1;
         }
-        else any.push_back(inp.args[i]);
+        else any.push_back(obj);
     }
     std::vector<Node> main;
-    main.push_back(shared);
-    main.push_back(init);
+    if (shared.args.size()) main.push_back(shared);
+    if (init.args.size()) main.push_back(init);
 
     std::vector<Node> code;
-    code.push_back(shared);
+    if (shared.args.size()) code.push_back(shared);
     for (unsigned i = 0; i < any.size(); i++)
         code.push_back(any[i]);
     for (unsigned i = 0; i < functions.size(); i++)
         code.push_back(functions[i]);
-    std::vector<Node> lllcodezero;
-    lllcodezero.push_back(astnode("seq", code, inp.metadata));
-    lllcodezero.push_back(token("0", inp.metadata));
-    std::vector<Node> returnzerolll;
-    returnzerolll.push_back(token("0", inp.metadata));
-    returnzerolll.push_back(astnode("lll", lllcodezero, inp.metadata));
-    main.push_back(astnode("~return", returnzerolll, inp.metadata));
+    main.push_back(astnode("~return",
+                           token("0", m),
+                           astnode("lll",
+                                   astnode("seq", code, m),
+                                   token("0", m),
+                                   m),
+                           m));
+
+
+
     return preprocessResult(astnode("seq", main, inp.metadata), out);
 }
 
+// Transform "<variable>.<fun>(args...)" into
+// (call <variable> <funid> args...)
 Node dotTransform(Node node, preprocessAux aux) {
+    Metadata m = node.metadata;
     Node pre = node.args[0].args[0];
     std::string post = node.args[0].args[1].val;
     if (node.args[0].args[1].type == ASTNODE)
-        err("Function name must be static", node.metadata);
+        err("Function name must be static", m);
     std::string as = "";
     bool call_code = false;
     for (unsigned i = 1; i < node.args.size(); i++) {
-        if (node.args[i].val == "=" || node.args[i].val == "set") {
-            if (node.args[i].args[0].val == "as")
-                as = node.args[i].args[1].val;
-            if (node.args[i].args[0].val == "call" && 
-                    node.args[i].args[1].val == "code")
+        Node arg = node.args[i];
+        if (arg.val == "=" || arg.val == "set") {
+            if (arg.args[0].val == "as")
+                as = arg.args[1].val;
+            if (arg.args[0].val == "call" && arg.args[1].val == "code")
                 call_code = true;
         }
-    } 
+    }
     if (pre.val == "self") {
-        if (as.size()) err("Cannot use as when calling self!", node.metadata);
+        if (as.size()) err("Cannot use as when calling self!", m);
         as = pre.val;
     }
     std::vector<Node> args;
     args.push_back(pre);
+    // Determine the funId assuming the "as" keyword was used
     if (as.size() > 0 && aux.localExterns.count(as)) {
         if (!aux.localExterns[as].count(post))
-            err("Invalid call: "+pre.val+"."+post, node.metadata);
-        std::string key = unsignedToDecimal(aux.localExterns[as][post]);
-        args.push_back(token(key, node.metadata));
+            err("Invalid call: "+printSimple(pre)+"."+post, m);
+        std::string funid = unsignedToDecimal(aux.localExterns[as][post]);
+        args.push_back(token(funid, m));
     }
+    // Determine the funId otherwise
     else if (!as.size()) {
         if (!aux.globalExterns.count(post))
-            err("Invalid call: "+pre.val+"."+post, node.metadata);
+            err("Invalid call: "+printSimple(pre)+"."+post, m);
         std::string key = unsignedToDecimal(aux.globalExterns[post]);
         args.push_back(token(key, node.metadata));
     }
-    else err("Invalid call: "+pre.val+"."+post, node.metadata);
+    else err("Invalid call: "+printSimple(pre)+"."+post, node.metadata);
     for (unsigned i = 1; i < node.args.size(); i++)
         args.push_back(node.args[i]);
     return astnode(call_code ? "call_code" : "call", args, node.metadata);
 }
 
+// Transform an access of the form self.bob, self.users[5], etc into
+// a storage access
 Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
+    Metadata m = node.metadata;
+    // Get a list of all of the "access parameters" used in order
+    // eg. self.users[5].cow[4][m[2]][woof] -> 
+    //         [--self, --users, 5, --cow, 4, m[2], woof]
     std::vector<Node> hlist = listfyStorageAccess(node);
     std::vector<Node> terms;
     std::string offset = "0";
     std::string prefix = "";
+    std::string varPrefix = "_temp"+mkUniqueToken()+"_";
     int c = 0;
     std::vector<std::string> multipliers;
     multipliers.push_back("");
     for (unsigned i = 1; i < hlist.size(); i++) {
+        // We pre-add the -- flag to parameter-like terms. For example,
+        // self.users[m] -> [--self, --users, m]
+        // self.users.m -> [--self, --users, --m]
         if (hlist[i].val.substr(0, 2) == "--") {
             prefix += hlist[i].val.substr(2) + ".";
             std::string tempPrefix = prefix.substr(0, prefix.size()-1);
             if (!aux.storageVars.offsets.count(tempPrefix))
                 return node;
-            if (c < (signed)multipliers.size() - 1) {
-                err("Too few array index lookups", node.metadata);
-            }
-            if (c > (signed)multipliers.size() - 1) {
-                err("Too many array index lookups", node.metadata);
-            }
+            if (c < (signed)multipliers.size() - 1)
+                err("Too few array index lookups", m);
+            if (c > (signed)multipliers.size() - 1)
+                err("Too many array index lookups", m);
             multipliers = aux.storageVars.multipliers[tempPrefix];
             if (decimalGt(multipliers.back(), tt176) && !mapstyle)
                 return storageTransform(node, aux, true);
@@ -780,6 +844,8 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
             c += 1;
         }
         else {
+            if (c > (signed)multipliers.size() - 2)
+                err("Too many array index lookups", m);
             std::vector<Node> termz;
             termz.push_back(hlist[i]);
             termz.push_back(token(multipliers[multipliers.size() - 2 - c], node.metadata));
@@ -787,14 +853,29 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
             c += 1;
         }
     }
+    if (c < (signed)multipliers.size() - 1)
+        err("Too few array index lookups", m);
+    if (c > (signed)multipliers.size() - 1)
+        err("Too many array index lookups", m);
     if (mapstyle) {
-        Node out = astnode("array_lit", terms, node.metadata);
-        std::vector<Node> temp3;
-        temp3.push_back(out);
-        temp3.push_back(token(unsignedToDecimal(terms.size()), node.metadata));
-        std::vector<Node> temp4;
-        temp4.push_back(astnode("sha3", temp3, node.metadata));
-        return astnode("sload", temp4, node.metadata);
+        std::vector<Node> main;
+        for (unsigned i = 0; i < terms.size(); i++)
+            main.push_back(astnode("declare",
+                                   token(varPrefix+unsignedToDecimal(i), m),
+                                   m));
+        for (unsigned i = 0; i < terms.size(); i++)
+            main.push_back(astnode("set",
+                                   token(varPrefix+unsignedToDecimal(i), m),
+                                   terms[i],
+                                   m));
+        main.push_back(astnode("ref", token(varPrefix+"0", m), m));
+        Node sz = token(unsignedToDecimal(terms.size()), m);
+        return astnode("sload",
+                       astnode("sha3",
+                               astnode("seq", main, m),
+                               sz,
+                               m),
+                       m);
     }
     else {
         Node out = token(offset, node.metadata);

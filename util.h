@@ -49,6 +49,9 @@ struct Node {
 };
 Node token(std::string val, Metadata met=Metadata());
 Node astnode(std::string val, std::vector<Node> args, Metadata met=Metadata());
+Node astnode(std::string val, Node a, Metadata met=Metadata());
+Node astnode(std::string val, Node a, Node b, Metadata met=Metadata());
+Node astnode(std::string val, Node a, Node b, Node c, Metadata met=Metadata());
 
 // Number of tokens in a tree
 int treeSize(Node prog);

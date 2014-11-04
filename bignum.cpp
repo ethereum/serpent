@@ -54,11 +54,11 @@ std::string decimalModExp(std::string b, std::string e, std::string m) {
     else if (e == "1") return b;
     else if (decimalMod(e, "2") == "0") {
         std::string o = decimalModExp(b, decimalDiv(e, "2"), m);
-        return decimalMul(o, o);
+        return decimalMod(decimalMul(o, o), m);
     }
     else {
         std::string o = decimalModExp(b, decimalDiv(e, "2"), m);
-        return decimalMul(decimalMul(o, o), b);
+        return decimalMod(decimalMul(decimalMul(o, o), b), m);
     }
 }
 
