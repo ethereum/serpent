@@ -308,6 +308,7 @@ struct svObj {
     std::map<std::string, std::string> offsets;
     std::map<std::string, int> indices;
     std::map<std::string, std::vector<std::string> > coefficients;
+    std::map<std::string, bool> nonfinal;
     std::string globalOffset;
 };
 
@@ -536,6 +537,8 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
         }
         pre.offsets = sub.offsets;
         pre.coefficients = sub.coefficients;
+        pre.nonfinal = sub.nonfinal;
+        pre.nonfinal[prefix+h[0].val.substr(2)] = true;
     }
     pre.coefficients[prefix+h[0].val.substr(2)] = coefficients;
     pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
@@ -914,6 +917,8 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
             c += 1;
         }
     }
+    if (aux.storageVars.nonfinal.count(prefix.substr(0, prefix.size()-1)))
+        err("Storage variable access not deep enough", m);
     if (c < (signed)coefficients.size() - 1)
         err("Too few array index lookups", m);
     if (c > (signed)coefficients.size() - 1)
@@ -1146,6 +1151,17 @@ Node validate(Node inp) {
     return inp;
 }
 
+Node postValidate(Node inp) {
+    if (inp.type == ASTNODE) {
+        if (inp.val == ".")
+            err("Invalid object member (ie. a foo.bar not mapped to anything)",
+                inp.metadata);
+        for (unsigned i = 0; i < inp.args.size(); i++)
+            postValidate(inp.args[i]);
+    }
+    return inp;
+}
+
 Node outerWrap(Node inp) {
     std::vector<Node> args;
     args.push_back(inp);
@@ -1153,13 +1169,13 @@ Node outerWrap(Node inp) {
 }
 
 Node rewrite(Node inp) {
-    return optimize(apply_rules(preprocessResult(
-                validate(outerWrap(inp)), preprocessAux())));
+    return postValidate(optimize(apply_rules(preprocessResult(
+                validate(outerWrap(inp)), preprocessAux()))));
 }
 
 Node rewriteChunk(Node inp) {
-    return optimize(apply_rules(preprocessResult(
-                validate(inp), preprocessAux())));
+    return postValidate(optimize(apply_rules(preprocessResult(
+                validate(inp), preprocessAux()))));
 }
 
 using namespace std;
