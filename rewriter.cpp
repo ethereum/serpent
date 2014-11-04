@@ -297,6 +297,17 @@ std::string synonyms[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
+std::string setters[][2] = {
+    { "+=", "+" },
+    { "-=", "-" },
+    { "*=", "*" },
+    { "/=", "/" },
+    { "%=", "%" },
+    { "^=", "^" },
+    { "!=", "!" },
+    { "---END---", "" } //Keep this line at the end of the list
+};
+
 // Match result storing object
 struct matchResult {
     bool success;
@@ -425,12 +436,15 @@ Node array_lit_transform(Node node) {
 // self.horse[0]
 // self.a[6][7][self.storage[3]].chicken[9]
 bool isNodeStorageVariable(Node node) {
+    std::vector<Node> nodez;
+    nodez.push_back(node);
     while (1) {
-        if (node.type == TOKEN) return false;
-        if (node.args.size() == 0) return false;
-        if (node.val != "." && node.val != "access") return false;
-        if (node.args[0].val == "self") return true;
-        node = node.args[0];
+        if (nodez.back().type == TOKEN) return false;
+        if (nodez.back().args.size() == 0) return false;
+        if (nodez.back().val != "." && nodez.back().val != "access")
+            return false;
+        if (nodez.back().args[0].val == "self") return true;
+        nodez.push_back(nodez.back().args[0]);
     }
 }
 
@@ -919,10 +933,12 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
     }
     if (aux.storageVars.nonfinal.count(prefix.substr(0, prefix.size()-1)))
         err("Storage variable access not deep enough", m);
-    if (c < (signed)coefficients.size() - 1)
+    if (c < (signed)coefficients.size() - 1) {
         err("Too few array index lookups", m);
-    if (c > (signed)coefficients.size() - 1)
+    }
+    if (c > (signed)coefficients.size() - 1) {
         err("Too many array index lookups", m);
+    }
     if (mapstyle) {
         // We pre-declare variables, relying on the idea that sequentially
         // declared variables are doing to appear beside each other in
@@ -973,6 +989,19 @@ Node apply_rules(preprocessResult pr) {
             o.push_back(parseLLL(macros[i][0]));
             o.push_back(parseLLL(macros[i][1]));
             nodeMacros.push_back(o);
+        }
+    }
+    // Assignment transformations
+    for (int i = 0; i < 9999; i++) {
+        if (setters[i][0] == "---END---") break;
+        if (node.val == setters[i][0]) {
+            node = astnode("=",
+                           node.args[0],
+                           astnode(setters[i][1],
+                                   node.args[0],
+                                   node.args[1],
+                                   node.metadata),
+                           node.metadata);
         }
     }
     // Special storage transformation
