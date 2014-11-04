@@ -197,6 +197,26 @@ std::string macros[][2] = {
         "(with $1 (msize) (create $endowment (get $1) (lll (outer $code) (msize))))"
     },
     {
+        "(sha256 $x)",
+        "(seq (set $1 $x) (pop (~call 101 2 0 (ref $1) 32 (ref $2) 32)) (get $2))"
+    },
+    {
+        "(sha256 $arr $sz)",
+        "(seq (pop (~call 101 2 0 $arr (mul 32 $sz) (ref $2) 32)) (get $2))"
+    },
+    {
+        "(ripemd160 $x)",
+        "(seq (set $1 $x) (pop (~call 101 3 0 (ref $1) 32 (ref $2) 32)) (get $2))"
+    },
+    {
+        "(ripemd160 $arr $sz)",
+        "(seq (pop (~call 101 3 0 $arr (mul 32 $sz) (ref $2) 32)) (get $2))"
+    },
+    {
+        "(ecrecover $h $v $r $s)",
+        "(seq (declare $1) (declare $2) (declare $3) (declare $4) (set $1 $h) (set $2 $v) (set $3 $r) (set $4 $s) (pop (~call 101 1 0 (ref $1) 128 (ref $5) 32)) (get $5))"
+    },
+    {
         "(seq (seq) $x)",
         "$x"
     },
@@ -277,18 +297,21 @@ std::string synonyms[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
+// Match result storing object
 struct matchResult {
     bool success;
     std::map<std::string, Node> map;
 };
 
+// Storage variable index storing object
 struct svObj {
     std::map<std::string, std::string> offsets;
     std::map<std::string, int> indices;
-    std::map<std::string, std::vector<std::string> > multipliers;
+    std::map<std::string, std::vector<std::string> > coefficients;
     std::string globalOffset;
 };
 
+// Preprocessing result storing object
 class preprocessAux {
     public:
         preprocessAux() {
@@ -303,6 +326,9 @@ class preprocessAux {
 
 #define preprocessResult std::pair<Node, preprocessAux>
 
+// Main pattern matching routine, for those patterns that can be expressed
+// using our standard mini-language above
+//
 // Returns two values. First, a boolean to determine whether the node matches
 // the pattern, second, if the node does match then a map mapping variables
 // in the pattern to nodes
@@ -317,6 +343,7 @@ matchResult match(Node p, Node n) {
         }
     }
     else if (n.type==TOKEN || p.val!=n.val || p.args.size()!=n.args.size()) {
+        // do nothing
     }
     else {
 		for (unsigned i = 0; i < p.args.size(); i++) {
@@ -363,33 +390,33 @@ Node subst(Node pattern,
     }
 }
 
-// array_lit transform
+// Processes mutable array literals
 
 Node array_lit_transform(Node node) {
+    Metadata m = node.metadata;
     std::vector<Node> o1;
-    o1.push_back(token(unsignedToDecimal(node.args.size() * 32), node.metadata));
+    o1.push_back(token(unsignedToDecimal(node.args.size() * 32), m));
     std::vector<Node> o2;
     std::string symb = "_temp"+mkUniqueToken()+"_0";
-    o2.push_back(token(symb, node.metadata));
-    o2.push_back(astnode("alloc", o1, node.metadata));
+    o2.push_back(token(symb, m));
+    o2.push_back(astnode("alloc", o1, m));
     std::vector<Node> o3;
-    o3.push_back(astnode("set", o2, node.metadata));
+    o3.push_back(astnode("set", o2, m));
     for (unsigned i = 0; i < node.args.size(); i++) {
-        // (mstore (add (get symb) i*32) v)
         std::vector<Node> o5;
-        o5.push_back(token(symb, node.metadata));
+        o5.push_back(token(symb, m));
         std::vector<Node> o6;
-        o6.push_back(astnode("get", o5, node.metadata));
-        o6.push_back(token(unsignedToDecimal(i * 32), node.metadata));
+        o6.push_back(astnode("get", o5, m));
+        o6.push_back(token(unsignedToDecimal(i * 32), m));
         std::vector<Node> o7;
         o7.push_back(astnode("add", o6));
         o7.push_back(node.args[i]);
-        o3.push_back(astnode("mstore", o7, node.metadata));
+        o3.push_back(astnode("mstore", o7, m));
     }
     std::vector<Node> o8;
-    o8.push_back(token(symb, node.metadata));
+    o8.push_back(token(symb, m));
     o3.push_back(astnode("get", o8));
-    return astnode("seq", o3, node.metadata);
+    return astnode("seq", o3, m);
 }
 
 // Is the given node something of the form
@@ -440,7 +467,9 @@ std::vector<Node> listfyStorageAccess(Node node) {
     }
 }
 
-void printStringList(std::vector<std::string> s, std::string suffix="") {
+// Cool function for debug purposes (named cerrStringList to make
+// all prints searchable via 'cerr')
+void cerrStringList(std::vector<std::string> s, std::string suffix="") {
     for (unsigned i = 0; i < s.size(); i++) std::cerr << s[i] << " ";
     std::cerr << suffix << "\n";
 }
@@ -451,12 +480,12 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
     Metadata m = node.metadata;
     if (!pre.globalOffset.size()) pre.globalOffset = "0";
     std::vector<Node> h;
-    std::vector<std::string> multipliers;
+    std::vector<std::string> coefficients;
     // Array accesses or atoms
     if (node.val == "access" || node.type == TOKEN) {
         std::string tot = "1";
         h = listfyStorageAccess(node);
-        multipliers.push_back("1");
+        coefficients.push_back("1");
         for (unsigned i = h.size() - 1; i >= 1; i--) {
             // Array sizes must be constant or at least arithmetically
             // evaluable at compile time
@@ -466,7 +495,7 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
                 err("Array size must be fixed value", m);
             // Create a list of the coefficient associated with each
             // array index
-            multipliers.push_back(decimalMul(multipliers.back(), h[i].val));
+            coefficients.push_back(decimalMul(coefficients.back(), h[i].val));
         }
     }
     // Tuples
@@ -486,13 +515,14 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
         }
         svObj sub = pre;
         sub.globalOffset = "0";
+        // Evaluate tuple elements recursively
         for (unsigned i = startc; i < node.args.size(); i++) {
             sub = getStorageVars(sub,
                                  node.args[i],
                                  prefix+h[0].val.substr(2)+".",
                                  i-1);
         }
-        multipliers.push_back(sub.globalOffset);
+        coefficients.push_back(sub.globalOffset);
         for (unsigned i = h.size() - 1; i >= 1; i--) {
             // Array sizes must be constant or at least arithmetically
             // evaluable at compile time
@@ -502,16 +532,16 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
                err("Array size must be fixed value", m);
             // Create a list of the coefficient associated with each
             // array index
-            multipliers.push_back(decimalMul(multipliers.back(), h[i].val));
+            coefficients.push_back(decimalMul(coefficients.back(), h[i].val));
         }
         pre.offsets = sub.offsets;
-        pre.multipliers = sub.multipliers;
+        pre.coefficients = sub.coefficients;
     }
-    pre.multipliers[prefix+h[0].val.substr(2)] = multipliers;
+    pre.coefficients[prefix+h[0].val.substr(2)] = coefficients;
     pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
     pre.indices[prefix+h[0].val.substr(2)] = index;
-    if (decimalGt(tt176, multipliers.back()))
-        pre.globalOffset = decimalAdd(pre.globalOffset, multipliers.back());
+    if (decimalGt(tt176, coefficients.back()))
+        pre.globalOffset = decimalAdd(pre.globalOffset, coefficients.back());
     return pre;
 }
 
@@ -620,7 +650,7 @@ Node call_transform(Node node, std::string op) {
 
         }
         kwargs["datain"] = datastart;
-        kwargs["datainsz"] = token(unsignedToDecimal(inputs.size() * 32 + 1), m);
+        kwargs["datainsz"] = token(unsignedToDecimal(inputs.size()*32+1), m);
     }
     if (!kwargs.count("outsz")) {
         kwargs["dataout"] = astnode("ref", token(prefix+"dataout", m), m);
@@ -765,6 +795,7 @@ Node dotTransform(Node node, preprocessAux aux) {
     std::string post = node.args[0].args[1].val;
     if (node.args[0].args[1].type == ASTNODE)
         err("Function name must be static", m);
+    // Search for as=? and call=code keywords
     std::string as = "";
     bool call_code = false;
     for (unsigned i = 1; i < node.args.size(); i++) {
@@ -777,7 +808,7 @@ Node dotTransform(Node node, preprocessAux aux) {
         }
     }
     if (pre.val == "self") {
-        if (as.size()) err("Cannot use as when calling self!", m);
+        if (as.size()) err("Cannot use \"as\" when calling self!", m);
         as = pre.val;
     }
     std::vector<Node> args;
@@ -794,29 +825,55 @@ Node dotTransform(Node node, preprocessAux aux) {
         if (!aux.globalExterns.count(post))
             err("Invalid call: "+printSimple(pre)+"."+post, m);
         std::string key = unsignedToDecimal(aux.globalExterns[post]);
-        args.push_back(token(key, node.metadata));
+        args.push_back(token(key, m));
     }
-    else err("Invalid call: "+printSimple(pre)+"."+post, node.metadata);
+    else err("Invalid call: "+printSimple(pre)+"."+post, m);
     for (unsigned i = 1; i < node.args.size(); i++)
         args.push_back(node.args[i]);
-    return astnode(call_code ? "call_code" : "call", args, node.metadata);
+    return astnode(call_code ? "call_code" : "call", args, m);
 }
 
 // Transform an access of the form self.bob, self.users[5], etc into
 // a storage access
+//
+// There exist two types of objects: finite objects, and infinite
+// objects. Finite objects are packed optimally tightly into storage
+// accesses; for example:
+//
+// data obj[100](a, b[2][4], c)
+//
+// obj[0].a -> 0
+// obj[0].b[0][0] -> 1
+// obj[0].b[1][3] -> 8
+// obj[45].c -> 459
+//
+// Infinite objects are accessed by sha3([v1, v2, v3 ... ]), where
+// the values are a list of array indices and keyword indices, for
+// example:
+// data obj[](a, b[2][4], c)
+// data obj2[](a, b[][], c)
+//
+// obj[0].a -> sha3([0, 0, 0])
+// obj[5].b[1][3] -> sha3([0, 5, 1, 1, 3])
+// obj[45].c -> sha3([0, 45, 2])
+// obj2[0].a -> sha3([1, 0, 0])
+// obj2[5].b[1][3] -> sha3([1, 5, 1, 1, 3])
+// obj2[45].c -> sha3([1, 45, 2])
 Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
     Metadata m = node.metadata;
     // Get a list of all of the "access parameters" used in order
     // eg. self.users[5].cow[4][m[2]][woof] -> 
     //         [--self, --users, 5, --cow, 4, m[2], woof]
     std::vector<Node> hlist = listfyStorageAccess(node);
+    // For infinite arrays, the terms array will just provide a list
+    // of indices. For finite arrays, it's a list of index*coefficient
     std::vector<Node> terms;
     std::string offset = "0";
     std::string prefix = "";
     std::string varPrefix = "_temp"+mkUniqueToken()+"_";
     int c = 0;
-    std::vector<std::string> multipliers;
-    multipliers.push_back("");
+    std::vector<std::string> coefficients;
+    coefficients.push_back("");
     for (unsigned i = 1; i < hlist.size(); i++) {
         // We pre-add the -- flag to parameter-like terms. For example,
         // self.users[m] -> [--self, --users, m]
@@ -826,12 +883,14 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
             std::string tempPrefix = prefix.substr(0, prefix.size()-1);
             if (!aux.storageVars.offsets.count(tempPrefix))
                 return node;
-            if (c < (signed)multipliers.size() - 1)
+            if (c < (signed)coefficients.size() - 1)
                 err("Too few array index lookups", m);
-            if (c > (signed)multipliers.size() - 1)
+            if (c > (signed)coefficients.size() - 1)
                 err("Too many array index lookups", m);
-            multipliers = aux.storageVars.multipliers[tempPrefix];
-            if (decimalGt(multipliers.back(), tt176) && !mapstyle)
+            coefficients = aux.storageVars.coefficients[tempPrefix];
+            // If the size of an object exceeds 2^176, we make it an infinite
+            // array
+            if (decimalGt(coefficients.back(), tt176) && !mapstyle)
                 return storageTransform(node, aux, true);
             offset = decimalAdd(offset, aux.storageVars.offsets[tempPrefix]);
             c = 0;
@@ -844,20 +903,25 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
             c += 1;
         }
         else {
-            if (c > (signed)multipliers.size() - 2)
+            if (c > (signed)coefficients.size() - 2)
                 err("Too many array index lookups", m);
-            std::vector<Node> termz;
-            termz.push_back(hlist[i]);
-            termz.push_back(token(multipliers[multipliers.size() - 2 - c], node.metadata));
-            terms.push_back(astnode("mul", termz, node.metadata));
+            terms.push_back(
+                astnode("mul", 
+                        hlist[i],
+                        token(coefficients[coefficients.size() - 2 - c], m),
+                        m));
+                                    
             c += 1;
         }
     }
-    if (c < (signed)multipliers.size() - 1)
+    if (c < (signed)coefficients.size() - 1)
         err("Too few array index lookups", m);
-    if (c > (signed)multipliers.size() - 1)
+    if (c > (signed)coefficients.size() - 1)
         err("Too many array index lookups", m);
     if (mapstyle) {
+        // We pre-declare variables, relying on the idea that sequentially
+        // declared variables are doing to appear beside each other in
+        // memory
         std::vector<Node> main;
         for (unsigned i = 0; i < terms.size(); i++)
             main.push_back(astnode("declare",
@@ -878,6 +942,7 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
                        m);
     }
     else {
+        // We add up all the index*coefficients
         Node out = token(offset, node.metadata);
         for (unsigned i = 0; i < terms.size(); i++) {
             std::vector<Node> temp;
@@ -889,7 +954,6 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
         temp2.push_back(out);
         return astnode("sload", temp2, node.metadata);
     }
-    return parseLLL("(sload 404040)");
 }
 
 
@@ -934,7 +998,7 @@ Node apply_rules(preprocessResult pr) {
     for (pos = 0; pos < nodeMacros.size(); pos++) {
         Node pattern = nodeMacros[pos][0];
         matchResult mr = match(pattern, node);
-        if (mr.success && node.val != "call" && node.val != "call_code") {
+        if (mr.success) {
             Node pattern2 = nodeMacros[pos][1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
             pos = 0;
@@ -975,7 +1039,8 @@ Node apply_rules(preprocessResult pr) {
             }
         }
         for (; i < node.args.size(); i++) {
-            node.args[i] = apply_rules(preprocessResult(node.args[i], pr.second));
+            node.args[i] =
+                apply_rules(preprocessResult(node.args[i], pr.second));
         }
     }
     else if (node.type == TOKEN && !isNumberLike(node)) {
@@ -992,6 +1057,7 @@ Node apply_rules(preprocessResult pr) {
     return node;
 }
 
+// Compile-time arithmetic calculations
 Node optimize(Node inp) {
     if (inp.type == TOKEN) {
         Node o = tryNumberize(inp);
@@ -1002,6 +1068,7 @@ Node optimize(Node inp) {
 	for (unsigned i = 0; i < inp.args.size(); i++) {
         inp.args[i] = optimize(inp.args[i]);
     }
+    // Degenerate cases for add and mul
     if (inp.args.size() == 2) {
         if (inp.val == "add" && inp.args[0].type == TOKEN && 
                 inp.args[0].val == "0") {
@@ -1020,6 +1087,7 @@ Node optimize(Node inp) {
             inp = inp.args[0];
         }
     }
+    // Arithmetic computation
     if (inp.args.size() == 2 
             && inp.args[0].type == TOKEN 
             && inp.args[1].type == TOKEN) {
@@ -1063,10 +1131,11 @@ Node validate(Node inp) {
         int i = 0;
         while(valid[i][0] != "---END---") {
             if (inp.val == valid[i][0]) {
-                if (decimalGt(valid[i][1], unsignedToDecimal(inp.args.size()))) {
+                std::string sz = unsignedToDecimal(inp.args.size());
+                if (decimalGt(valid[i][1], sz)) {
                     err("Too few arguments for "+inp.val, inp.metadata);   
                 }
-                if (decimalGt(unsignedToDecimal(inp.args.size()), valid[i][2])) {
+                if (decimalGt(sz, valid[i][2])) {
                     err("Too many arguments for "+inp.val, inp.metadata);   
                 }
             }
@@ -1084,11 +1153,13 @@ Node outerWrap(Node inp) {
 }
 
 Node rewrite(Node inp) {
-    return optimize(apply_rules(preprocessResult(validate(outerWrap(inp)), preprocessAux())));
+    return optimize(apply_rules(preprocessResult(
+                validate(outerWrap(inp)), preprocessAux())));
 }
 
 Node rewriteChunk(Node inp) {
-    return optimize(apply_rules(preprocessResult(validate(inp), preprocessAux())));
+    return optimize(apply_rules(preprocessResult(
+                validate(inp), preprocessAux())));
 }
 
 using namespace std;

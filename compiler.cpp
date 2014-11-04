@@ -135,6 +135,8 @@ programData opcodeify(Node node,
             return pd(aux, multiToken(nodelist, 0, m), 0);
         }
     }
+    // Define functions (TODO: eventually move to rewriter.cpp, keep
+    // compiler pure LLL)
     if (node.val == "def") {
         std::vector<std::string> varNames;
         std::vector<int> varSizes;
@@ -142,6 +144,7 @@ programData opcodeify(Node node,
         int totalSz = 0;
         if (node.args.size() != 2)
             err("Malformed def!", m);
+        // Collect the list of variable names and variable byte counts
         for (unsigned i = 0; i < node.args[0].args.size(); i++) {
             if (node.args[0].args[i].val == "kv") {
                 if (node.args[0].args[i].args.size() != 2)
@@ -165,6 +168,8 @@ programData opcodeify(Node node,
         aux.nextVarMem += 32 * varNames.size();
         aux.functionCount += 1;
         programData inner;
+        // If we're only using 32-byte variables, then great, just copy
+        // over the calldata!
         if (!useLt32) {
             programData sub = opcodeify(node.args[1], aux, vaux);
             Node nodelist[] = {
@@ -180,6 +185,7 @@ programData opcodeify(Node node,
             std::vector<Node> innerList;
             int cum = 1;
             for (unsigned i = 0; i < varNames.size();) {
+                // If we get a series of 32-byte values, we calldatacopy them
                 if (varSizes[i] == 32) {
                     unsigned until = i+1;
                     while (until < varNames.size() && varSizes[until] == 32)
@@ -191,6 +197,7 @@ programData opcodeify(Node node,
                     cum += (until - i) * 32;
                     i = until;
                 }
+                // Otherwise, we do a clever trick to extract the value
                 else {
                     innerList.push_back(token(unsignedToDecimal(32 - varSizes[i]), m));
                     innerList.push_back(token("256", m));
@@ -204,6 +211,8 @@ programData opcodeify(Node node,
                     i += 1;
                 }
             }
+            // If caller == origin, then it's from a tx, so unpack, otherwise
+            // plain copy
             programData sub = opcodeify(node.args[1], aux, vaux);
             Node ilnode = astnode("", innerList, m);
             Node nodelist[] = {
@@ -224,6 +233,7 @@ programData opcodeify(Node node,
             };
             inner = pd(sub.aux, multiToken(nodelist, 14, m), 0);
         }
+        // Check if the function call byte is the same
         Node nodelist2[] = {
             token("0", m),
             token("CALLDATALOAD", m),
