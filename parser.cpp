@@ -10,7 +10,7 @@
 int precedence(Node tok) {
     std::string v = tok.val;
     if (v == ".") return -1;
-    else if (v == "!" || v == "iszero") return 1;
+    else if (v == "!" || v == "not") return 1;
     else if (v=="^" || v == "**") return 2;
 	else if (v=="*" || v=="/" || v=="@/" || v=="%" || v=="@%") return 3;
     else if (v=="+" || v=="-") return 4;
@@ -33,7 +33,7 @@ int toktype(Node tok) {
     if (v == "(" || v == "[" || v == "{") return LPAREN;
     else if (v == ")" || v == "]" || v == "}") return RPAREN;
     else if (v == ",") return COMMA;
-    else if (v == "!" || v == "~") return UNARY_OP;
+    else if (v == "!" || v == "~" || v == "not") return UNARY_OP;
     else if (precedence(tok) > 0) return BINARY_OP;
     else if (precedence(tok) < 0) return TOKEN_SPLITTER;
     if (tok.val[0] != '"' && tok.val[0] != '\'') {
