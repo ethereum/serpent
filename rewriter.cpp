@@ -85,7 +85,7 @@ std::string macros[][2] = {
         "$code"
     },
     {
-        "(access msg.data $ind)",
+        "(access (. msg data) $ind)",
         "(calldataload (mul 32 $ind))"
     },
     {
