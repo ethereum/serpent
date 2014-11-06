@@ -1,6 +1,6 @@
 data campaigns[2^80](recipient, goal, deadline, contrib_total, contrib_count, contribs[2^50](sender, value))
 
-def create_campaign(id, recipient, goal, timelimit)
+def create_campaign(id, recipient, goal, timelimit):
     if self.campaigns[id].recipient:
         return(0)
     self.campaigns[id].recipient = recipient
@@ -34,12 +34,11 @@ def contribute(id):
         self.clear(id)
         return(2)
 
-# Progress report [2, id]
 def progress_report(id):
     return(self.campaigns[id].contrib_total)
 
 # Clearing function for internal use
-def clear(self, id):
+def clear(id):
     if self == msg.sender:
         self.campaigns[id].recipient = 0
         self.campaigns[id].goal = 0
