@@ -675,9 +675,13 @@ Node call_transform(Node node, std::string op) {
         post.push_back(astnode("get", token(prefix+"dataout", m), m));
     }
     else {
-        kwargs["dataout"] = kwargs["out"];
-        kwargs["dataoutsz"] = kwargs["outsz"];
-        post.push_back(astnode("ref", token(prefix+"dataout", m), m));
+        with.push_back(psn(prefix+"dataoutsz", 
+                       astnode("mul", token("32", m), kwargs["outsz"], m)));
+        with.push_back(psn(prefix+"dataout",
+                       astnode("alloc", token(prefix+"dataoutsz", m), m)));
+        kwargs["dataout"] = token(prefix+"dataout", m);
+        kwargs["dataoutsz"] = token(prefix+"dataoutsz", m);
+        post.push_back(astnode("get", token(prefix+"dataout", m), m));
     }
     // Set up main call
     std::vector<Node> main;

@@ -1,14 +1,10 @@
-init:
-    contract.storage[0] = create('jacobian_double.se')
-code:
-    axn = msg.data[0]
-    axd = msg.data[1]
-    ayn = msg.data[2]
-    ayd = msg.data[3]
-    bxn = msg.data[4]
-    bxd = msg.data[5]
-    byn = msg.data[6]
-    byd = msg.data[7]
+extern all: [call]
+data DOUBLE
+
+def init():
+    self.DOUBLE = create('jacobian_double.se')
+
+def call(axn, axd, ayn, ayd, bxn, bxd, byn, byd):
     if !axn and !ayn:
         o = [bxn, bxd, byn, byd]
     if !bxn and !byn:
@@ -18,7 +14,7 @@ code:
     with P = -4294968273:
         if addmod(mulmod(axn, bxd, P), P - mulmod(axd, bxn, P), P) == 0:
             if addmod(mulmod(ayn, byd, P), P - mulmod(ayd, byn, P), P) == 0:
-                return(call(contract.storage[0], [axn, axd, ayn, ayd], 4, 4), 4)
+                return(self.DOUBLE.call(axn, axd, ayn, ayd, outsz=4), 4)
             else:
                 return([0, 1, 0, 1], 4)
         with mn = mulmod(addmod(mulmod(byn, ayd, P), P - mulmod(ayn, byd, P), P), mulmod(bxd, axd, P), P):

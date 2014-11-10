@@ -10,30 +10,28 @@
 #     H = len([x for x in b.encode(n, 2) if x == '1'])
 #     return 34221 + 94 * L + 343 * H
 
-init:
-    contract.storage[0] = create('jacobian_double.se')
-    contract.storage[1] = create('jacobian_add.se')
-code:
-    axn = msg.data[0]
-    ayn = msg.data[2]
-    n = mod(msg.data[4], -432420386565659656852420866394968145599)
+data DOUBLE
+data ADD
+
+def init():
+    self.DOUBLE = create('jacobian_double.se')
+    self.ADD = create('jacobian_add.se')
+
+def call(axn, axd, ayn, ayd, n):
+    n = mod(n, -432420386565659656852420866394968145599)
     if !axn * !ayn + !n: # Constant-gas version of !axn and !ayn or !n
         return([0, 1, 0, 1], 4)
-    axd = msg.data[1]
-    ayd = msg.data[3]
-    DOUBLE = contract.storage[0]
-    ADD = contract.storage[1]
-    with o = [0, 1, 0, 1, 0, 0, 0, 0]:
+    with o = [0, 0, 1, 0, 1, 0, 0, 0, 0]:
         with b = 2 ^ 255:
             while gt(b, 0):
                 if n & b:
-                    ~call(20000, DOUBLE, 0, o, 128, o, 128)
-                    o[4] = axn
-                    o[5] = axd
-                    o[6] = ayn
-                    o[7] = ayd
-                    ~call(20000, ADD, 0, o, 256, o, 128)
+                    ~call(20000, self.DOUBLE, 0, o + 31, 129, o + 32, 128)
+                    o[5] = axn
+                    o[6] = axd
+                    o[7] = ayn
+                    o[8] = ayd
+                    ~call(20000, self.ADD, 0, o + 31, 257, o + 32, 128)
                 else:
-                    ~call(20000, DOUBLE, 0, o, 128, o, 128)
+                    ~call(20000, self.DOUBLE, 0, o + 31, 129, o + 32, 128)
                 b = div(b, 2)
-            return(o, 4)
+            return(o + 32, 4)
