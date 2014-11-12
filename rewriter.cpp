@@ -725,14 +725,12 @@ Node call_transform(Node node, std::string op) {
 //
 // Note that globalExterns may be ambiguous
 preprocessResult preprocess(Node inp) {
-    inp = inp.args[0];
+    Node x = inp.args[0];
+    inp = x;
     Metadata m = inp.metadata;
-    if (inp.val != "seq") {
-        std::vector<Node> args;
-        args.push_back(inp);
-        inp = astnode("seq", args, m);
-    }
-    std::vector<Node> empty;
+    if (inp.val != "seq")
+        inp = astnode("seq", inp, m);
+    std::vector<Node> empty = std::vector<Node>();
     Node init = astnode("seq", empty, m);
     Node shared = astnode("seq", empty, m);
     std::vector<Node> any;
@@ -1109,19 +1107,23 @@ Node optimize(Node inp) {
     if (inp.args.size() == 2) {
         if (inp.val == "add" && inp.args[0].type == TOKEN && 
                 inp.args[0].val == "0") {
-            inp = inp.args[1];
+            Node x = inp.args[1];
+            inp = x;
         }
         if (inp.val == "add" && inp.args[1].type == TOKEN && 
                 inp.args[1].val == "0") {
-            inp = inp.args[0];
+            Node x = inp.args[0];
+            inp = x;
         }
         if (inp.val == "mul" && inp.args[0].type == TOKEN && 
                 inp.args[0].val == "1") {
-            inp = inp.args[1];
+            Node x = inp.args[1];
+            inp = x;
         }
         if (inp.val == "mul" && inp.args[1].type == TOKEN && 
                 inp.args[1].val == "1") {
-            inp = inp.args[0];
+            Node x = inp.args[0];
+            inp = x;
         }
     }
     // Arithmetic computation
@@ -1195,9 +1197,7 @@ Node postValidate(Node inp) {
 }
 
 Node outerWrap(Node inp) {
-    std::vector<Node> args;
-    args.push_back(inp);
-    return astnode("outer", args, inp.metadata);
+    return astnode("outer", inp, inp.metadata);
 }
 
 Node rewrite(Node inp) {
