@@ -131,12 +131,13 @@ std::string strToNumeric(std::string inp) {
     }
     else if ((inp[0] == '"' && inp[inp.length()-1] == '"')
             || (inp[0] == '\'' && inp[inp.length()-1] == '\'')) {
+        //(Iterate excluding quotation marks.
         for (unsigned i = 1; i < inp.length() - 1; i++) {
             o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal((unsigned char)inp[i]));
         }
         // Right-pad.
-        if( inp.length() < 32 ) {
-            for (unsigned i = 1; i < 32 - inp.length() - 1; i++) {
+        if( inp.length() < 34 ) {
+            for (unsigned i = 0 ; i < 32 - (inp.length() - 2); i++) {
                 o = decimalMul(o,"256");
             }
         }
