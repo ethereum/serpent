@@ -725,12 +725,12 @@ Node call_transform(Node node, std::string op) {
 //
 // Note that globalExterns may be ambiguous
 preprocessResult preprocess(Node inp) {
-    inp = inp.args[0];
-    Metadata m = inp.metadata;
-    if (inp.val != "seq") {
+    Node node = inp.args[0];
+    Metadata m = node.metadata;
+    if (node.val != "seq") {
         std::vector<Node> args;
-        args.push_back(inp);
-        inp = astnode("seq", args, m);
+        args.push_back(node);
+        node = astnode("seq", args, m);
     }
     std::vector<Node> empty;
     Node init = astnode("seq", empty, m);
@@ -741,8 +741,8 @@ preprocessResult preprocess(Node inp) {
     out.localExterns["self"] = std::map<std::string, int>();
     int functionCount = 0;
     int storageDataCount = 0;
-    for (unsigned i = 0; i < inp.args.size(); i++) {
-        Node obj = inp.args[i];
+    for (unsigned i = 0; i < node.args.size(); i++) {
+        Node obj = node.args[i];
         // Functions
         if (obj.val == "def") {
             if (obj.args.size() == 0)
@@ -804,7 +804,7 @@ preprocessResult preprocess(Node inp) {
 
 
 
-    return preprocessResult(astnode("seq", main, inp.metadata), out);
+    return preprocessResult(astnode("seq", main, node.metadata), out);
 }
 
 // Transform "<variable>.<fun>(args...)" into
