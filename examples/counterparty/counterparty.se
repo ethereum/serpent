@@ -270,7 +270,17 @@ def cancel_bet(c):
 def dividend(holder_asset, divvying_asset, ratio):
     i = 0
     sz = self.assets[holder_asset].holdersCount
+    t = 0
+    holders = array(sz)
+    payments = array(sz)
     while i < sz:
-        h = self.assets[holder_asset].holders[i]
-        self.add(h, divvying_asset, self.balances[holder_asset][h] * ratio / 10^18)
+        holders[i] = self.assets[holder_asset].holders[i]
+        payments[i] = self.balances[holders[i]][holder_asset] * ratio / 10^18
+        t += payments[i]
         i += 1
+    if self.balances[msg.sender][divvying_asset] >= t:
+        i = 0
+        while i < sz:
+            self.add(holders[i], divvying_asset, payments[i])
+            i += 1
+        self.balances[msg.sender][divvying_asset] -= t
