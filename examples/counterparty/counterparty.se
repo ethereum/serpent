@@ -266,3 +266,11 @@ def cancel_bet(c):
     self.bets[c].acceptorstake = 0
     self.bets[c].eqtest = 0
     self.bets[c].maturity = 0
+
+def dividend(holder_asset, divvying_asset, ratio):
+    i = 0
+    sz = self.assets[holder_asset].holdersCount
+    while i < sz:
+        h = self.assets[holder_asset].holders[i]
+        self.add(h, divvying_asset, self.balances[holder_asset][h] * ratio / 10^18)
+        i += 1
