@@ -877,7 +877,8 @@ Node dotTransform(Node node, preprocessAux aux) {
 // obj2[0].a -> sha3([1, 0, 0])
 // obj2[5].b[1][3] -> sha3([1, 5, 1, 1, 3])
 // obj2[45].c -> sha3([1, 45, 2])
-Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
+Node storageTransform(Node node, preprocessAux aux,
+                      bool mapstyle=false, bool ref=false) {
     Metadata m = node.metadata;
     // Get a list of all of the "access parameters" used in order
     // eg. self.users[5].cow[4][m[2]][woof] -> 
@@ -909,7 +910,7 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
             // If the size of an object exceeds 2^176, we make it an infinite
             // array
             if (decimalGt(coefficients.back(), tt176) && !mapstyle)
-                return storageTransform(node, aux, true);
+                return storageTransform(node, aux, true, ref);
             offset = decimalAdd(offset, aux.storageVars.offsets[tempPrefix]);
             c = 0;
             if (mapstyle)
@@ -940,6 +941,7 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
     if (c > (signed)coefficients.size() - 1) {
         err("Too many array index lookups", m);
     }
+    Node o;
     if (mapstyle) {
         // We pre-declare variables, relying on the idea that sequentially
         // declared variables are doing to appear beside each other in
@@ -956,12 +958,10 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
                                    m));
         main.push_back(astnode("ref", token(varPrefix+"0", m), m));
         Node sz = token(unsignedToDecimal(terms.size()), m);
-        return astnode("sload",
-                       astnode("sha3",
-                               astnode("seq", main, m),
-                               sz,
-                               m),
-                       m);
+        o = astnode("sha3",
+                    astnode("seq", main, m),
+                    sz,
+                    m);
     }
     else {
         // We add up all the index*coefficients
@@ -972,10 +972,10 @@ Node storageTransform(Node node, preprocessAux aux, bool mapstyle=false) {
             temp.push_back(terms[i]);
             out = astnode("add", temp, node.metadata);
         }
-        std::vector<Node> temp2;
-        temp2.push_back(out);
-        return astnode("sload", temp2, node.metadata);
+        o = out;
     }
+    if (ref) return o;
+    else return astnode("sload", o, node.metadata);
 }
 
 
@@ -1008,6 +1008,9 @@ Node apply_rules(preprocessResult pr) {
     // Special storage transformation
     if (isNodeStorageVariable(node)) {
         node = storageTransform(node, pr.second);
+    }
+    if (node.val == "ref" && isNodeStorageVariable(node.args[0])) {
+        node = storageTransform(node, pr.second, true);
     }
     if (node.val == "=" && isNodeStorageVariable(node.args[0])) {
         Node t = storageTransform(node.args[0], pr.second);
