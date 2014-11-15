@@ -262,7 +262,7 @@ int spaceCount(std::string s) {
 bool bodied(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "while"
         || tok == "with" || tok == "def" || tok == "extern"
-        || tok == "data";
+        || tok == "data" || tok == "assert" || tok == "return";
 }
 
 // Is this a command that takes an argument as a child block?
@@ -345,9 +345,10 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         // Bring back if / elif into AST
         if (bodied(tokens[0].val)) {
-            std::vector<Node> args;
-            args.push_back(out);
-            out = astnode(tokens[0].val, args, out.metadata);
+            if (out.val == "id")
+                out = astnode(tokens[0].val, out.args, out.metadata);
+            else
+                out = astnode(tokens[0].val, out, out.metadata);
         }
         // Add child block to AST
         if (childBlocked(tokens[0].val)) {

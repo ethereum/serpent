@@ -69,6 +69,10 @@ std::string macros[][2] = {
         "(iszero (eq $a $b))"
     },
     {
+        "(assert $x)",
+        "(unless $x (stop))"
+    },
+    {
         "(min $a $b)",
         "(with $1 $a (with $2 $b (if (lt $1 $2) $1 $2)))"
     },

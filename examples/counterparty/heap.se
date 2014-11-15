@@ -8,8 +8,7 @@ def register():
     return(i)
 
 def push(heap, key, value):
-    if msg.sender != self.heaps[heap].owner:
-        stop
+    assert msg.sender == self.heaps[heap].owner
     sz = self.heaps[heap].size
     self.heaps[heap].nodes[sz].key = key
     self.heaps[heap].nodes[sz].value = value
@@ -31,8 +30,7 @@ def push(heap, key, value):
 
 def pop(heap):
     sz = self.heaps[heap].size
-    if !sz:
-        return(0)
+    assert sz
     prevtop = self.heaps[heap].nodes[1].value
     self.heaps[heap].nodes[1].key = self.heaps[heap].nodes[sz].key
     self.heaps[heap].nodes[1].value = self.heaps[heap].nodes[sz].value

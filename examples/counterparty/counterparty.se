@@ -39,8 +39,7 @@ def init():
 
 # Add units (internal method)
 def add(to, asset, value):
-    if msg.sender != self:
-        stop
+    assert msg.sender == self
     self.balances[to][asset] += value
     # Add the holder to the holders list
     if not self.holdersMap[to][asset]:
@@ -71,8 +70,7 @@ def send(to, asset, value):
 # Order
 def mkorder(selling, buying, quantity, price):
     # Make sure you have enough to pay for the order
-    if self.balances[msg.sender][selling] < quantity:
-        stop
+    assert self.balances[msg.sender][selling] >= quantity:
     # Try to match existing orders
     o = orderbooks[buying][selling]
     if not o:
@@ -99,8 +97,7 @@ def mkorder(selling, buying, quantity, price):
                 self.orders[orderid].asset_sold = 0
             quantity -= oq
             sz -= 1
-    if quantity == 0:
-        stop
+    assert quantity > 0
     # Make the order
     c = self.ordersCount
     self.orders[c].seller = msg.sender
@@ -138,8 +135,7 @@ def set_feed(id, v):
 def mk_cfd_offer(feed, asset, strike, leverage, min, max, maturity):
     b = self.balances[msg.sender][asset]
     req = max((strike - min) * leverage, (strike - max) * leverage)
-    if b < req:
-        stop
+    assert b >= req
     self.balances[msg.sender][asset] = b - req
     c = self.cfdCount
     self.cfds[c].maker = msg.sender
@@ -154,8 +150,7 @@ def mk_cfd_offer(feed, asset, strike, leverage, min, max, maturity):
     return(c)
 
 def accept_cfd_offer(c):
-    if self.cfds[c].acceptor or not self.cfds[c].maker:
-        stop
+    assert not self.cfds[c].acceptor and self.cfds[c].maker
     asset = self.cfds[c].asset
     strike = self.cfds[c].strike
     min = self.cfds[c].min
@@ -163,8 +158,7 @@ def accept_cfd_offer(c):
     leverage = self.cfds[c].leverage
     b = self.balances[msg.sender][asset]
     req = max((min - strike) * leverage, (max - strike) * leverage)
-    if b < req:
-        stop
+    assert b >= req
     self.balances[msg.sender][asset] = b - req
     self.cfds[c].acceptor = msg.sender
     self.cfds[c].maturity += block.timestamp
@@ -176,8 +170,7 @@ def claim_cfd_offer(c):
     max = self.cfds[c].max
     leverage = self.cfds[c].leverage
     v = self.feeds[self.cfds[c].feed].value
-    if v > min and v < max and block.timestamp < self.cfds[c].maturity:
-        stop
+    assert v <= min or v >= max or block.timestamp >= self.cfds[c].maturity
     maker_req = max((strike - min) * leverage, (strike - max) * leverage)
     acceptor_req = max((min - strike) * leverage, (max - strike) * leverage)
     paydelta = (strike - v) * leverage
@@ -214,8 +207,7 @@ def withdraw_cfd_offer(c):
         
 
 def mk_bet_offer(feed, asset, makerstake, acceptorstake, eqtest, maturity):
-    if self.balances[msg.sender][asset] < makerstake:
-        stop
+    assert self.balances[msg.sender][asset] >= makerstake
     c = self.betCount
     self.bets[c].maker = msg.sender
     self.bets[c].feed = feed
@@ -229,18 +221,15 @@ def mk_bet_offer(feed, asset, makerstake, acceptorstake, eqtest, maturity):
     return(c)
 
 def accept_bet_offer(c):
-    if not self.bets[c].maker or self.bets[c].acceptor:
-        stop
+    assert self.bets[c].maker and not self.bets[c].acceptor
     asset = self.bets[c].asset
     acceptorstake = self.bets[c].acceptorstake
-    if self.balances[msg.sender][asset] < acceptorstake:
-        stop
+    assert self.balances[msg.sender][asset] >= acceptorstake
     self.balances[msg.sender][asset] -= acceptorstake
     self.bets[c].acceptor = msg.sender
 
 def claim_bet_offer(c):
-    if block.timestamp < self.bets[c].maturity:
-        stop
+    assert block.timestamp >= self.bets[c].maturity
     v = self.feeds[self.bets[c].feed].value
     totalstake = self.bets[c].makerstake + self.bets[c].acceptorstake
     if v == self.bets[c].eqtest:
@@ -256,8 +245,7 @@ def claim_bet_offer(c):
     self.bets[c].maturity = 0
 
 def cancel_bet(c):
-    if self.bets[c].acceptor or msg.sender != self.bets[c].maker:
-        stop
+    assert not self.bets[c].acceptor and msg.sender == self.bets[c].maker
     self.balances[msg.sender][self.bets[c].asset] += self.bets[c].makerstake
     self.bets[c].maker = 0
     self.bets[c].feed = 0
