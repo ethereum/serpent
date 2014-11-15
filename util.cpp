@@ -145,17 +145,20 @@ std::string indentLines(std::string inp) {
     return joinLines(lines);
 }
 
+// Binary to hexadecimal
+std::string binToNumeric(std::string inp) {
+    std::string o = "0";
+	for (unsigned i = 0; i < inp.length(); i++) {
+        o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal((unsigned char)inp[i]));
+    }
+    return o;
+}
+
 // Converts string to simple numeric format
 std::string strToNumeric(std::string inp) {
     std::string o = "0";
     if (inp == "") {
         o = "";
-    }
-    else if ((inp[0] == '"' && inp[inp.length()-1] == '"')
-            || (inp[0] == '\'' && inp[inp.length()-1] == '\'')) {
-		for (unsigned i = 1; i < inp.length() - 1; i++) {
-            o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal((unsigned char)inp[i]));
-        }
     }
     else if (inp.substr(0,2) == "0x") {
 		for (unsigned i = 2; i < inp.length(); i++) {

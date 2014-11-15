@@ -74,6 +74,9 @@ std::string joinLines(std::vector<std::string> lines);
 // Indent all lines by 4 spaces
 std::string indentLines(std::string inp);
 
+// Converts binary to simple numeric format
+std::string binToNumeric(std::string inp);
+
 // Converts string to simple numeric format
 std::string strToNumeric(std::string inp);
 

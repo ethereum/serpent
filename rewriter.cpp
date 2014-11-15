@@ -153,6 +153,10 @@ std::string macros[][2] = {
         "(seq (set $1 $x) (~sha3 (ref $1) 32))"
     },
     {
+        "(sha3 $mstart (= chars $msize))",
+        "(~sha3 $mstart $msize)"
+    },
+    {
         "(sha3 $mstart $msize)",
         "(~sha3 $mstart (mul 32 $msize))"
     },
@@ -163,6 +167,10 @@ std::string macros[][2] = {
     {
         "(return $x)",
         "(seq (set $1 $x) (~return (ref $1) 32))"
+    },
+    {
+        "(return $mstart (= chars $msize))",
+        "(~return $mstart $msize)"
     },
     {
         "(return $start $len)",
@@ -251,6 +259,22 @@ std::string macros[][2] = {
     {
         "(log $t1 $t2 $t3 $t4)",
         "(~log4 $t1 $t2 $t3 $t4 0 0)"
+    },
+    {
+        "(save $loc $array (= chars $count))",
+        "(with $location (ref $loc) (with $c $count (with $end (div $c 32) (with $i 0 (seq (while (slt $i $end) (seq (sstore (add $i $location) (access $array $i)) (set $i (add $i 1)))) (sstore (add $i $location) (~and (access $array $i) (sub 0 (exp 256 (sub 32 (mod $c 32)))))))))))"
+    },
+    {
+        "(save $loc $array $count)",
+        "(with $location (ref $loc) (with $end $count (with $i 0 (while (slt $i $end) (seq (sstore (add $i $location) (access $array $i)) (set $i (add $i 1)))))))"
+    },
+    {
+        "(load $loc (= chars $count))",
+        "(with $location (ref $loc) (with $c $count (with $a (alloc $c) (with $i 0 (seq (while (slt $i (div $c 32)) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) (set (access $a $i) (~and (sload (add $location $i)) (sub 0 (exp 256 (sub 32 (mod $c 32)))))) $a)))))"
+    },
+    {
+        "(load $loc $count)",
+        "(with $location (ref $loc) (with $c $count (with $a (alloc $c) (with $i 0 (seq (while (slt $i $c) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) $a)))))"
     },
     { "(. msg datasize)", "(div (calldatasize) 32)" },
     { "(. msg sender)", "(caller)" },
@@ -1014,7 +1038,7 @@ Node apply_rules(preprocessResult pr) {
         node = storageTransform(node, pr.second);
     }
     if (node.val == "ref" && isNodeStorageVariable(node.args[0])) {
-        node = storageTransform(node, pr.second, true);
+        node = storageTransform(node.args[0], pr.second, false, true);
     }
     if (node.val == "=" && isNodeStorageVariable(node.args[0])) {
         Node t = storageTransform(node.args[0], pr.second);
@@ -1086,10 +1110,31 @@ Node apply_rules(preprocessResult pr) {
         }
     }
     else if (node.type == TOKEN && !isNumberLike(node)) {
-        node.val = "'" + node.val;
-        std::vector<Node> args;
-        args.push_back(node);
-        node = astnode("get", args, node.metadata);
+        if (node.val.size() >= 2
+                && node.val[0] == '"'
+                && node.val[node.val.size() - 1] == '"') {
+            std::string bin = node.val.substr(1, node.val.size() - 2);
+            unsigned sz = bin.size();
+            std::vector<Node> o;
+            for (unsigned i = 0; i < sz; i += 32) {
+                std::string t = binToNumeric(bin.substr(i, 32));
+                if ((sz - i) < 32 && (sz - i) > 0) {
+                    while ((sz - i) < 32) {
+                        t = decimalMul(t, "256");
+                        i--;
+                    }
+                    i = sz;
+                }
+                o.push_back(token(t, node.metadata));
+            }
+            node = astnode("array_lit", o, node.metadata);
+        }
+        else {
+            node.val = "'" + node.val;
+            std::vector<Node> args;
+            args.push_back(node);
+            node = astnode("get", args, node.metadata);
+        }
     }
     // This allows people to use ~x as a way of having functions with the same
     // name and arity as macros; the idea is that ~x is a "final" form, and 
