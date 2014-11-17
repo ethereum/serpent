@@ -518,7 +518,8 @@ void cerrStringList(std::vector<std::string> s, std::string suffix="") {
 
 // Populate an svObj with the arguments needed to determine
 // the storage position of a node
-svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
+svObj getStorageVars(svObj pre, Node node, std::string prefix="",
+                     int index=0) {
     Metadata m = node.metadata;
     if (!pre.globalOffset.size()) pre.globalOffset = "0";
     std::vector<Node> h;
@@ -562,7 +563,7 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
             sub = getStorageVars(sub,
                                  node.args[i],
                                  prefix+h[0].val.substr(2)+".",
-                                 i-1);
+                                 i-startc);
         }
         coefficients.push_back(sub.globalOffset);
         for (unsigned i = h.size() - 1; i >= 1; i--) {
@@ -580,6 +581,17 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="", int index=0) {
         pre.coefficients = sub.coefficients;
         pre.nonfinal = sub.nonfinal;
         pre.nonfinal[prefix+h[0].val.substr(2)] = true;
+        // __start__ and __end__ parameters
+        std::string t = prefix+h[0].val.substr(2)+".";
+        std::vector<std::string> z;
+        z.push_back("0");
+        pre.offsets[t+"__start__"] = pre.globalOffset;
+        pre.offsets[t+"__end__"] =
+            decimalSub(decimalAdd(pre.globalOffset, coefficients[0]), "1");
+        pre.coefficients[t+"__start__"] = z;
+        pre.coefficients[t+"__end__"] = z;
+        pre.indices[t+"__start__"] = 0;
+        pre.indices[t+"__end__"] = node.args.size() - startc - 1;
     }
     pre.coefficients[prefix+h[0].val.substr(2)] = coefficients;
     pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;

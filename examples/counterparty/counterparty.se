@@ -14,7 +14,7 @@ data balances[2^160][2^50]
 # orders[a][b] = heap of indices to (c, d, e) 
 # = c offers to sell d units of a at a price of e units of b per 10^18 units
 # of a
-data orderbooks[][]
+data orderbooks[2^50][2^50]
 
 # store of general order data
 data orders[2^50](seller, asset_sold, quantity, price)
@@ -56,7 +56,7 @@ def register_asset(q, name, calldate, callprice):
     self.assets[newid].calldate = calldate
     self.assets[newid].callprice = callprice
     self.assets[newid].holders[0] = msg.sender
-    self.assets[newid].holders[holdersCount] = 1
+    self.assets[newid].holdersCount = 1
     self.balances[msg.sender][newid] = q
     self.holdersMap[msg.sender][newid] = 1
 
