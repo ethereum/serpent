@@ -14,7 +14,7 @@ int chartype(char c) {
     else if (c >= 'a' && c <= 'z') return ALPHANUM;
     else if (c >= 'A' && c <= 'Z') return ALPHANUM;
 	else if (std::string("~_$").find(c) != std::string::npos) return ALPHANUM;
-    else if (c == '\t' || c == ' ' || c == '\n') return SPACE;
+    else if (c == '\t' || c == ' ' || c == '\n' || c == '\r') return SPACE;
 	else if (std::string("()[]{}").find(c) != std::string::npos) return BRACK;
     else if (c == '"') return DQUOTE;
     else if (c == '\'') return SQUOTE;

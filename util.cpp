@@ -27,6 +27,11 @@ Node astnode(std::string val, std::vector<Node> args, Metadata met) {
 }
 
 //AST node constructors for a specific number of children
+Node astnode(std::string val, Metadata met) {
+    std::vector<Node> args;
+    return astnode(val, args, met);
+}
+
 Node astnode(std::string val, Node a, Metadata met) {
     std::vector<Node> args;
     args.push_back(a);

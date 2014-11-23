@@ -246,19 +246,19 @@ std::string macros[][2] = {
     },
     {
         "(log $t1)",
-        "(~log1 $t1 0 0)"
+        "(~log1 0 0 $t1)"
     },
     {
         "(log $t1 $t2)",
-        "(~log2 $t1 $t2 0 0)"
+        "(~log2 0 0 $t1 $t2)"
     },
     {
         "(log $t1 $t2 $t3)",
-        "(~log3 $t1 $t2 $t3 0 0)"
+        "(~log3 0 0 $t1 $t2 $t3)"
     },
     {
         "(log $t1 $t2 $t3 $t4)",
-        "(~log4 $t1 $t2 $t3 $t4 0 0)"
+        "(~log4 0 0 $t1 $t2 $t3 $t4)"
     },
     {
         "(save $loc $array (= chars $count))",
@@ -751,6 +751,237 @@ Node call_transform(Node node, std::string op) {
     return mainNode;
 }
 
+// Convert a function of the form (def (f x y z) (do stuff)) into
+// (if (first byte of ABI is correct) (seq (setup x y z) (do stuff)))
+Node convFunction(Node node, int functionCount) {
+    std::string prefix = "_temp"+mkUniqueToken()+"_";
+    Metadata m = node.metadata;
+    std::vector<std::string> varNames;
+    std::vector<int> varSizes;
+    std::vector<std::string> longVarNames;
+    std::vector<Node> sub;
+    bool useLt32 = false;
+    int totalSz = 1;
+    if (node.args.size() != 2)
+        err("Malformed def!", m);
+    // Collect the list of variable names and variable byte counts
+    for (unsigned i = 0; i < node.args[0].args.size(); i++) {
+        if (node.args[0].args[i].val == ":") {
+            if (node.args[0].args[i].args.size() != 2)
+                err("Malformed def!", m);
+            if (node.args[0].args[i].args[1].val == "s") {
+                longVarNames.push_back(node.args[0].args[i].args[0].val);
+                totalSz += 2;
+            }
+            else {
+                varNames.push_back(node.args[0].args[i].args[0].val);
+                varSizes.push_back(
+                    decimalToUnsigned(node.args[0].args[i].args[1].val));
+                if (varSizes.back() > 32)
+                    err("Max argument width: 32 bytes", m);
+            }
+            useLt32 = true;
+        }
+        else {
+            varNames.push_back(node.args[0].args[i].val);
+            varSizes.push_back(32);
+        }
+        totalSz += varSizes.back();
+    }
+    if (!useLt32 && totalSz == 1) {
+        // do nothing if we have no arguments
+    }
+    else if (!useLt32) {
+        // If we just get a series of 32 byte variables, we just do a
+        // big calldatacopy
+        std::vector<Node> varNameTokens;
+        for (unsigned i = 0; i < varNames.size(); i++) {
+            varNameTokens.push_back(token(varNames[i], m));
+        }
+        sub.push_back(astnode("declare", varNameTokens, m));
+        sub.push_back(astnode("calldatacopy",
+                              astnode("ref", varNameTokens[0], m),
+                              token("1", m),
+                              token(unsignedToDecimal(totalSz - 1), m),
+                              m));
+    }
+    else {
+        // First, we declare all the variables that we are going to use
+        // for lengths and the static variables
+        std::vector<Node> varNameTokens;
+        for (unsigned i = 0; i < longVarNames.size(); i++) {
+            varNameTokens.push_back(token("_len_"+longVarNames[i], m));
+        }
+        for (unsigned i = 0; i < varNames.size(); i++) {
+            varNameTokens.push_back(token(varNames[i], m));
+        }
+        sub.push_back(astnode("declare", varNameTokens, m));
+        // The code for how variables get set if tx.origin == msg.caller
+        std::vector<Node> txpath;
+        std::vector<Node> txpath2;
+        int cum = 1;
+        Node tot = token("__tot", m);
+        for (unsigned i = 0; i < longVarNames.size();) {
+            Node varPos = token("__varPosition", m);
+            Node varLength = token("_len"+longVarNames[i], m);
+            // Set length variables
+            txpath2.push_back(
+                astnode("set",
+                        varLength,
+                        astnode("div",
+                                astnode("calldataload",
+                                        token(unsignedToDecimal(cum), m),
+                                        m),
+                                astnode("exp",
+                                        token("2", m),
+                                        token("240", m),
+                                        m),
+                                m),
+                        m));
+            cum += 2;
+            txpath2.push_back(
+                astnode("with",
+                        varPos,
+                        // Allocate a sequence of chars of the
+                        // desired length
+                        astnode("alloc",
+                                astnode("get",
+                                        varLength,
+                                        m),
+                                m),
+                        astnode("seq",
+                                // Set the long variable pointer to the
+                                // allocated sequence
+                                astnode("set",
+                                        token(longVarNames[i], m),
+                                        astnode("get", varPos, m),
+                                        m),
+                                // Copy calldata
+                                astnode("calldatacopy",
+                                        astnode("get", varPos, m),
+                                        astnode("get", tot, m),
+                                        astnode("get", varLength, m),
+                                        m),
+                                // Increase the calldata pointer
+                                astnode("set",
+                                        tot,
+                                        astnode("add",
+                                                astnode("get", tot, m),
+                                                astnode("get", varLength, m),
+                                                m),
+                                        m),
+                                m),
+                        m));
+        }
+        if (longVarNames.size() > 0) {
+            txpath.push_back(astnode("with",
+                                     tot,
+                                     token(unsignedToDecimal(totalSz), m),
+                                     astnode("seq", txpath2, m),
+                                     m));
+        }
+        for (unsigned i = 0; i < varNames.size();) {
+            // If we get a series of 32-byte values, we calldatacopy them
+            if (varSizes[i] == 32) {
+                unsigned until = i+1;
+                while (until < varNames.size() && varSizes[until] == 32)
+                    until += 1;
+                txpath.push_back(
+                    astnode("calldatacopy",
+                            astnode("ref", token(varNames[i], m), m),
+                            token(unsignedToDecimal(cum), m),
+                            token(unsignedToDecimal((until - i) * 32), m),
+                            m));
+                cum += (until - i) * 32;
+                i = until;
+            }
+            // Otherwise, we do a clever trick to extract the value
+            else {
+                txpath.push_back(
+                    astnode("set",
+                            token(varNames[i], m),
+                            astnode("div",
+                                    astnode("calldataload",
+                                            token(unsignedToDecimal(cum), m)),
+                                    astnode("exp",
+                                            token("256", m),
+                                            token(unsignedToDecimal(32 - varSizes[i]), m),
+                                            m),
+                                    m),
+                            m));
+                cum += varSizes[i];
+                i += 1;
+            }
+        }
+        
+        // The code for how variables get set if tx.origin != msg.caller
+        std::vector<Node> msgpath;
+        // Since everything is 32 bytes, just copy over all variables
+        msgpath.push_back(astnode("calldatacopy",
+                                  astnode("ref", token(varNames[0], m), m),
+                                  token("1", m),
+                                  token(unsignedToDecimal(varNames.size() * 32), m), 
+                                  m));
+        std::vector<Node> msgpath2;
+        for (unsigned i = 0; i < longVarNames.size();) {
+            Node varPos = token("__varPosition", m);
+            Node varLength = token("_len"+longVarNames[i], m);
+            msgpath2.push_back(
+                astnode("with",
+                        varPos,
+                        // Allocate a sequence of chars of the
+                        // desired length
+                        astnode("alloc",
+                                astnode("get",
+                                        varLength,
+                                        m),
+                                m),
+                        astnode("seq",
+                                // Set the long variable pointer to the
+                                // allocated sequence
+                                astnode("set",
+                                        token(longVarNames[i], m),
+                                        astnode("get", varPos, m),
+                                        m),
+                                // Copy calldata
+                                astnode("calldatacopy",
+                                        astnode("get", varPos, m),
+                                        astnode("get", tot, m),
+                                        astnode("get", varLength, m),
+                                        m),
+                                // Increase the calldata pointer
+                                astnode("set",
+                                        tot,
+                                        astnode("add",
+                                                astnode("get", tot, m),
+                                                astnode("get", varLength, m),
+                                                m),
+                                        m),
+                                m),
+                        m));
+        }
+        msgpath.push_back(
+            astnode("with",
+                    tot,
+                    token(unsignedToDecimal(varNames.size() * 32 + 1), m),
+                    astnode("seq", msgpath2, m),
+                    m));
+        sub.push_back(
+            astnode("if",
+                    astnode("eq", astnode("caller", m), astnode("origin", m), m),
+                    astnode("seq", txpath, m),
+                    astnode("seq", msgpath, m),
+                    m));
+    }
+    sub.push_back(node.args[1]);
+    return astnode("if",
+                   astnode("eq",
+                           astnode("get", token("__funid", m), m),
+                           token(unsignedToDecimal(functionCount), m),
+                           m),
+                   astnode("seq", sub, m));
+}
+
 // Preprocess input containing functions
 //
 // localExterns is a map of the form, eg,
@@ -796,7 +1027,7 @@ preprocessResult preprocess(Node inp) {
             else if (funName == "any") any.push_back(obj.args[1]);
             else {
                 // Other functions
-                functions.push_back(obj);
+                functions.push_back(convFunction(obj, functionCount));
                 out.localExterns["self"][obj.args[0].val] = functionCount;
                 functionCount++;
             }
@@ -832,10 +1063,22 @@ preprocessResult preprocess(Node inp) {
         code.push_back(any[i]);
     for (unsigned i = 0; i < functions.size(); i++)
         code.push_back(functions[i]);
+    Node codeNode;
+    if (functions.size() > 0) {
+        codeNode = astnode("with",
+                           token("__funid", m),
+                           astnode("byte",
+                                   token("0", m),
+                                   astnode("calldataload", token("0", m), m),
+                                   m),
+                           astnode("seq", code, m),
+                           m);
+    }
+    else codeNode = astnode("seq", code, m);
     main.push_back(astnode("~return",
                            token("0", m),
                            astnode("lll",
-                                   astnode("seq", code, m),
+                                   codeNode,
                                    token("0", m),
                                    m),
                            m));
@@ -1099,21 +1342,13 @@ Node apply_rules(preprocessResult pr) {
     if (node.type == ASTNODE) {
 		unsigned i = 0;
         if (node.val == "set" || node.val == "ref" 
-                || node.val == "get" || node.val == "with"
-                || node.val == "def" || node.val == "declare") {
+                || node.val == "get" || node.val == "with") {
             node.args[0].val = "'" + node.args[0].val;
             i = 1;
         }
-        if (node.val == "def") {
-            for (unsigned j = 0; j < node.args[0].args.size(); j++) {
-                if (node.args[0].args[j].val == ":") {
-                    node.args[0].args[j].val = "kv";
-                    node.args[0].args[j].args[0].val =
-                         "'" + node.args[0].args[j].args[0].val;
-                }
-                else {
-                    node.args[0].args[j].val = "'" + node.args[0].args[j].val;
-                }
+        if (node.val == "declare") {
+            for (; i < node.args.size(); i++) {
+                node.args[i].val = "'" + node.args[i].val;
             }
         }
         for (; i < node.args.size(); i++) {
