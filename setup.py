@@ -26,7 +26,8 @@ setup(
         Extension(
             'serpent_pyext',         # Python name of the module
             ['bignum.cpp', 'util.cpp', 'tokenize.cpp',
-             'lllparser.cpp', 'parser.cpp', 'rewriter.cpp',
+             'lllparser.cpp', 'parser.cpp', 'optimize.cpp',
+             'rewriteutils.cpp', 'preprocess.cpp', 'rewriter.cpp',
              'compiler.cpp', 'funcs.cpp', 'pyserpent.cpp']
         )],
     py_modules=[

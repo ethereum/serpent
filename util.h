@@ -28,7 +28,7 @@ const int TOKEN = 0,
 // Stores metadata about each token
 class Metadata {
     public:
-        Metadata(std::string File="main", int Ln=0, int Ch=0) {
+        Metadata(std::string File="main", int Ln=-1, int Ch=-1) {
             file = File;
             ln = Ln;
             ch = Ch;
@@ -113,5 +113,8 @@ std::string upperCase(std::string inp);
 
 //Three-int vector
 std::vector<int> triple(int a, int b, int c);
+
+#define asn astnode
+#define tkn token
 
 #endif

@@ -12,17 +12,15 @@ int precedence(Node tok) {
     if (v == ".") return -1;
     else if (v == "!" || v == "not") return 1;
     else if (v=="^" || v == "**") return 2;
-	else if (v=="*" || v=="/" || v=="@/" || v=="%" || v=="@%") return 3;
+	else if (v=="*" || v=="/" || v=="%") return 3;
     else if (v=="+" || v=="-") return 4;
     else if (v=="<" || v==">" || v=="<=" || v==">=") return 5;
-    else if (v=="@<" || v=="@>" || v=="@<=" || v=="@>=") return 5;
     else if (v=="&" || v=="|" || v=="xor" || v=="==" || v == "!=") return 6;
     else if (v=="&&" || v=="and") return 7;    
     else if (v=="||" || v=="or") return 8;
-    else if (v==":") return 9;
     else if (v=="=") return 10;
     else if (v=="+=" || v=="-=" || v=="*=" || v=="/=" || v=="%=") return 10;
-    else if (v=="@/=" || v=="@%=") return 10;
+    else if (v==":") return 11;
     else return 0;
 }
 

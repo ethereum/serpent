@@ -5,6 +5,9 @@
 #include "util.h"
 #include "lllparser.h"
 #include "bignum.h"
+#include "optimize.h"
+#include "rewriteutils.h"
+#include "preprocess.h"
 
 std::string valid[][3] = {
     { "if", "2", "3" },
@@ -57,14 +60,6 @@ std::string macros[][2] = {
         "(set $a (^ $a $b))"
     },
     {
-        "(@/= $a $b)",
-        "(set $a (@/ $a $b))"
-    },
-    {
-        "(@%= $a $b)",
-        "(set $a (@% $a $b))"
-    },
-    {
         "(!= $a $b)",
         "(iszero (eq $a $b))"
     },
@@ -74,15 +69,15 @@ std::string macros[][2] = {
     },
     {
         "(min $a $b)",
-        "(with $1 $a (with $2 $b (if (lt $1 $2) $1 $2)))"
+        "(if (lt $a $b) $a $b)"
     },
     {
         "(max $a $b)",
-        "(with $1 $a (with $2 $b (if (lt $1 $2) $2 $1)))"
+        "(if (lt $a $b) $b $a)"
     },
     {
-        "(if $cond $do (else $else))",
-        "(if $cond $do $else)"
+        "(if @cond $do (else $else))",
+        "(if @cond $do $else)"
     },
     {
         "(code $code)",
@@ -101,20 +96,20 @@ std::string macros[][2] = {
         "(alloc (mul 32 $len))"
     },
     {
-        "(while $cond $do)",
-        "(until (iszero $cond) $do)",
+        "(while @cond @do)",
+        "(until (iszero @cond) @do)",
     },
     {
-        "(while (iszero $cond) $do)",
-        "(until $cond $do)",
+        "(while (iszero @cond) @do)",
+        "(until @cond @do)",
     },
     {
-        "(if $cond $do)",
-        "(unless (iszero $cond) $do)",
+        "(if @cond @do)",
+        "(unless (iszero @cond) @do)",
     },
     {
-        "(if (iszero $cond) $do)",
-        "(unless $cond $do)",
+        "(if (iszero @cond) @do)",
+        "(unless @cond @do)",
     },
     {
         "(access (. self storage) $ind)",
@@ -182,7 +177,7 @@ std::string macros[][2] = {
     },
     {
         "(|| $x $y)",
-        "(with $1 $x (if (get $1) (get $1) $y))"
+        "(if (get $x) (get $x) $y)"
     },
     {
         "(>= $x $y)",
@@ -276,6 +271,14 @@ std::string macros[][2] = {
         "(load $loc $count)",
         "(with $location (ref $loc) (with $c $count (with $a (alloc $c) (with $i 0 (seq (while (slt $i $c) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) $a)))))"
     },
+    {
+        "(unsafe_mcopy $to $from $sz)",
+        "(seq (comment STARTING GHETTO UNSAFE_MCOPY) (set $i 0) (while (lt $i $sz) (seq (mstore (add $to $i) (mload (add $from $i))) (set $i (add $i 32)))))"
+    },
+    {
+        "(mcopy $to $from $sz)",
+        "(seq (comment STARTING GHETTO MCOPY) (set $i 0) (while (lt (add $i 31) $sz) (seq (mstore (add $to $i) (mload (add $from $i))) (set $i (add $i 32)))) (set $mask (exp 256 (sub 32 (mod $sz 32)))) (mstore (add $to $i) (add (mod (mload (add $to $i)) $mask) (and (mload (add $from $i)) (sub 0 $mask)))))"
+    },
     { "(. msg datasize)", "(div (calldatasize) 32)" },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
@@ -335,271 +338,23 @@ std::string setters[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
-// Match result storing object
-struct matchResult {
-    bool success;
-    std::map<std::string, Node> map;
-};
-
-// Storage variable index storing object
-struct svObj {
-    std::map<std::string, std::string> offsets;
-    std::map<std::string, int> indices;
-    std::map<std::string, std::vector<std::string> > coefficients;
-    std::map<std::string, bool> nonfinal;
-    std::string globalOffset;
-};
-
-// Preprocessing result storing object
-class preprocessAux {
-    public:
-        preprocessAux() {
-            globalExterns = std::map<std::string, int>();
-            localExterns = std::map<std::string, std::map<std::string, int> >();
-            localExterns["self"] = std::map<std::string, int>();
-        }
-        std::map<std::string, int> globalExterns;
-        std::map<std::string, std::map<std::string, int> > localExterns;
-        svObj storageVars;
-};
-
-#define preprocessResult std::pair<Node, preprocessAux>
-
-// Main pattern matching routine, for those patterns that can be expressed
-// using our standard mini-language above
-//
-// Returns two values. First, a boolean to determine whether the node matches
-// the pattern, second, if the node does match then a map mapping variables
-// in the pattern to nodes
-matchResult match(Node p, Node n) {
-    matchResult o;
-    o.success = false;
-    if (p.type == TOKEN) {
-        if (p.val == n.val && n.type == TOKEN) o.success = true;
-        else if (p.val[0] == '$') {
-            o.success = true;
-            o.map[p.val.substr(1)] = n;
-        }
-    }
-    else if (n.type==TOKEN || p.val!=n.val || p.args.size()!=n.args.size()) {
-        // do nothing
-    }
-    else {
-		for (unsigned i = 0; i < p.args.size(); i++) {
-            matchResult oPrime = match(p.args[i], n.args[i]);
-            if (!oPrime.success) {
-                o.success = false;
-                return o;
-            }
-            for (std::map<std::string, Node>::iterator it = oPrime.map.begin();
-                 it != oPrime.map.end();
-                 it++) {
-                o.map[(*it).first] = (*it).second;
-            }
-        }
-        o.success = true;
-    }
-    return o;
-}
-
-// Fills in the pattern with a dictionary mapping variable names to
-// nodes (these dicts are generated by match). Match and subst together
-// create a full pattern-matching engine. 
-Node subst(Node pattern,
-           std::map<std::string, Node> dict,
-           std::string varflag,
-           Metadata metadata) {
-    if (pattern.type == TOKEN && pattern.val[0] == '$') {
-        if (dict.count(pattern.val.substr(1))) {
-            return dict[pattern.val.substr(1)];
-        }
-        else {
-            return token(varflag + pattern.val.substr(1), metadata);
-        }
-    }
-    else if (pattern.type == TOKEN) {
-        return pattern;
-    }
-    else {
-        std::vector<Node> args;
-		for (unsigned i = 0; i < pattern.args.size(); i++) {
-            args.push_back(subst(pattern.args[i], dict, varflag, metadata));
-        }
-        return astnode(pattern.val, args, metadata);
-    }
-}
-
 // Processes mutable array literals
 
 Node array_lit_transform(Node node) {
+    std::string prefix = "_temp"+mkUniqueToken() + "_";
     Metadata m = node.metadata;
-    std::vector<Node> o1;
-    o1.push_back(token(unsignedToDecimal(node.args.size() * 32), m));
-    std::vector<Node> o2;
-    std::string symb = "_temp"+mkUniqueToken()+"_0";
-    o2.push_back(token(symb, m));
-    o2.push_back(astnode("alloc", o1, m));
-    std::vector<Node> o3;
-    o3.push_back(astnode("set", o2, m));
+    std::map<std::string, Node> d;
+    std::string o = "(seq (set $arr (alloc "+utd(node.args.size()*32)+"))";
     for (unsigned i = 0; i < node.args.size(); i++) {
-        std::vector<Node> o5;
-        o5.push_back(token(symb, m));
-        std::vector<Node> o6;
-        o6.push_back(astnode("get", o5, m));
-        o6.push_back(token(unsignedToDecimal(i * 32), m));
-        std::vector<Node> o7;
-        o7.push_back(astnode("add", o6));
-        o7.push_back(node.args[i]);
-        o3.push_back(astnode("mstore", o7, m));
+        o += " (mstore (add (get $arr) "+utd(i * 32)+") $"+utd(i)+")";
+        d[utd(i)] = node.args[i];
     }
-    std::vector<Node> o8;
-    o8.push_back(token(symb, m));
-    o3.push_back(astnode("get", o8));
-    return astnode("seq", o3, m);
+    o += " (get $arr))";
+    return subst(parseLLL(o), d, prefix, m);
 }
 
-// Is the given node something of the form
-// self.cow
-// self.horse[0]
-// self.a[6][7][self.storage[3]].chicken[9]
-bool isNodeStorageVariable(Node node) {
-    std::vector<Node> nodez;
-    nodez.push_back(node);
-    while (1) {
-        if (nodez.back().type == TOKEN) return false;
-        if (nodez.back().args.size() == 0) return false;
-        if (nodez.back().val != "." && nodez.back().val != "access")
-            return false;
-        if (nodez.back().args[0].val == "self") return true;
-        nodez.push_back(nodez.back().args[0]);
-    }
-}
-
-Node optimize(Node inp);
 
 Node apply_rules(preprocessResult pr);
-
-// Convert:
-// self.cow -> ["cow"]
-// self.horse[0] -> ["horse", "0"]
-// self.a[6][7][self.storage[3]].chicken[9] -> 
-//     ["6", "7", (sload 3), "chicken", "9"]
-std::vector<Node> listfyStorageAccess(Node node) {
-    std::vector<Node> out;
-    std::vector<Node> nodez;
-    nodez.push_back(node);
-    while (1) {
-        if (nodez.back().type == TOKEN) {
-            out.push_back(token("--" + nodez.back().val, node.metadata));
-            std::vector<Node> outrev;
-            for (int i = (signed)out.size() - 1; i >= 0; i--) {
-                outrev.push_back(out[i]);
-            }
-            return outrev;
-        }
-        if (nodez.back().val == ".")
-            nodez.back().args[1].val = "--" + nodez.back().args[1].val;
-        if (nodez.back().args.size() == 0)
-            err("Error parsing storage variable statement", node.metadata);
-        if (nodez.back().args.size() == 1)
-            out.push_back(token(tt256m1, node.metadata));
-        else
-            out.push_back(nodez.back().args[1]);
-        nodez.push_back(nodez.back().args[0]);
-    }
-}
-
-// Cool function for debug purposes (named cerrStringList to make
-// all prints searchable via 'cerr')
-void cerrStringList(std::vector<std::string> s, std::string suffix="") {
-    for (unsigned i = 0; i < s.size(); i++) std::cerr << s[i] << " ";
-    std::cerr << suffix << "\n";
-}
-
-// Populate an svObj with the arguments needed to determine
-// the storage position of a node
-svObj getStorageVars(svObj pre, Node node, std::string prefix="",
-                     int index=0) {
-    Metadata m = node.metadata;
-    if (!pre.globalOffset.size()) pre.globalOffset = "0";
-    std::vector<Node> h;
-    std::vector<std::string> coefficients;
-    // Array accesses or atoms
-    if (node.val == "access" || node.type == TOKEN) {
-        std::string tot = "1";
-        h = listfyStorageAccess(node);
-        coefficients.push_back("1");
-        for (unsigned i = h.size() - 1; i >= 1; i--) {
-            // Array sizes must be constant or at least arithmetically
-            // evaluable at compile time
-            h[i] = optimize(apply_rules(preprocessResult(
-                                       h[i], preprocessAux())));
-            if (!isNumberLike(h[i]))
-                err("Array size must be fixed value", m);
-            // Create a list of the coefficient associated with each
-            // array index
-            coefficients.push_back(decimalMul(coefficients.back(), h[i].val));
-        }
-    }
-    // Tuples
-    else {
-        int startc;
-        // Handle the (fun <fun_astnode> args...) case
-        if (node.val == "fun") {
-            startc = 1;
-            h = listfyStorageAccess(node.args[0]);
-        }
-        // Handle the (<fun_name> args...) case, which
-        // the serpent parser produces when the function
-        // is a simple name and not a complex astnode
-        else {
-            startc = 0;
-            h = listfyStorageAccess(token(node.val, m));
-        }
-        svObj sub = pre;
-        sub.globalOffset = "0";
-        // Evaluate tuple elements recursively
-        for (unsigned i = startc; i < node.args.size(); i++) {
-            sub = getStorageVars(sub,
-                                 node.args[i],
-                                 prefix+h[0].val.substr(2)+".",
-                                 i-startc);
-        }
-        coefficients.push_back(sub.globalOffset);
-        for (unsigned i = h.size() - 1; i >= 1; i--) {
-            // Array sizes must be constant or at least arithmetically
-            // evaluable at compile time
-            h[i] = optimize(apply_rules(preprocessResult(
-                                      h[i], preprocessAux())));
-            if (!isNumberLike(h[i]))
-               err("Array size must be fixed value", m);
-            // Create a list of the coefficient associated with each
-            // array index
-            coefficients.push_back(decimalMul(coefficients.back(), h[i].val));
-        }
-        pre.offsets = sub.offsets;
-        pre.coefficients = sub.coefficients;
-        pre.nonfinal = sub.nonfinal;
-        pre.nonfinal[prefix+h[0].val.substr(2)] = true;
-        // __start__ and __end__ parameters
-        std::string t = prefix+h[0].val.substr(2)+".";
-        std::vector<std::string> z;
-        z.push_back("0");
-        pre.offsets[t+"__start__"] = pre.globalOffset;
-        pre.offsets[t+"__end__"] =
-            decimalSub(decimalAdd(pre.globalOffset, coefficients[0]), "1");
-        pre.coefficients[t+"__start__"] = z;
-        pre.coefficients[t+"__end__"] = z;
-        pre.indices[t+"__start__"] = 0;
-        pre.indices[t+"__end__"] = node.args.size() - startc - 1;
-    }
-    pre.coefficients[prefix+h[0].val.substr(2)] = coefficients;
-    pre.offsets[prefix+h[0].val.substr(2)] = pre.globalOffset;
-    pre.indices[prefix+h[0].val.substr(2)] = index;
-    if (decimalGt(tt176, coefficients.back()))
-        pre.globalOffset = decimalAdd(pre.globalOffset, coefficients.back());
-    return pre;
-}
 
 // Transform a node of the form (call to funid vars...) into
 // a call
@@ -614,14 +369,23 @@ Node call_transform(Node node, std::string op) {
     // kwargs = map of special arguments
     std::map<std::string, Node> kwargs;
     kwargs["value"] = token("0", m);
-    kwargs["gas"] = parseLLL("(- (gas) 25)");
+    kwargs["gas"] = subst(parseLLL("(- (gas) 25)"), msn(), prefix, m);
     std::vector<Node> args;
+    std::vector<Node> szargs;
+    std::vector<Node> vlargs;
     for (unsigned i = 0; i < node.args.size(); i++) {
+        // Parameter (eg. gas, value)
         if (node.args[i].val == "=" || node.args[i].val == "set") {
             if (node.args[i].args.size() != 2)
                 err("Malformed set", m);
             kwargs[node.args[i].args[0].val] = node.args[i].args[1];
         }
+        // Sized argument
+        else if (node.args[i].val == ":") {
+            szargs.push_back(node.args[i].args[1]);
+            vlargs.push_back(node.args[i].args[0]);
+        }
+        // Regular argument
         else args.push_back(node.args[i]);
     }
     if (args.size() < 2) err("Too few arguments for call!", m);
@@ -631,82 +395,71 @@ Node call_transform(Node node, std::string op) {
     for (unsigned i = 2; i < args.size(); i++) {
         inputs.push_back(args[i]);
     }
-    std::vector<psn> with;
-    std::vector<Node> precompute;
+    std::vector<Node> pre;
     std::vector<Node> post;
-    if (kwargs.count("data")) {
-        if (!kwargs.count("datasz")) err("Required param datasz", m);
-        // The strategy here is, we store the function ID byte at the index
-        // before the start of the byte, but then we store the value that was
-        // there before and reinstate it once the process is over
-        // store data: data array start
-        with.push_back(psn(prefix+"data", kwargs["data"]));
-        // store data: prior: data array - 32
-        Node prior = astnode("sub", token(prefix+"data", m), token("32", m), m);
-        with.push_back(psn(prefix+"prior", prior));
-        // store data: priormem: data array - 32 prior memory value
-        Node priormem = astnode("mload", token(prefix+"prior", m), m);
-        with.push_back(psn(prefix+"priormem", priormem));
-        // post: reinstate prior mem at data array - 32
-        post.push_back(astnode("mstore", 
-                               token(prefix+"prior", m),
-                               token(prefix+"priormem", m),
-                               m));
-        // store data: datastart: data array - 1
-        Node datastart = astnode("sub",
-                                 token(prefix+"data", m),
-                                 token("1", m),
-                                 m);
-        with.push_back(psn(prefix+"datastart", datastart));
-        // push funid byte to datastart
-        precompute.push_back(astnode("mstore8", 
-                                     token(prefix+"datastart", m),
-                                     kwargs["funid"],
-                                     m));
-        // set data array start loc
-        kwargs["datain"] = token(prefix+"datastart", m);
-        kwargs["datainsz"] = astnode("add", 
-                                     token("1", m),
-                                     astnode("mul",
-                                             token("32", m),
-                                             kwargs["datasz"],
-                                             m),
-                                     m);
-    }
-    else {
+    if (szargs.size() == 0) {
         // Here, there is no data array, instead there are function arguments.
         // This actually lets us be much more efficient with how we set things
         // up.
         // Pre-declare variables; relies on declared variables being sequential
-        precompute.push_back(astnode("declare",
-                                     token(prefix+"prebyte", m),
-                                     m));
+        std::vector<Node> declareVars;
+        declareVars.push_back(token(prefix+"prebyte", m));
+        for (unsigned i = 0; i < inputs.size(); i++)
+            declareVars.push_back(token(prefix+utd(i), m));
+        pre.push_back(astnode("declare", declareVars, m));
+        std::string pattern =
+          + "    (seq                                                   "
+            "        (set $datastart (add 31 (ref "+prefix+"prebyte)))  "
+          + "        (mstore8 $datastart $funid)                        ";
         for (unsigned i = 0; i < inputs.size(); i++) {
-            precompute.push_back(astnode("declare",
-                                         token(prefix+unsignedToDecimal(i), m),
-                                         m));
+            pattern +=
+                "    (set "+prefix+utd(i)+" $"+utd(i)+")                ";
+            kwargs[utd(i)] = inputs[i];
+                
         }
-        // Set up variables to store the function arguments, and store the
-        // function ID at the byte before the start
-        Node datastart = astnode("add",
-                                 token("31", m),
-                                 astnode("ref",
-                                         token(prefix+"prebyte", m),
-                                         m),
-                                 m);
-        precompute.push_back(astnode("mstore8",
-                                     datastart,
-                                     kwargs["funid"],
-                                     m));
+        pattern += "))";
+        pre.push_back(parseLLL(pattern));
+        kwargs["datain"] = token(prefix+"datastart", m);
+        kwargs["datainsz"] = token(utd(inputs.size()*32+1), m);
+    }
+    else {
+        // Start off by saving the size variables and calculating the total
+        std::string pattern =
+            "(with $sztot 0 (seq";
+        for (unsigned i = 0; i < szargs.size(); i++) {
+            pattern +=
+                "(set $var"+utd(i)+" (alloc $sz"+utd(i)+"))                   "
+              + "(set $sztot (add $sztot $sz"+utd(i)+"))                      ";
+            kwargs["sz"+utd(i)] = szargs[i];
+        }
+        int startpos = 1 + (szargs.size() + inputs.size()) * 32;
+        pattern +=
+                "(set $datastart (alloc (add "+utd(startpos+32)+" $sztot)))   "
+              + "(mstore8 $datastart $funid)                                  ";
+        for (unsigned i = 0; i < szargs.size(); i++) {
+            pattern +=
+                "(mstore (add $datastart "+utd(1 + i * 32)+") $sz"+utd(i)+")  ";
+        }
         for (unsigned i = 0; i < inputs.size(); i++) {
-            precompute.push_back(astnode("set", 
-                                         token(prefix+unsignedToDecimal(i), m),
-                                         inputs[i],
-                                         m));
-
+            int v = 1 + (i + szargs.size()) * 32;
+            pattern +=
+                "(mstore (add $datastart "+utd(v)+") $"+utd(i)+")             ";
+            kwargs[utd(i)] = inputs[i];
         }
-        kwargs["datain"] = datastart;
-        kwargs["datainsz"] = token(unsignedToDecimal(inputs.size()*32+1), m);
+        pattern += 
+                "(set $pos (add $datastart "+utd(startpos)+"))                ";
+        for (unsigned i = 0; i < vlargs.size(); i++) {
+            pattern +=
+                "(unsafe_mcopy $pos $vl"+utd(i)+" $sz"+utd(i)+")              ";
+            kwargs["vl"+utd(i)] = vlargs[i];
+        }
+        pattern += "))";
+        pre.push_back(parseLLL(pattern));
+        kwargs["datain"] = token(prefix+"datastart", m);
+        kwargs["datainsz"] = astnode("add",
+                                     token(utd(startpos), m),
+                                     token(prefix+"sztot", m),
+                                     m);
     }
     if (!kwargs.count("outsz")) {
         kwargs["dataout"] = astnode("ref", token(prefix+"dataout", m), m);
@@ -714,379 +467,29 @@ Node call_transform(Node node, std::string op) {
         post.push_back(astnode("get", token(prefix+"dataout", m), m));
     }
     else {
-        with.push_back(psn(prefix+"dataoutsz", 
-                       astnode("mul", token("32", m), kwargs["outsz"], m)));
-        with.push_back(psn(prefix+"dataout",
-                       astnode("alloc", token(prefix+"dataoutsz", m), m)));
-        kwargs["dataout"] = token(prefix+"dataout", m);
-        kwargs["dataoutsz"] = token(prefix+"dataoutsz", m);
+        kwargs["dataoutsz"]
+            = astnode("mul", token("32", m), kwargs["outsz"], m);
+        kwargs["dataout"] 
+            = astnode("alloc", token(prefix+"dataoutsz", m), m);
         post.push_back(astnode("get", token(prefix+"dataout", m), m));
     }
     // Set up main call
     std::vector<Node> main;
-    for (unsigned i = 0; i < precompute.size(); i++) {
-        main.push_back(precompute[i]);
+    for (unsigned i = 0; i < pre.size(); i++) {
+        main.push_back(pre[i]);
     }
-    std::vector<Node> call;
-    call.push_back(kwargs["gas"]);
-    call.push_back(kwargs["to"]);
-    call.push_back(kwargs["value"]);
-    call.push_back(kwargs["datain"]);
-    call.push_back(kwargs["datainsz"]);
-    call.push_back(kwargs["dataout"]);
-    call.push_back(kwargs["dataoutsz"]);
-    main.push_back(astnode("pop", astnode("~"+op, call, m), m));
+    main.push_back(parseLLL(
+        "(pop (~"+op+" $gas $to $value $datain $datainsz $dataout $dataoutsz))"));
     for (unsigned i = 0; i < post.size(); i++) {
         main.push_back(post[i]);
     }
-    Node mainNode = astnode("seq", main, node.metadata);
-    // Add with variables
-    for (int i = with.size() - 1; i >= 0; i--) {
-        mainNode = astnode("with",
-                           token(with[i].first, m),
-                           with[i].second,
-                           mainNode,
-                           m);
-    }
-    return mainNode;
+    Node o = subst(astnode("seq", main, m), kwargs, prefix, m);
+    return o;
 }
 
-// Convert a function of the form (def (f x y z) (do stuff)) into
-// (if (first byte of ABI is correct) (seq (setup x y z) (do stuff)))
-Node convFunction(Node node, int functionCount) {
-    std::string prefix = "_temp"+mkUniqueToken()+"_";
-    Metadata m = node.metadata;
-    std::vector<std::string> varNames;
-    std::vector<int> varSizes;
-    std::vector<std::string> longVarNames;
-    std::vector<Node> sub;
-    bool useLt32 = false;
-    int totalSz = 1;
-    if (node.args.size() != 2)
-        err("Malformed def!", m);
-    // Collect the list of variable names and variable byte counts
-    for (unsigned i = 0; i < node.args[0].args.size(); i++) {
-        if (node.args[0].args[i].val == ":") {
-            if (node.args[0].args[i].args.size() != 2)
-                err("Malformed def!", m);
-            if (node.args[0].args[i].args[1].val == "s") {
-                longVarNames.push_back(node.args[0].args[i].args[0].val);
-                totalSz += 2;
-            }
-            else {
-                varNames.push_back(node.args[0].args[i].args[0].val);
-                varSizes.push_back(
-                    decimalToUnsigned(node.args[0].args[i].args[1].val));
-                if (varSizes.back() > 32)
-                    err("Max argument width: 32 bytes", m);
-            }
-            useLt32 = true;
-        }
-        else {
-            varNames.push_back(node.args[0].args[i].val);
-            varSizes.push_back(32);
-        }
-        totalSz += varSizes.back();
-    }
-    if (!useLt32 && totalSz == 1) {
-        // do nothing if we have no arguments
-    }
-    else if (!useLt32) {
-        // If we just get a series of 32 byte variables, we just do a
-        // big calldatacopy
-        std::vector<Node> varNameTokens;
-        for (unsigned i = 0; i < varNames.size(); i++) {
-            varNameTokens.push_back(token(varNames[i], m));
-        }
-        sub.push_back(astnode("declare", varNameTokens, m));
-        sub.push_back(astnode("calldatacopy",
-                              astnode("ref", varNameTokens[0], m),
-                              token("1", m),
-                              token(unsignedToDecimal(totalSz - 1), m),
-                              m));
-    }
-    else {
-        // First, we declare all the variables that we are going to use
-        // for lengths and the static variables
-        std::vector<Node> varNameTokens;
-        for (unsigned i = 0; i < longVarNames.size(); i++) {
-            varNameTokens.push_back(token("_len_"+longVarNames[i], m));
-        }
-        for (unsigned i = 0; i < varNames.size(); i++) {
-            varNameTokens.push_back(token(varNames[i], m));
-        }
-        sub.push_back(astnode("declare", varNameTokens, m));
-        // The code for how variables get set if tx.origin == msg.caller
-        std::vector<Node> txpath;
-        std::vector<Node> txpath2;
-        int cum = 1;
-        Node tot = token("__tot", m);
-        for (unsigned i = 0; i < longVarNames.size();) {
-            Node varPos = token("__varPosition", m);
-            Node varLength = token("_len"+longVarNames[i], m);
-            // Set length variables
-            txpath2.push_back(
-                astnode("set",
-                        varLength,
-                        astnode("div",
-                                astnode("calldataload",
-                                        token(unsignedToDecimal(cum), m),
-                                        m),
-                                astnode("exp",
-                                        token("2", m),
-                                        token("240", m),
-                                        m),
-                                m),
-                        m));
-            cum += 2;
-            txpath2.push_back(
-                astnode("with",
-                        varPos,
-                        // Allocate a sequence of chars of the
-                        // desired length
-                        astnode("alloc",
-                                astnode("get",
-                                        varLength,
-                                        m),
-                                m),
-                        astnode("seq",
-                                // Set the long variable pointer to the
-                                // allocated sequence
-                                astnode("set",
-                                        token(longVarNames[i], m),
-                                        astnode("get", varPos, m),
-                                        m),
-                                // Copy calldata
-                                astnode("calldatacopy",
-                                        astnode("get", varPos, m),
-                                        astnode("get", tot, m),
-                                        astnode("get", varLength, m),
-                                        m),
-                                // Increase the calldata pointer
-                                astnode("set",
-                                        tot,
-                                        astnode("add",
-                                                astnode("get", tot, m),
-                                                astnode("get", varLength, m),
-                                                m),
-                                        m),
-                                m),
-                        m));
-        }
-        if (longVarNames.size() > 0) {
-            txpath.push_back(astnode("with",
-                                     tot,
-                                     token(unsignedToDecimal(totalSz), m),
-                                     astnode("seq", txpath2, m),
-                                     m));
-        }
-        for (unsigned i = 0; i < varNames.size();) {
-            // If we get a series of 32-byte values, we calldatacopy them
-            if (varSizes[i] == 32) {
-                unsigned until = i+1;
-                while (until < varNames.size() && varSizes[until] == 32)
-                    until += 1;
-                txpath.push_back(
-                    astnode("calldatacopy",
-                            astnode("ref", token(varNames[i], m), m),
-                            token(unsignedToDecimal(cum), m),
-                            token(unsignedToDecimal((until - i) * 32), m),
-                            m));
-                cum += (until - i) * 32;
-                i = until;
-            }
-            // Otherwise, we do a clever trick to extract the value
-            else {
-                txpath.push_back(
-                    astnode("set",
-                            token(varNames[i], m),
-                            astnode("div",
-                                    astnode("calldataload",
-                                            token(unsignedToDecimal(cum), m)),
-                                    astnode("exp",
-                                            token("256", m),
-                                            token(unsignedToDecimal(32 - varSizes[i]), m),
-                                            m),
-                                    m),
-                            m));
-                cum += varSizes[i];
-                i += 1;
-            }
-        }
-        
-        // The code for how variables get set if tx.origin != msg.caller
-        std::vector<Node> msgpath;
-        // Since everything is 32 bytes, just copy over all variables
-        msgpath.push_back(astnode("calldatacopy",
-                                  astnode("ref", token(varNames[0], m), m),
-                                  token("1", m),
-                                  token(unsignedToDecimal(varNames.size() * 32), m), 
-                                  m));
-        std::vector<Node> msgpath2;
-        for (unsigned i = 0; i < longVarNames.size();) {
-            Node varPos = token("__varPosition", m);
-            Node varLength = token("_len"+longVarNames[i], m);
-            msgpath2.push_back(
-                astnode("with",
-                        varPos,
-                        // Allocate a sequence of chars of the
-                        // desired length
-                        astnode("alloc",
-                                astnode("get",
-                                        varLength,
-                                        m),
-                                m),
-                        astnode("seq",
-                                // Set the long variable pointer to the
-                                // allocated sequence
-                                astnode("set",
-                                        token(longVarNames[i], m),
-                                        astnode("get", varPos, m),
-                                        m),
-                                // Copy calldata
-                                astnode("calldatacopy",
-                                        astnode("get", varPos, m),
-                                        astnode("get", tot, m),
-                                        astnode("get", varLength, m),
-                                        m),
-                                // Increase the calldata pointer
-                                astnode("set",
-                                        tot,
-                                        astnode("add",
-                                                astnode("get", tot, m),
-                                                astnode("get", varLength, m),
-                                                m),
-                                        m),
-                                m),
-                        m));
-        }
-        msgpath.push_back(
-            astnode("with",
-                    tot,
-                    token(unsignedToDecimal(varNames.size() * 32 + 1), m),
-                    astnode("seq", msgpath2, m),
-                    m));
-        sub.push_back(
-            astnode("if",
-                    astnode("eq", astnode("caller", m), astnode("origin", m), m),
-                    astnode("seq", txpath, m),
-                    astnode("seq", msgpath, m),
-                    m));
-    }
-    sub.push_back(node.args[1]);
-    return astnode("if",
-                   astnode("eq",
-                           astnode("get", token("__funid", m), m),
-                           token(unsignedToDecimal(functionCount), m),
-                           m),
-                   astnode("seq", sub, m));
-}
-
-// Preprocess input containing functions
-//
-// localExterns is a map of the form, eg,
-//
-// { x: { foo: 0, bar: 1, baz: 2 }, y: { qux: 0, foo: 1 } ... }
-//
-// Signifying that x.foo = 0, x.baz = 2, y.foo = 1, etc
-//
-// globalExterns is a one-level map, eg from above
-//
-// { foo: 1, bar: 1, baz: 2, qux: 0 }
-//
-// Note that globalExterns may be ambiguous
-preprocessResult preprocess(Node inp) {
-    Node x = inp.args[0];
-    inp = x;
-    Metadata m = inp.metadata;
-    if (inp.val != "seq")
-        inp = astnode("seq", inp, m);
-    std::vector<Node> empty = std::vector<Node>();
-    Node init = astnode("seq", empty, m);
-    Node shared = astnode("seq", empty, m);
-    std::vector<Node> any;
-    std::vector<Node> functions;
-    preprocessAux out = preprocessAux();
-    out.localExterns["self"] = std::map<std::string, int>();
-    int functionCount = 0;
-    int storageDataCount = 0;
-    for (unsigned i = 0; i < inp.args.size(); i++) {
-        Node obj = inp.args[i];
-        // Functions
-        if (obj.val == "def") {
-            if (obj.args.size() == 0)
-                err("Empty def", m);
-            std::string funName = obj.args[0].val;
-            // Init, shared and any are special functions
-            if (funName == "init" || funName == "shared" || funName == "any") {
-                if (obj.args[0].args.size())
-                    err(funName+" cannot have arguments", m);
-            }
-            if (funName == "init") init = obj.args[1];
-            else if (funName == "shared") shared = obj.args[1];
-            else if (funName == "any") any.push_back(obj.args[1]);
-            else {
-                // Other functions
-                functions.push_back(convFunction(obj, functionCount));
-                out.localExterns["self"][obj.args[0].val] = functionCount;
-                functionCount++;
-            }
-        }
-        // Extern declarations
-        else if (obj.val == "extern") {
-            std::string externName = obj.args[0].args[0].val;
-            Node al = obj.args[0].args[1];
-            if (!out.localExterns.count(externName))
-                out.localExterns[externName] = std::map<std::string, int>();
-            for (unsigned i = 0; i < al.args.size(); i++) {
-                out.globalExterns[al.args[i].val] = i;
-                out.localExterns[externName][al.args[i].val] = i;
-            }
-        }
-        // Storage variables/structures
-        else if (obj.val == "data") {
-            out.storageVars = getStorageVars(out.storageVars,
-                                             obj.args[0],
-                                             "",
-                                             storageDataCount);
-            storageDataCount += 1;
-        }
-        else any.push_back(obj);
-    }
-    std::vector<Node> main;
-    if (shared.args.size()) main.push_back(shared);
-    if (init.args.size()) main.push_back(init);
-
-    std::vector<Node> code;
-    if (shared.args.size()) code.push_back(shared);
-    for (unsigned i = 0; i < any.size(); i++)
-        code.push_back(any[i]);
-    for (unsigned i = 0; i < functions.size(); i++)
-        code.push_back(functions[i]);
-    Node codeNode;
-    if (functions.size() > 0) {
-        codeNode = astnode("with",
-                           token("__funid", m),
-                           astnode("byte",
-                                   token("0", m),
-                                   astnode("calldataload", token("0", m), m),
-                                   m),
-                           astnode("seq", code, m),
-                           m);
-    }
-    else codeNode = astnode("seq", code, m);
-    main.push_back(astnode("~return",
-                           token("0", m),
-                           astnode("lll",
-                                   codeNode,
-                                   token("0", m),
-                                   m),
-                           m));
 
 
 
-    return preprocessResult(astnode("seq", main, inp.metadata), out);
-}
 
 // Transform "<variable>.<fun>(args...)" into
 // (call <variable> <funid> args...)
@@ -1114,23 +517,61 @@ Node dotTransform(Node node, preprocessAux aux) {
     }
     std::vector<Node> args;
     args.push_back(pre);
-    // Determine the funId assuming the "as" keyword was used
+    std::string sig;
+    // Determine the funId and sig assuming the "as" keyword was used
     if (as.size() > 0 && aux.localExterns.count(as)) {
         if (!aux.localExterns[as].count(post))
             err("Invalid call: "+printSimple(pre)+"."+post, m);
         std::string funid = unsignedToDecimal(aux.localExterns[as][post]);
+        sig = aux.localExternSigs[as][post];
         args.push_back(token(funid, m));
     }
-    // Determine the funId otherwise
+    // Determine the funId and sig otherwise
     else if (!as.size()) {
         if (!aux.globalExterns.count(post))
             err("Invalid call: "+printSimple(pre)+"."+post, m);
         std::string key = unsignedToDecimal(aux.globalExterns[post]);
+        sig = aux.globalExternSigs[post];
         args.push_back(token(key, m));
     }
     else err("Invalid call: "+printSimple(pre)+"."+post, m);
-    for (unsigned i = 1; i < node.args.size(); i++)
-        args.push_back(node.args[i]);
+    unsigned argCount = 0;
+    for (unsigned i = 1; i < node.args.size(); i++) {
+        if (node.args[i].val == "=")
+            args.push_back(node.args[i]);
+        else {
+            char argType;
+            if (sig.size() > 0) {
+                if (argCount >= sig.size())
+                    err("Too many args", m);
+                argType = sig[argCount];
+            }
+            else argType = 'i';
+            if (argType == 'i') {
+                if (node.args[i].val == ":")
+                    err("Function asks for int, provided string or array", m);
+                args.push_back(node.args[i]);
+            }
+            else if (argType == 's') {
+                if (node.args[i].val != ":")
+                    err("Must specify string length", m);
+                args.push_back(node.args[i]);
+            }
+            else if (argType == 'a') {
+                if (node.args[i].val != ":")
+                    err("Must specify array length", m);
+                args.push_back(astnode(":",
+                                       node.args[i].args[0],
+                                       astnode("mul",
+                                               node.args[i].args[1],
+                                               token("32", m),
+                                               m),
+                                       m));
+            }
+            else err("Invalid arg type in signature", m);
+            argCount++;
+        }
+    }
     return astnode(call_code ? "call_code" : "call", args, m);
 }
 
@@ -1289,6 +730,9 @@ Node apply_rules(preprocessResult pr) {
         }
     }
     // Special storage transformation
+    if (node.val == "comment") {
+        return node;
+    }
     if (isNodeStorageVariable(node)) {
         node = storageTransform(node, pr.second);
     }
@@ -1346,6 +790,11 @@ Node apply_rules(preprocessResult pr) {
             node.args[0].val = "'" + node.args[0].val;
             i = 1;
         }
+        if (node.val == "getlen") {
+            node.val = "get";
+            node.args[0].val = "'_len_" + node.args[0].val;
+            i = 1;
+        }
         if (node.val == "declare") {
             for (; i < node.args.size(); i++) {
                 node.args[i].val = "'" + node.args[i].val;
@@ -1389,79 +838,6 @@ Node apply_rules(preprocessResult pr) {
     if (node.type == ASTNODE && node.val[0] == '~')
         node.val = node.val.substr(1);
     return node;
-}
-
-// Compile-time arithmetic calculations
-Node optimize(Node inp) {
-    if (inp.type == TOKEN) {
-        Node o = tryNumberize(inp);
-        if (decimalGt(o.val, tt256, true))
-            err("Value too large (exceeds 32 bytes or 2^256)", inp.metadata);
-        return o;
-    }
-	for (unsigned i = 0; i < inp.args.size(); i++) {
-        inp.args[i] = optimize(inp.args[i]);
-    }
-    // Degenerate cases for add and mul
-    if (inp.args.size() == 2) {
-        if (inp.val == "add" && inp.args[0].type == TOKEN && 
-                inp.args[0].val == "0") {
-            Node x = inp.args[1];
-            inp = x;
-        }
-        if (inp.val == "add" && inp.args[1].type == TOKEN && 
-                inp.args[1].val == "0") {
-            Node x = inp.args[0];
-            inp = x;
-        }
-        if (inp.val == "mul" && inp.args[0].type == TOKEN && 
-                inp.args[0].val == "1") {
-            Node x = inp.args[1];
-            inp = x;
-        }
-        if (inp.val == "mul" && inp.args[1].type == TOKEN && 
-                inp.args[1].val == "1") {
-            Node x = inp.args[0];
-            inp = x;
-        }
-    }
-    // Arithmetic computation
-    if (inp.args.size() == 2 
-            && inp.args[0].type == TOKEN 
-            && inp.args[1].type == TOKEN) {
-      std::string o;
-      if (inp.val == "add") {
-          o = decimalMod(decimalAdd(inp.args[0].val, inp.args[1].val), tt256);
-      }
-      else if (inp.val == "sub") {
-          if (decimalGt(inp.args[0].val, inp.args[1].val, true))
-              o = decimalSub(inp.args[0].val, inp.args[1].val);
-      }
-      else if (inp.val == "mul") {
-          o = decimalMod(decimalMul(inp.args[0].val, inp.args[1].val), tt256);
-      }
-      else if (inp.val == "div" && inp.args[1].val != "0") {
-          o = decimalDiv(inp.args[0].val, inp.args[1].val);
-      }
-      else if (inp.val == "sdiv" && inp.args[1].val != "0"
-            && decimalGt(tt255, inp.args[0].val)
-            && decimalGt(tt255, inp.args[1].val)) {
-          o = decimalDiv(inp.args[0].val, inp.args[1].val);
-      }
-      else if (inp.val == "mod" && inp.args[1].val != "0") {
-          o = decimalMod(inp.args[0].val, inp.args[1].val);
-      }
-      else if (inp.val == "smod" && inp.args[1].val != "0"
-            && decimalGt(tt255, inp.args[0].val)
-            && decimalGt(tt255, inp.args[1].val)) {
-          o = decimalMod(inp.args[0].val, inp.args[1].val);
-      }    
-      else if (inp.val == "exp") {
-          o = decimalModExp(inp.args[0].val, inp.args[1].val, tt256);
-      }
-      if (o.length()) return token(o, inp.metadata);
-    }
-    return inp;
 }
 
 Node validate(Node inp) {

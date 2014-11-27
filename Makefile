@@ -5,8 +5,8 @@ CXXFLAGS = -fPIC
 BOOST_INC = /usr/include
 BOOST_LIB = /usr/lib
 TARGET = pyserpent
-COMMON_OBJS = bignum.o util.o tokenize.o lllparser.o parser.o rewriter.o compiler.o funcs.o
-HEADERS = bignum.h util.h tokenize.h lllparser.h parser.h rewriter.h compiler.h funcs.h
+COMMON_OBJS = bignum.o util.o tokenize.o lllparser.o parser.o optimize.o rewriteutils.o preprocess.o rewriter.o compiler.o funcs.o
+HEADERS = bignum.h util.h tokenize.h lllparser.h parser.h optimize.h rewriteutils.h preprocess.h rewriter.h compiler.h funcs.h
 PYTHON_VERSION = 2.7
 
 serpent : serpentc lib
