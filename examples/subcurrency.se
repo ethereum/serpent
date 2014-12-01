@@ -7,5 +7,5 @@ def balance_query(k):
 def send(to, value):
     fromvalue = self.storage[msg.sender]
     if fromvalue >= value:
-        self.storage[from] = fromvalue - value
+        self.storage[msg.sender] = fromvalue - value
         self.storage[to] += value
