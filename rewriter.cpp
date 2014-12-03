@@ -136,7 +136,7 @@ std::string macros[][2] = {
     },
     {
         "(getch $var $ind)",
-        "(mod (mload (add $var $ind)) 256)"
+        "(mod (mload (sub (add $var $ind) 31)) 256)"
     },
     {
         "(setch $var $ind $val)",
