@@ -24,9 +24,6 @@ bool isNodeStorageVariable(Node node);
 // Applies rewrite rules adding without wrapper
 Node rewriteChunk(Node inp);
 
-#define msi std::map<std::string, int>
-#define msn std::map<std::string, Node>
-
 // Match result storing object
 struct matchResult {
     bool success;
@@ -41,5 +38,7 @@ Node subst(Node pattern,
            std::map<std::string, Node> dict,
            std::string varflag,
            Metadata m);
+
+Node withTransform(Node source);
 
 #endif

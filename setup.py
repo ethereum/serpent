@@ -13,7 +13,7 @@ setup(
     name="ethereum-serpent",
 
     # Package version
-    version='1.7.4',
+    version='1.7.5',
 
     description='Serpent compiler',
     maintainer='Vitalik Buterin',
@@ -26,7 +26,8 @@ setup(
         Extension(
             'serpent_pyext',         # Python name of the module
             ['bignum.cpp', 'util.cpp', 'tokenize.cpp',
-             'lllparser.cpp', 'parser.cpp', 'optimize.cpp',
+             'lllparser.cpp', 'parser.cpp', 'functions.cpp',
+             'optimize.cpp',
              'rewriteutils.cpp', 'preprocess.cpp', 'rewriter.cpp',
              'compiler.cpp', 'funcs.cpp', 'pyserpent.cpp']
         )],

@@ -13,13 +13,14 @@ struct programAux {
     bool calldataUsed;
     int step;
     int labelLength;
-    int functionCount;
 };
 
 struct programVerticalAux {
     int height;
+    std::string innerScopeName;
     std::map<std::string, int> dupvars;
     std::map<std::string, int> funvars;
+    std::vector<mss> scopes;
 };
 
 struct programData {
@@ -34,7 +35,6 @@ programAux Aux() {
     o.calldataUsed = false;
     o.step = 0;
     o.nextVarMem = 32;
-    o.functionCount = 0;
     return o;
 }
 
@@ -43,6 +43,7 @@ programVerticalAux verticalAux() {
     o.height = 0;
     o.dupvars = std::map<std::string, int>();
     o.funvars = std::map<std::string, int>();
+    o.scopes = std::vector<mss>();
     return o;
 }
 
@@ -72,28 +73,58 @@ Node popwrap(Node node) {
     return multiToken(nodelist, 2, node.metadata);
 }
 
+// Grabs variables
+mss getVariables(Node node, mss cur=mss()) {
+    Metadata m = node.metadata;
+    // Tokens don't contain any variables
+    if (node.type == TOKEN)
+        return cur;
+    // Don't descend into call fragments
+    else if (node.val == "lll")
+        return getVariables(node.args[1], cur);
+    // At global scope get/set/ref also declare    
+    else if (node.val == "get" || node.val == "set" || node.val == "ref") {
+        if (node.args[0].type != TOKEN)
+            err("Variable name must be simple token,"
+                " not complex expression!", m);
+        if (!cur.count(node.args[0].val)) {
+            cur[node.args[0].val] = utd(cur.size() * 32 + 32);
+            //std::cerr << node.args[0].val << " " << cur[node.args[0].val] << "\n";
+        }
+    }
+    // Recursively process children
+    for (unsigned i = 0; i < node.args.size(); i++) {
+        cur = getVariables(node.args[i], cur);
+    }
+    return cur;
+}
+
 // Turns LLL tree into tree of code fragments
 programData opcodeify(Node node,
                       programAux aux=Aux(),
                       programVerticalAux vaux=verticalAux()) {
     std::string symb = "_"+mkUniqueToken();
     Metadata m = node.metadata;
+    // Get variables
+    if (!aux.vars.size()) {
+        aux.vars = getVariables(node);
+        aux.nextVarMem = aux.vars.size() * 32 + 32;
+    }
     // Numbers
     if (node.type == TOKEN) {
         return pd(aux, nodeToNumeric(node), 1);
     }
     else if (node.val == "ref" || node.val == "get" || node.val == "set") {
         std::string varname = node.args[0].val;
-        if (!aux.vars.count(varname)) {
-            aux.vars[varname] = unsignedToDecimal(aux.nextVarMem);
-            aux.nextVarMem += 32;
-        }
-        if (varname == "'msg.data") aux.calldataUsed = true;
+        // Determine reference to variable
+        Node varNode = tkn(aux.vars[varname], m);
+        //std::cerr << varname << " " << printSimple(varNode) << "\n";
         // Set variable
         if (node.val == "set") {
             programData sub = opcodeify(node.args[1], aux, vaux);
             if (!sub.outs)
                 err("Value to set variable must have nonzero arity!", m);
+            // What if we are setting a stack variable?
             if (vaux.dupvars.count(node.args[0].val)) {
                 int h = vaux.height - vaux.dupvars[node.args[0].val];
                 if (h > 16) err("Too deep for stack variable (max 16)", m);
@@ -104,43 +135,39 @@ programData opcodeify(Node node,
                 };
                 return pd(sub.aux, multiToken(nodelist, 3, m), 0);                   
             }
-            Node nodelist[] = {
-                sub.code,
-                token(sub.aux.vars[varname], m),
-                token("MSTORE", m),
-            };
-            return pd(sub.aux, multiToken(nodelist, 3, m), 0);                   
+            // Setting a memory variable
+            else {
+                Node nodelist[] = {
+                    sub.code,
+                    varNode,
+                    token("MSTORE", m),
+                };
+                return pd(sub.aux, multiToken(nodelist, 3, m), 0);                   
+            }
         }
         // Get variable
         else if (node.val == "get") {
-             if (vaux.dupvars.count(node.args[0].val)) {
+            // Getting a stack variable
+            if (vaux.dupvars.count(node.args[0].val)) {
                  int h = vaux.height - vaux.dupvars[node.args[0].val];
                 if (h > 16) err("Too deep for stack variable (max 16)", m);
                 return pd(aux, token("DUP"+unsignedToDecimal(h)), 1);                   
             }
-            Node nodelist[] = 
-                 { token(aux.vars[varname], m), token("MLOAD", m) };
-            return pd(aux, multiToken(nodelist, 2, m), 1);
+            // Getting a memory variable
+            else {
+                Node nodelist[] = 
+                     { varNode, token("MLOAD", m) };
+                return pd(aux, multiToken(nodelist, 2, m), 1);
+            }
         }
         // Refer variable
         else if (node.val == "ref") {
             if (vaux.dupvars.count(node.args[0].val))
                 err("Cannot ref stack variable!", m);
-            return pd(aux, token(aux.vars[varname], m), 1);
+            return pd(aux, varNode, 1);
         }
     }
-    // Declare one or more variables
-    // Note: if used twice with the same variable name, will overwrite
-    // declaration.
-    if (node.val == "declare") {
-        for (unsigned i = 0; i < node.args.size(); i++) {
-            std::string varname = node.args[i].val;
-            aux.vars[varname] = unsignedToDecimal(aux.nextVarMem);
-            aux.nextVarMem += 32;
-        }
-        Node nodelist[] = { };
-        return pd(aux, multiToken(nodelist, 0, m), 0);
-    }
+    // Comments do nothing
     else if (node.val == "comment") {
         Node nodelist[] = { };
         return pd(aux, multiToken(nodelist, 0, m), 0);
@@ -291,39 +318,6 @@ programData opcodeify(Node node,
         };
         return pd(aux, multiToken(nodelist, 8, m), 1);
     }
-    // Array literals
-    else if (node.val == "array_lit") {
-        aux.allocUsed = true;
-        std::vector<Node> nodes;
-        if (!node.args.size()) {
-            nodes.push_back(token("MSIZE", m));
-            return pd(aux, astnode("_", nodes, m));
-        }
-        nodes.push_back(token("MSIZE", m));
-        nodes.push_back(token("0", m));
-        nodes.push_back(token("MSIZE", m));
-        nodes.push_back(token(unsignedToDecimal(node.args.size() * 32 - 1), m));
-        nodes.push_back(token("ADD", m));
-        nodes.push_back(token("MSTORE8", m));
-        for (unsigned i = 0; i < node.args.size(); i++) {
-            Metadata m2 = node.args[i].metadata;
-            nodes.push_back(token("DUP1", m2));
-            programVerticalAux vaux2 = vaux;
-            vaux2.height += 2;
-            programData sub = opcodeify(node.args[i], aux, vaux2);
-            if (!sub.outs)
-                err("Array_lit item " + unsignedToDecimal(i) + " has zero arity", m2);
-            aux = sub.aux;
-            nodes.push_back(sub.code);
-            nodes.push_back(token("SWAP1", m2));
-            if (i > 0) {
-                nodes.push_back(token(unsignedToDecimal(i * 32), m2));
-                nodes.push_back(token("ADD", m2));
-            }
-            nodes.push_back(token("MSTORE", m2));
-        }
-        return pd(aux, astnode("_", nodes, m), 1);
-    }
     // All other functions/operators
     else {
         std::vector<Node>  subs2;
@@ -367,15 +361,6 @@ Node finalize(programData c) {
             token("MSTORE8", m)
         };
         bottom.push_back(multiToken(nodelist, 3, m));
-    }
-    // If msg.data is being used as an array, then we need to copy it
-    if (c.aux.calldataUsed) {
-        Node nodelist[] = {
-            token("MSIZE", m), token("CALLDATASIZE", m), token("0", m),
-            token("MSIZE", m), token("CALLDATACOPY", m),
-            token(c.aux.vars["'msg.data"], m), token("MSTORE", m)
-        };
-        bottom.push_back(multiToken(nodelist, 7, m));
     }
     // The actual code
     bottom.push_back(c.code);

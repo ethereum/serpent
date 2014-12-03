@@ -53,6 +53,8 @@ Node astnode(std::string val, Metadata met=Metadata());
 Node astnode(std::string val, Node a, Metadata met=Metadata());
 Node astnode(std::string val, Node a, Node b, Metadata met=Metadata());
 Node astnode(std::string val, Node a, Node b, Node c, Metadata met=Metadata());
+Node astnode(std::string val, Node a, Node b,
+             Node c, Node d, Metadata met=Metadata());
 
 // Number of tokens in a tree
 int treeSize(Node prog);
@@ -116,5 +118,8 @@ std::vector<int> triple(int a, int b, int c);
 
 #define asn astnode
 #define tkn token
+#define msi std::map<std::string, int>
+#define msn std::map<std::string, Node>
+#define mss std::map<std::string, std::string>
 
 #endif

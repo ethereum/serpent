@@ -2,7 +2,7 @@ import serpent_pyext as pyext
 import sys
 import re
 
-VERSION = '1.7.4'
+VERSION = '1.7.5'
 
 
 class Metadata(object):
@@ -149,16 +149,21 @@ def decode_datalist(arr):
 
 
 def encode_abi(funid, *args):
-    o = chr(int(funid))
-    if len(args) == 1 and isinstance(args[0], list):
-        args = args[0]
+    len_args = ''
+    normal_args = ''
+    var_args = ''
     for arg in args:
-        if isinstance(arg, str) and ':' in arg:
-            val, length = arg.split(':')
-            o += enc(numberize(val))[32 - int(length):]
+        if isinstance(arg, str) and len(arg) and \
+                arg[0] == '"' and arg[-1] == '"':
+            len_args += enc(numberize(len(arg[1:-1])))
+            var_args += arg[1:-1]
+        elif isinstance(arg, list):
+            for a in arg:
+                var_args += enc(numberize(a))
+            len_args += enc(numberize(len(arg)))
         else:
-            o += enc(numberize(arg))
-    return o
+            normal_args += enc(numberize(arg))
+    return chr(int(funid)) + len_args + normal_args + var_args
 
 
 def decode_abi(arr, *lens):

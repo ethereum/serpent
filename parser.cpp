@@ -20,7 +20,7 @@ int precedence(Node tok) {
     else if (v=="||" || v=="or") return 8;
     else if (v=="=") return 10;
     else if (v=="+=" || v=="-=" || v=="*=" || v=="/=" || v=="%=") return 10;
-    else if (v==":") return 11;
+    else if (v==":" || v == "::") return 11;
     else return 0;
 }
 
@@ -260,7 +260,8 @@ int spaceCount(std::string s) {
 bool bodied(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "while"
         || tok == "with" || tok == "def" || tok == "extern"
-        || tok == "data" || tok == "assert" || tok == "return";
+        || tok == "data" || tok == "assert" || tok == "return"
+        || tok == "fun" || tok == "scope";
 }
 
 // Is this a command that takes an argument as a child block?
@@ -268,7 +269,8 @@ bool childBlocked(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "else"
         || tok == "code" || tok == "shared" || tok == "init"
         || tok == "while" || tok == "repeat" || tok == "for"
-        || tok == "with" || tok == "def";
+        || tok == "with" || tok == "def" || tok == "fun"
+        || tok == "scope";
 }
 
 // Are the two commands meant to continue each other? 
@@ -276,10 +278,7 @@ bool bodiedContinued(std::string prev, std::string tok) {
     return (prev == "if" && tok == "elif")
         || (prev == "elif" && tok == "else")
         || (prev == "elif" && tok == "elif")
-        || (prev == "if" && tok == "else")
-        || (prev == "init" && tok == "code")
-        || (prev == "shared" && tok == "code")
-        || (prev == "shared" && tok == "init");
+        || (prev == "if" && tok == "else");
 }
 
 // Is a line of code empty?

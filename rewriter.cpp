@@ -8,7 +8,9 @@
 #include "optimize.h"
 #include "rewriteutils.h"
 #include "preprocess.h"
+#include "functions.h"
 
+// Valid functions and their min and max argument counts
 std::string valid[][3] = {
     { "if", "2", "3" },
     { "unless", "2", "2" },
@@ -34,7 +36,16 @@ std::string valid[][3] = {
     { "---END---", "", "" } //Keep this line at the end of the list
 };
 
+// Rewrite rules
 std::string macros[][2] = {
+    {
+        "(seq $x)",
+        "$x"
+    },
+    {
+        "(seq (seq) $x)",
+        "$x"
+    },
     {
         "(+= $a $b)",
         "(set $a (+ $a $b))"
@@ -69,23 +80,19 @@ std::string macros[][2] = {
     },
     {
         "(min $a $b)",
-        "(if (lt $a $b) $a $b)"
+        "(with $1 $a (with $2 $b (if (lt $1 $2) $1 $2)))"
     },
     {
         "(max $a $b)",
-        "(if (lt $a $b) $b $a)"
+        "(with $1 $a (with $2 $b (if (lt $1 $2) $2 $1)))"
     },
     {
-        "(if @cond $do (else $else))",
-        "(if @cond $do $else)"
+        "(if $cond $do (else $else))",
+        "(if $cond $do $else)"
     },
     {
         "(code $code)",
         "$code"
-    },
-    {
-        "(access (. msg data) $ind)",
-        "(calldataload (mul 32 $ind))"
     },
     {
         "(slice $arr $pos)",
@@ -96,20 +103,20 @@ std::string macros[][2] = {
         "(alloc (mul 32 $len))"
     },
     {
-        "(while @cond @do)",
-        "(until (iszero @cond) @do)",
+        "(while $cond $do)",
+        "(until (iszero $cond) $do)",
     },
     {
-        "(while (iszero @cond) @do)",
-        "(until @cond @do)",
+        "(while (iszero $cond) $do)",
+        "(until $cond $do)",
     },
     {
-        "(if @cond @do)",
-        "(unless (iszero @cond) @do)",
+        "(if $cond $do)",
+        "(unless (iszero $cond) $do)",
     },
     {
-        "(if (iszero @cond) @do)",
-        "(unless @cond @do)",
+        "(if (iszero $cond) $do)",
+        "(unless $cond $do)",
     },
     {
         "(access (. self storage) $ind)",
@@ -177,7 +184,7 @@ std::string macros[][2] = {
     },
     {
         "(|| $x $y)",
-        "(if (get $x) (get $x) $y)"
+        "(with $1 $x (if $1 $1 $y))"
     },
     {
         "(>= $x $y)",
@@ -186,14 +193,6 @@ std::string macros[][2] = {
     {
         "(<= $x $y)",
         "(iszero (sgt $x $y))"
-    },
-    {
-        "(@>= $x $y)",
-        "(iszero (lt $x $y))"
-    },
-    {
-        "(@<= $x $y)",
-        "(iszero (gt $x $y))"
     },
     {
         "(create $code)",
@@ -205,27 +204,23 @@ std::string macros[][2] = {
     },
     {
         "(sha256 $x)",
-        "(seq (set $1 $x) (pop (~call 101 2 0 (ref $1) 32 (ref $2) 32)) (get $2))"
+        "(with $1 (alloc 64) (seq (pop (~call 101 2 0 (add (get $1) 32) 32 (get $1) 32)) (get (get $1))))"
     },
     {
         "(sha256 $arr $sz)",
-        "(seq (pop (~call 101 2 0 $arr (mul 32 $sz) (ref $2) 32)) (get $2))"
+        "(with $1 (alloc 32) (seq (pop (~call 101 2 0 $arr (mul 32 $sz) (get $1) 32)) (get (get $1))))"
     },
     {
         "(ripemd160 $x)",
-        "(seq (set $1 $x) (pop (~call 101 3 0 (ref $1) 32 (ref $2) 32)) (get $2))"
+        "(with $1 (alloc 64) (seq (pop (~call 101 3 0 (add (get $1) 32) 32 (get $1) 32)) (get (get $1))))"
     },
     {
         "(ripemd160 $arr $sz)",
-        "(seq (pop (~call 101 3 0 $arr (mul 32 $sz) (ref $2) 32)) (get $2))"
+        "(with $1 (alloc 32) (seq (pop (~call 101 3 0 $arr (mul 32 $sz) (get $1) 32)) (get (get $1))))"
     },
     {
         "(ecrecover $h $v $r $s)",
-        "(seq (declare $1) (declare $2) (declare $3) (declare $4) (set $1 $h) (set $2 $v) (set $3 $r) (set $4 $s) (pop (~call 101 1 0 (ref $1) 128 (ref $5) 32)) (get $5))"
-    },
-    {
-        "(seq (seq) $x)",
-        "$x"
+        "(with $1 (alloc 160) (seq (set (get $1) $h) (set (add (get $1) 32) $v) (set (add (get $1) 64) $r) (set (add (get $1) 96) $s) (pop (~call 101 1 0 (get $1) 128 (add (get $1 128)) 32)) (get (add (get $1) 128))))"
     },
     {
         "(inset $x)",
@@ -256,6 +251,26 @@ std::string macros[][2] = {
         "(~log4 0 0 $t1 $t2 $t3 $t4)"
     },
     {
+        "(logarr $a $sz)",
+        "(~log0 $a (mul 32 $sz))"
+    },
+    {
+        "(logarr $a $sz $t1)",
+        "(~log1 $a (mul 32 $sz) $t1)"
+    },
+    {
+        "(logarr $a $sz $t1 $t2)",
+        "(~log2 $a (mul 32 $sz) $t1 $t2)"
+    },
+    {
+        "(logarr $a $sz $t1 $t2 $t3)",
+        "(~log3 $a (mul 32 $sz) $t1 $t2 $t3)"
+    },
+    {
+        "(logarr $a $sz $t1 $t2 $t3 $t4)",
+        "(~log4 $a (mul 32 $sz) $t1 $t2 $t3 $t4)"
+    },
+    {
         "(save $loc $array (= chars $count))",
         "(with $location (ref $loc) (with $c $count (with $end (div $c 32) (with $i 0 (seq (while (slt $i $end) (seq (sstore (add $i $location) (access $array $i)) (set $i (add $i 1)))) (sstore (add $i $location) (~and (access $array $i) (sub 0 (exp 256 (sub 32 (mod $c 32)))))))))))"
     },
@@ -273,13 +288,12 @@ std::string macros[][2] = {
     },
     {
         "(unsafe_mcopy $to $from $sz)",
-        "(seq (comment STARTING GHETTO UNSAFE_MCOPY) (set $i 0) (while (lt $i $sz) (seq (mstore (add $to $i) (mload (add $from $i))) (set $i (add $i 32)))))"
+        "(with _sz $sz (with _from $from (with _to $to (seq (comment STARTING UNSAFE MCOPY) (with _i 0 (while (lt _i _sz) (seq (mstore (add $to _i) (mload (add _from _i))) (set _i (add _i 32)))))))))"
     },
     {
-        "(mcopy $to $from $sz)",
-        "(seq (comment STARTING GHETTO MCOPY) (set $i 0) (while (lt (add $i 31) $sz) (seq (mstore (add $to $i) (mload (add $from $i))) (set $i (add $i 32)))) (set $mask (exp 256 (sub 32 (mod $sz 32)))) (mstore (add $to $i) (add (mod (mload (add $to $i)) $mask) (and (mload (add $from $i)) (sub 0 $mask)))))"
+        "(mcopy $to $from $_sz)",
+        "(with _to $to (with _from $from (with _sz $sz (seq (comment STARTING MCOPY (with _i 0 (seq (while (lt (add _i 31) _sz) (seq (mstore (add _to _i) (mload (add _from _i))) (set _i (add _i 32)))) (with _mask (exp 256 (sub 32 (mod _sz 32))) (mstore (add $to _i) (add (mod (mload (add $to _i)) _mask) (and (mload (add $from _i)) (sub 0 _mask))))))))))))"
     },
-    { "(. msg datasize)", "(div (calldatasize) 32)" },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
     { "(. tx gasprice)", "(gasprice)" },
@@ -299,6 +313,7 @@ std::string macros[][2] = {
 
 std::vector<std::vector<Node> > nodeMacros;
 
+// Token synonyms
 std::string synonyms[][2] = {
     { "or", "||" },
     { "and", "&&" },
@@ -316,10 +331,6 @@ std::string synonyms[][2] = {
     { "^", "exp" },
     { "**", "exp" },
     { "%", "smod" },
-    { "@/", "div" },
-    { "@%", "mod" },
-    { "@<", "lt" },
-    { "@>", "gt" },
     { "<", "slt" },
     { ">", "sgt" },
     { "=", "set" },
@@ -328,6 +339,8 @@ std::string synonyms[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
+// Custom setters (need to be registered separately
+// for use with managed storage)
 std::string setters[][2] = {
     { "+=", "+" },
     { "-=", "-" },
@@ -339,7 +352,6 @@ std::string setters[][2] = {
 };
 
 // Processes mutable array literals
-
 Node array_lit_transform(Node node) {
     std::string prefix = "_temp"+mkUniqueToken() + "_";
     Metadata m = node.metadata;
@@ -356,223 +368,87 @@ Node array_lit_transform(Node node) {
 
 Node apply_rules(preprocessResult pr);
 
-// Transform a node of the form (call to funid vars...) into
+// Transform "<variable>.<fun>(args...)" into
 // a call
-
-#define psn std::pair<std::string, Node>
-
-Node call_transform(Node node, std::string op) {
+Node dotTransform(Node node, preprocessAux aux) {
     Metadata m = node.metadata;
     // We're gonna make lots of temporary variables,
     // so set up a unique flag for them
     std::string prefix = "_temp"+mkUniqueToken()+"_";
+    // Check that the function name is a token
+    if (node.args[0].args[1].type == ASTNODE)
+        err("Function name must be static", m);
+
+    Node dotOwner = node.args[0].args[0];
+    std::string dotMember = node.args[0].args[1].val;
     // kwargs = map of special arguments
     std::map<std::string, Node> kwargs;
     kwargs["value"] = token("0", m);
     kwargs["gas"] = subst(parseLLL("(- (gas) 25)"), msn(), prefix, m);
-    std::vector<Node> args;
-    std::vector<Node> szargs;
-    std::vector<Node> vlargs;
-    for (unsigned i = 0; i < node.args.size(); i++) {
-        // Parameter (eg. gas, value)
-        if (node.args[i].val == "=" || node.args[i].val == "set") {
-            if (node.args[i].args.size() != 2)
-                err("Malformed set", m);
-            kwargs[node.args[i].args[0].val] = node.args[i].args[1];
-        }
-        // Sized argument
-        else if (node.args[i].val == ":") {
-            szargs.push_back(node.args[i].args[1]);
-            vlargs.push_back(node.args[i].args[0]);
-        }
-        // Regular argument
-        else args.push_back(node.args[i]);
-    }
-    if (args.size() < 2) err("Too few arguments for call!", m);
-    kwargs["to"] = args[0];
-    kwargs["funid"] = args[1];
-    std::vector<Node> inputs;
-    for (unsigned i = 2; i < args.size(); i++) {
-        inputs.push_back(args[i]);
-    }
-    std::vector<Node> pre;
-    std::vector<Node> post;
-    if (szargs.size() == 0) {
-        // Here, there is no data array, instead there are function arguments.
-        // This actually lets us be much more efficient with how we set things
-        // up.
-        // Pre-declare variables; relies on declared variables being sequential
-        std::vector<Node> declareVars;
-        declareVars.push_back(token(prefix+"prebyte", m));
-        for (unsigned i = 0; i < inputs.size(); i++)
-            declareVars.push_back(token(prefix+utd(i), m));
-        pre.push_back(astnode("declare", declareVars, m));
-        std::string pattern =
-          + "    (seq                                                   "
-            "        (set $datastart (add 31 (ref "+prefix+"prebyte)))  "
-          + "        (mstore8 $datastart $funid)                        ";
-        for (unsigned i = 0; i < inputs.size(); i++) {
-            pattern +=
-                "    (set "+prefix+utd(i)+" $"+utd(i)+")                ";
-            kwargs[utd(i)] = inputs[i];
-                
-        }
-        pattern += "))";
-        pre.push_back(parseLLL(pattern));
-        kwargs["datain"] = token(prefix+"datastart", m);
-        kwargs["datainsz"] = token(utd(inputs.size()*32+1), m);
-    }
-    else {
-        // Start off by saving the size variables and calculating the total
-        std::string pattern =
-            "(with $sztot 0 (seq";
-        for (unsigned i = 0; i < szargs.size(); i++) {
-            pattern +=
-                "(set $var"+utd(i)+" (alloc $sz"+utd(i)+"))                   "
-              + "(set $sztot (add $sztot $sz"+utd(i)+"))                      ";
-            kwargs["sz"+utd(i)] = szargs[i];
-        }
-        int startpos = 1 + (szargs.size() + inputs.size()) * 32;
-        pattern +=
-                "(set $datastart (alloc (add "+utd(startpos+32)+" $sztot)))   "
-              + "(mstore8 $datastart $funid)                                  ";
-        for (unsigned i = 0; i < szargs.size(); i++) {
-            pattern +=
-                "(mstore (add $datastart "+utd(1 + i * 32)+") $sz"+utd(i)+")  ";
-        }
-        for (unsigned i = 0; i < inputs.size(); i++) {
-            int v = 1 + (i + szargs.size()) * 32;
-            pattern +=
-                "(mstore (add $datastart "+utd(v)+") $"+utd(i)+")             ";
-            kwargs[utd(i)] = inputs[i];
-        }
-        pattern += 
-                "(set $pos (add $datastart "+utd(startpos)+"))                ";
-        for (unsigned i = 0; i < vlargs.size(); i++) {
-            pattern +=
-                "(unsafe_mcopy $pos $vl"+utd(i)+" $sz"+utd(i)+")              ";
-            kwargs["vl"+utd(i)] = vlargs[i];
-        }
-        pattern += "))";
-        pre.push_back(parseLLL(pattern));
-        kwargs["datain"] = token(prefix+"datastart", m);
-        kwargs["datainsz"] = astnode("add",
-                                     token(utd(startpos), m),
-                                     token(prefix+"sztot", m),
-                                     m);
-    }
-    if (!kwargs.count("outsz")) {
-        kwargs["dataout"] = astnode("ref", token(prefix+"dataout", m), m);
-        kwargs["dataoutsz"] = token("32", node.metadata);
-        post.push_back(astnode("get", token(prefix+"dataout", m), m));
-    }
-    else {
-        kwargs["dataoutsz"]
-            = astnode("mul", token("32", m), kwargs["outsz"], m);
-        kwargs["dataout"] 
-            = astnode("alloc", token(prefix+"dataoutsz", m), m);
-        post.push_back(astnode("get", token(prefix+"dataout", m), m));
-    }
-    // Set up main call
-    std::vector<Node> main;
-    for (unsigned i = 0; i < pre.size(); i++) {
-        main.push_back(pre[i]);
-    }
-    main.push_back(parseLLL(
-        "(pop (~"+op+" $gas $to $value $datain $datainsz $dataout $dataoutsz))"));
-    for (unsigned i = 0; i < post.size(); i++) {
-        main.push_back(post[i]);
-    }
-    Node o = subst(astnode("seq", main, m), kwargs, prefix, m);
-    return o;
-}
-
-
-
-
-
-// Transform "<variable>.<fun>(args...)" into
-// (call <variable> <funid> args...)
-Node dotTransform(Node node, preprocessAux aux) {
-    Metadata m = node.metadata;
-    Node pre = node.args[0].args[0];
-    std::string post = node.args[0].args[1].val;
-    if (node.args[0].args[1].type == ASTNODE)
-        err("Function name must be static", m);
-    // Search for as=? and call=code keywords
+    // Search for as=? and call=code keywords, and isolate the actual
+    // function arguments
+    std::vector<Node> fnargs;
     std::string as = "";
-    bool call_code = false;
+    std::string op = "call";
     for (unsigned i = 1; i < node.args.size(); i++) {
-        Node arg = node.args[i];
+        fnargs.push_back(node.args[i]);
+        Node arg = fnargs.back();
         if (arg.val == "=" || arg.val == "set") {
             if (arg.args[0].val == "as")
                 as = arg.args[1].val;
             if (arg.args[0].val == "call" && arg.args[1].val == "code")
-                call_code = true;
+                op = "call_code";
+            if (arg.args[0].val == "gas")
+                kwargs["gas"] = arg.args[1];
+            if (arg.args[0].val == "value")
+                kwargs["value"] = arg.args[1];
+            if (arg.args[0].val == "outsz")
+                kwargs["outsz"] = arg.args[1];
         }
     }
-    if (pre.val == "self") {
+    if (dotOwner.val == "self") {
         if (as.size()) err("Cannot use \"as\" when calling self!", m);
-        as = pre.val;
+        as = dotOwner.val;
     }
-    std::vector<Node> args;
-    args.push_back(pre);
-    std::string sig;
     // Determine the funId and sig assuming the "as" keyword was used
+    int funId = 0;
+    std::string sig;
     if (as.size() > 0 && aux.localExterns.count(as)) {
-        if (!aux.localExterns[as].count(post))
-            err("Invalid call: "+printSimple(pre)+"."+post, m);
-        std::string funid = unsignedToDecimal(aux.localExterns[as][post]);
-        sig = aux.localExternSigs[as][post];
-        args.push_back(token(funid, m));
+        if (!aux.localExterns[as].count(dotMember))
+            err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
+        funId = aux.localExterns[as][dotMember];
+        sig = aux.localExternSigs[as][dotMember];
     }
     // Determine the funId and sig otherwise
     else if (!as.size()) {
-        if (!aux.globalExterns.count(post))
-            err("Invalid call: "+printSimple(pre)+"."+post, m);
-        std::string key = unsignedToDecimal(aux.globalExterns[post]);
-        sig = aux.globalExternSigs[post];
-        args.push_back(token(key, m));
+        if (!aux.globalExterns.count(dotMember))
+            err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
+        std::string key = unsignedToDecimal(aux.globalExterns[dotMember]);
+        funId = aux.globalExterns[dotMember];
+        sig = aux.globalExternSigs[dotMember];
     }
-    else err("Invalid call: "+printSimple(pre)+"."+post, m);
-    unsigned argCount = 0;
-    for (unsigned i = 1; i < node.args.size(); i++) {
-        if (node.args[i].val == "=")
-            args.push_back(node.args[i]);
-        else {
-            char argType;
-            if (sig.size() > 0) {
-                if (argCount >= sig.size())
-                    err("Too many args", m);
-                argType = sig[argCount];
-            }
-            else argType = 'i';
-            if (argType == 'i') {
-                if (node.args[i].val == ":")
-                    err("Function asks for int, provided string or array", m);
-                args.push_back(node.args[i]);
-            }
-            else if (argType == 's') {
-                if (node.args[i].val != ":")
-                    err("Must specify string length", m);
-                args.push_back(node.args[i]);
-            }
-            else if (argType == 'a') {
-                if (node.args[i].val != ":")
-                    err("Must specify array length", m);
-                args.push_back(astnode(":",
-                                       node.args[i].args[0],
-                                       astnode("mul",
-                                               node.args[i].args[1],
-                                               token("32", m),
-                                               m),
-                                       m));
-            }
-            else err("Invalid arg type in signature", m);
-            argCount++;
-        }
+    else err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
+    // Pack arguments
+    kwargs["data"] = packArguments(fnargs, sig, funId, m);
+    kwargs["to"] = dotOwner;
+    Node main;
+    // Pack output
+    if (!kwargs.count("outsz")) {
+        main = parseLLL(
+            "(with _data $data (seq "
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) (ref $dataout) 32))"
+                "(get $dataout)))");
     }
-    return astnode(call_code ? "call_code" : "call", args, m);
+    else {
+        main = parseLLL(
+            "(with _data $data (with _outsz (mul 32 $outsz) (with _out (alloc _outsz) (seq "
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out _outsz))"
+                "(get _out)))))");
+    }
+    // Set up main call
+
+    Node o = subst(main, kwargs, prefix, m);
+    return o;
 }
 
 // Transform an access of the form self.bob, self.users[5], etc into
@@ -667,23 +543,24 @@ Node storageTransform(Node node, preprocessAux aux,
     }
     Node o;
     if (mapstyle) {
-        // We pre-declare variables, relying on the idea that sequentially
-        // declared variables are doing to appear beside each other in
-        // memory
-        std::vector<Node> main;
+        std::vector<Node> sub;
         for (unsigned i = 0; i < terms.size(); i++)
-            main.push_back(astnode("declare",
-                                   token(varPrefix+unsignedToDecimal(i), m),
-                                   m));
-        for (unsigned i = 0; i < terms.size(); i++)
-            main.push_back(astnode("set",
-                                   token(varPrefix+unsignedToDecimal(i), m),
-                                   terms[i],
-                                   m));
-        main.push_back(astnode("ref", token(varPrefix+"0", m), m));
-        Node sz = token(unsignedToDecimal(terms.size()), m);
-        o = astnode("sha3",
-                    astnode("seq", main, m),
+            sub.push_back(asn("mstore",
+                              asn("add",
+                                  tkn(utd(i * 32), m),
+                                  asn("get", tkn("$pos", m), m),
+                                  m),
+                              terms[i],
+                              m));
+        sub.push_back(tkn("$pos", m));
+        Node main = asn("with",
+                        tkn("$pos", m),
+                        asn("alloc", tkn(utd(terms.size() * 32), m), m),
+                        asn("seq", sub, m),
+                        m);
+        Node sz = token(utd(terms.size() * 32), m);
+        o = astnode("~sha3",
+                    main,
                     sz,
                     m);
     }
@@ -766,7 +643,7 @@ Node apply_rules(preprocessResult pr) {
         if (mr.success) {
             Node pattern2 = nodeMacros[pos][1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
-            pos = 0;
+            return apply_rules(preprocessResult(node, pr.second));
         }
     }
     // Special transformations
@@ -779,10 +656,6 @@ Node apply_rules(preprocessResult pr) {
     if (node.val == "fun" && node.args[0].val == ".") {
         node = dotTransform(node, pr.second);
     }
-    if (node.val == "call")
-        node = call_transform(node, "call");
-    if (node.val == "call_code")
-        node = call_transform(node, "call_code");
     if (node.type == ASTNODE) {
 		unsigned i = 0;
         if (node.val == "set" || node.val == "ref" 
@@ -790,15 +663,19 @@ Node apply_rules(preprocessResult pr) {
             node.args[0].val = "'" + node.args[0].val;
             i = 1;
         }
-        if (node.val == "getlen") {
+        else if (node.val == "arglen") {
             node.val = "get";
             node.args[0].val = "'_len_" + node.args[0].val;
             i = 1;
         }
-        if (node.val == "declare") {
-            for (; i < node.args.size(); i++) {
-                node.args[i].val = "'" + node.args[i].val;
-            }
+        else if (node.val == "scope") {
+            node.args[0].val =
+                "'" + node.args[0].val;
+            node.args[1] = 
+                apply_rules(preprocessResult(node.args[1], pr.second));
+            i = 2;
+        }
+        else if (false) {
         }
         for (; i < node.args.size(); i++) {
             node.args[i] =
@@ -824,6 +701,7 @@ Node apply_rules(preprocessResult pr) {
                 o.push_back(token(t, node.metadata));
             }
             node = astnode("array_lit", o, node.metadata);
+            node = apply_rules(preprocessResult(node, pr.second));
         }
         else {
             node.val = "'" + node.val;
@@ -876,13 +754,15 @@ Node outerWrap(Node inp) {
 }
 
 Node rewrite(Node inp) {
-    return postValidate(optimize(apply_rules(preprocessResult(
+    return postValidate(optimize(apply_rules(
+                preprocessResult(
                 validate(outerWrap(inp)), preprocessAux()))));
 }
 
 Node rewriteChunk(Node inp) {
-    return postValidate(optimize(apply_rules(preprocessResult(
-                validate(inp), preprocessAux()))));
+    return postValidate(optimize(apply_rules(
+                        preprocessResult(
+                        validate(inp), preprocessAux()))));
 }
 
 using namespace std;

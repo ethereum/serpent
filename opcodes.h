@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include "util.h"
 
 class Mapping {
     public:
