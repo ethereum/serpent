@@ -84,8 +84,8 @@ Mapping mapping[] = {
     Mapping("LOG4", 0xa4, 6, 0),
     Mapping("CREATE", 0xf0, 3, 1),
     Mapping("CALL", 0xf1, 7, 1),
-    Mapping("RETURN", 0xf2, 2, 0),
-    Mapping("CALL_CODE", 0xf3, 7, 1),
+    Mapping("CALLCODE", 0xf2, 7, 1),
+    Mapping("RETURN", 0xf3, 2, 0),
     Mapping("SUICIDE", 0xff, 1, 0),
     Mapping("---END---", 0x00, 0, 0),
 };

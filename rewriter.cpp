@@ -19,7 +19,7 @@ std::string valid[][3] = {
     { "alloc", "1", "1" },
     { "array", "1", "1" },
     { "call", "2", tt256 },
-    { "call_code", "2", tt256 },
+    { "callcode", "2", tt256 },
     { "create", "1", "4" },
     { "getch", "2", "2" },
     { "setch", "3", "3" },
@@ -397,7 +397,7 @@ Node dotTransform(Node node, preprocessAux aux) {
             if (arg.args[0].val == "as")
                 as = arg.args[1].val;
             if (arg.args[0].val == "call" && arg.args[1].val == "code")
-                op = "call_code";
+                op = "callcode";
             if (arg.args[0].val == "gas")
                 kwargs["gas"] = arg.args[1];
             if (arg.args[0].val == "value")
