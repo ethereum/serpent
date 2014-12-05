@@ -128,8 +128,6 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix,
 // Note that globalExterns and globalExternSigs may be ambiguous
 // Also, a null signature implies an infinite tail of integers
 preprocessResult preprocess(Node inp) {
-    Node x = inp.args[0];
-    inp = x;
     Metadata m = inp.metadata;
     if (inp.val != "seq")
         inp = astnode("seq", inp, m);
@@ -226,6 +224,13 @@ preprocessResult preprocess(Node inp) {
                 o.push_back(dollarize(obj.args[1]));
                 out.customMacros.push_back(o);
             }
+        }
+        // Variable types
+        else if (obj.val == "type") {
+            std::string typeName = obj.args[0].args[0].val;
+            std::vector<Node> vars = obj.args[0].args[1].args;
+            for (unsigned i = 0; i < vars.size(); i++)
+                out.types[vars[i].val] = typeName;
         }
         // Storage variables/structures
         else if (obj.val == "data") {

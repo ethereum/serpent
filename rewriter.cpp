@@ -179,23 +179,31 @@ std::string macros[][2] = {
     },
     {
         "(sha256 $x)",
-        "(with $1 (alloc 64) (seq (pop (~call 101 2 0 (add (get $1) 32) 32 (get $1) 32)) (get (get $1))))"
+        "(with $1 (alloc 64) (seq (mstore (add (get $1) 32) $x) (pop (~call 101 2 0 (add (get $1) 32) 32 (get $1) 32)) (mload (get $1))))"
+    },
+    {
+        "(sha256 $arr (= chars $sz))",
+        "(with $1 (alloc 32) (seq (pop (~call 101 2 0 $arr $sz (get $1) 32)) (mload (get $1))))"
     },
     {
         "(sha256 $arr $sz)",
-        "(with $1 (alloc 32) (seq (pop (~call 101 2 0 $arr (mul 32 $sz) (get $1) 32)) (get (get $1))))"
+        "(with $1 (alloc 32) (seq (pop (~call 101 2 0 $arr (mul 32 $sz) (get $1) 32)) (mload (get $1))))"
     },
     {
         "(ripemd160 $x)",
-        "(with $1 (alloc 64) (seq (pop (~call 101 3 0 (add (get $1) 32) 32 (get $1) 32)) (get (get $1))))"
+        "(with $1 (alloc 64) (seq (mstore (add (get $1) 32) $x) (pop (~call 101 3 0 (add (get $1) 32) 32 (get $1) 32)) (mload (get $1))))"
+    },
+    {
+        "(ripemd160 $arr (= chars $sz))",
+        "(with $1 (alloc 32) (seq (pop (~call 101 3 0 $arr $sz (mload $1) 32)) (mload (get $1))))"
     },
     {
         "(ripemd160 $arr $sz)",
-        "(with $1 (alloc 32) (seq (pop (~call 101 3 0 $arr (mul 32 $sz) (get $1) 32)) (get (get $1))))"
+        "(with $1 (alloc 32) (seq (pop (~call 101 3 0 $arr (mul 32 $sz) (get $1) 32)) (mload (get $1))))"
     },
     {
         "(ecrecover $h $v $r $s)",
-        "(with $1 (alloc 160) (seq (set (get $1) $h) (set (add (get $1) 32) $v) (set (add (get $1) 64) $r) (set (add (get $1) 96) $s) (pop (~call 101 1 0 (get $1) 128 (add (get $1 128)) 32)) (get (add (get $1) 128))))"
+        "(with $1 (alloc 160) (seq (mstore (get $1) $h) (mstore (add (get $1) 32) $v) (mstore (add (get $1) 64) $r) (mstore (add (get $1) 96) $s) (pop (~call 101 1 0 (get $1) 128 (add (get $1 128)) 32)) (mload (add (get $1) 128))))"
     },
     {
         "(inset $x)",
@@ -518,18 +526,19 @@ Node storageTransform(Node node, preprocessAux aux,
     }
     Node o;
     if (mapstyle) {
+        std::string t = "_temp_"+mkUniqueToken();
         std::vector<Node> sub;
         for (unsigned i = 0; i < terms.size(); i++)
             sub.push_back(asn("mstore",
                               asn("add",
                                   tkn(utd(i * 32), m),
-                                  asn("get", tkn("$pos", m), m),
+                                  asn("get", tkn(t+"pos", m), m),
                                   m),
                               terms[i],
                               m));
-        sub.push_back(tkn("$pos", m));
+        sub.push_back(tkn(t+"pos", m));
         Node main = asn("with",
-                        tkn("$pos", m),
+                        tkn(t+"pos", m),
                         asn("alloc", tkn(utd(terms.size() * 32), m), m),
                         asn("seq", sub, m),
                         m);
@@ -556,7 +565,8 @@ Node storageTransform(Node node, preprocessAux aux,
 
 
 // Recursively applies rewrite rules
-Node apply_rules(preprocessResult pr) {
+std::pair<Node, bool> apply_rules_iter(preprocessResult pr) {
+    bool changed = false;
     Node node = pr.first;
     // If the rewrite rules have not yet been parsed, parse them
     if (!nodeMacros.size()) {
@@ -581,15 +591,22 @@ Node apply_rules(preprocessResult pr) {
                            node.metadata);
         }
     }
-    // Special storage transformation
-    if (node.val == "comment") {
-        return node;
+    // Do nothing to macros
+    if (node.val == "macro") {
+        return std::pair<Node, bool>(node, changed);
     }
+    // Ignore comments
+    if (node.val == "comment") {
+        return std::pair<Node, bool>(node, changed);
+    }
+    // Special storage transformation
     if (isNodeStorageVariable(node)) {
         node = storageTransform(node, pr.second);
+        changed = true;
     }
     if (node.val == "ref" && isNodeStorageVariable(node.args[0])) {
         node = storageTransform(node.args[0], pr.second, false, true);
+        changed = true;
     }
     if (node.val == "=" && isNodeStorageVariable(node.args[0])) {
         Node t = storageTransform(node.args[0], pr.second);
@@ -599,6 +616,7 @@ Node apply_rules(preprocessResult pr) {
             o.push_back(node.args[1]);
             node = astnode("sstore", o, node.metadata);
         }
+        changed = true;
     }
     // Main code
 	unsigned pos = 0;
@@ -609,6 +627,7 @@ Node apply_rules(preprocessResult pr) {
         }
         else if (node.type == ASTNODE && node.val == synonyms[pos][0]) {
             node.val = synonyms[pos][1];
+            changed = true;
         }
         pos++;
     }
@@ -616,48 +635,58 @@ Node apply_rules(preprocessResult pr) {
         std::vector<Node> macro = pos < nodeMacros.size() 
                 ? nodeMacros[pos] 
                 : pr.second.customMacros[pos - nodeMacros.size()];
-        Node pattern = macro[0];
-        matchResult mr = match(pattern, node);
+        matchResult mr = match(macro[0], node);
         if (mr.success) {
             Node pattern2 = macro[1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
-            return apply_rules(preprocessResult(node, pr.second));
+            std::pair<Node, bool> o =
+                 apply_rules_iter(preprocessResult(node, pr.second));
+            o.second = true;
+            return o;
         }
     }
     // Special transformations
     if (node.val == "outer") {
-        pr = preprocess(node);
-        node = pr.first;
+        node = apply_rules(preprocess(node.args[0]));
+        changed = true;
     }
-    if (node.val == "array_lit")
+    if (node.val == "array_lit") {
         node = array_lit_transform(node);
+        changed = true;
+    }
     if (node.val == "fun" && node.args[0].val == ".") {
         node = dotTransform(node, pr.second);
+        changed = true;
     }
     if (node.type == ASTNODE) {
 		unsigned i = 0;
         if (node.val == "set" || node.val == "ref" 
                 || node.val == "get" || node.val == "with") {
-            node.args[0].val = "'" + node.args[0].val;
+            if (node.args[0].val.size() > 0 && node.args[0].val[0] != '\'' 
+                    && node.args[0].type == TOKEN && node.args[0].val[0] != '$') {
+                node.args[0].val = "'" + node.args[0].val;
+                changed = true;
+            }
+            if (node.val == "set" || node.val == "with" || node.val == "ref") {
+                std::string v = node.args[0].val.substr(1);
+                if (node.args[0].type == TOKEN && pr.second.types.count(v)) {
+                    node.args[0] = asn(pr.second.types[v], node.args[0], node.metadata);
+                    changed = true;
+                }
+            }
             i = 1;
         }
         else if (node.val == "arglen") {
             node.val = "get";
             node.args[0].val = "'_len_" + node.args[0].val;
             i = 1;
-        }
-        else if (node.val == "scope") {
-            node.args[0].val =
-                "'" + node.args[0].val;
-            node.args[1] = 
-                apply_rules(preprocessResult(node.args[1], pr.second));
-            i = 2;
-        }
-        else if (false) {
+            changed = true;
         }
         for (; i < node.args.size(); i++) {
-            node.args[i] =
-                apply_rules(preprocessResult(node.args[i], pr.second));
+            std::pair<Node, bool> r =
+                apply_rules_iter(preprocessResult(node.args[i], pr.second));
+            node.args[i] = r.first;
+            changed = changed || r.second;
         }
     }
     else if (node.type == TOKEN && !isNumberLike(node)) {
@@ -679,21 +708,44 @@ Node apply_rules(preprocessResult pr) {
                 o.push_back(token(t, node.metadata));
             }
             node = astnode("array_lit", o, node.metadata);
-            node = apply_rules(preprocessResult(node, pr.second));
+            std::pair<Node, bool> r = 
+                apply_rules_iter(preprocessResult(node, pr.second));
+            node = r.first;
+            changed = true;
         }
-        else {
+        else if (node.val.size() && node.val[0] != '\'' && node.val[0] != '$') {
             node.val = "'" + node.val;
             std::vector<Node> args;
             args.push_back(node);
-            node = astnode("get", args, node.metadata);
+            std::string v = node.val.substr(1);
+            if (pr.second.types.count(v)) {
+                node = asn(pr.second.types[v],
+                           asn("get", node, node.metadata),
+                           node.metadata);
+            }
+            else {
+                node = astnode("get", args, node.metadata);
+            }
+            changed = true;
         }
     }
-    // This allows people to use ~x as a way of having functions with the same
-    // name and arity as macros; the idea is that ~x is a "final" form, and 
-    // should not be remacroed, but it is converted back at the end
-    if (node.type == ASTNODE && node.val[0] == '~')
-        node.val = node.val.substr(1);
-    return node;
+    return std::pair<Node, bool>(node, changed);
+}
+
+Node apply_rules(preprocessResult pr) {
+    for (unsigned i = 0; i < pr.second.customMacros.size(); i++) {
+        pr.second.customMacros[i][0] =
+            apply_rules(preprocessResult(pr.second.customMacros[i][0], preprocessAux()));
+    }
+    while (1) {
+        //std::cerr << printSimple(pr.first) << 
+        // " " << pr.second.customMacros.size() << "\n";
+        std::pair<Node, bool> r = apply_rules_iter(pr);
+        if (!r.second) {
+            return r.first;
+        }
+        pr.first = r.first;
+    }
 }
 
 Node validate(Node inp) {
@@ -718,6 +770,12 @@ Node validate(Node inp) {
 }
 
 Node postValidate(Node inp) {
+    // This allows people to use ~x as a way of having functions with the same
+    // name and arity as macros; the idea is that ~x is a "final" form, and 
+    // should not be remacroed, but it is converted back at the end
+    if (inp.val.size() > 0 && inp.val[0] == '~') {
+        inp.val = inp.val.substr(1);
+    }
     if (inp.type == ASTNODE) {
         if (inp.val == ".")
             err("Invalid object member (ie. a foo.bar not mapped to anything)",
@@ -732,20 +790,15 @@ Node postValidate(Node inp) {
             // do nothing
         }
         else err ("Invalid argument count or LLL function: "+inp.val, inp.metadata);
-        for (unsigned i = 0; i < inp.args.size(); i++)
-            postValidate(inp.args[i]);
+        for (unsigned i = 0; i < inp.args.size(); i++) {
+            inp.args[i] = postValidate(inp.args[i]);
+        }
     }
     return inp;
 }
 
-Node outerWrap(Node inp) {
-    return astnode("outer", inp, inp.metadata);
-}
-
 Node rewrite(Node inp) {
-    return postValidate(optimize(apply_rules(
-                preprocessResult(
-                validate(outerWrap(inp)), preprocessAux()))));
+    return postValidate(optimize(apply_rules(preprocess(inp))));
 }
 
 Node rewriteChunk(Node inp) {

@@ -261,7 +261,8 @@ bool bodied(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "while"
         || tok == "with" || tok == "def" || tok == "extern"
         || tok == "data" || tok == "assert" || tok == "return"
-        || tok == "fun" || tok == "scope" || tok == "macro";
+        || tok == "fun" || tok == "scope" || tok == "macro"
+        || tok == "type";
 }
 
 // Is this a command that takes an argument as a child block?

@@ -35,6 +35,11 @@ std::string validFunctions[][3] = {
     { "ref", "1", "1" },
     { "declare", "1", tt256 },
     { "with", "3", "3" },
+    { "outer", "1", "1" },
+    { "mcopy", "3", "3" },
+    { "unsafe_mcopy", "3", "3" },
+    { "save", "3", "3" },
+    { "load", "2", "2" },
     { "---END---", "", "" } //Keep this line at the end of the list
 };
 

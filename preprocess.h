@@ -29,6 +29,7 @@ class preprocessAux {
         std::map<std::string, std::map<std::string, int> > localExterns;
         std::map<std::string, std::map<std::string, std::string> > localExternSigs;
         std::vector<std::vector<Node> > customMacros;
+        std::map<std::string, std::string> types;
         svObj storageVars;
 };
 
