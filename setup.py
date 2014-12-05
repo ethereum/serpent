@@ -27,7 +27,7 @@ setup(
             'serpent_pyext',         # Python name of the module
             ['bignum.cpp', 'util.cpp', 'tokenize.cpp',
              'lllparser.cpp', 'parser.cpp', 'functions.cpp',
-             'optimize.cpp',
+             'optimize.cpp', 'opcodes.cpp',
              'rewriteutils.cpp', 'preprocess.cpp', 'rewriter.cpp',
              'compiler.cpp', 'funcs.cpp', 'pyserpent.cpp']
         )],

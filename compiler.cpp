@@ -322,12 +322,10 @@ programData opcodeify(Node node,
     else {
         std::vector<Node>  subs2;
         int depth = opinputs(upperCase(node.val));
-        if (node.val != "debug") {
-            if (depth == -1)
-                err("Not a function or opcode: "+node.val, m);
-            if ((int)node.args.size() != depth)
-                err("Invalid arity for "+node.val, m);
-        }
+        if (depth == -1)
+            err("Not a function or opcode: "+node.val, m);
+        if ((int)node.args.size() != depth)
+            err("Invalid arity for "+node.val, m);
         for (int i = node.args.size() - 1; i >= 0; i--) {
             programVerticalAux vaux2 = vaux;
             vaux2.height = vaux.height - i - 1 + node.args.size();
@@ -337,13 +335,8 @@ programData opcodeify(Node node,
                 err("Input "+unsignedToDecimal(i)+" has arity 0", sub.code.metadata);
             subs2.push_back(sub.code);
         }
-        if (node.val == "debug") {
-            subs2.push_back(token("DUP"+unsignedToDecimal(node.args.size()), m));
-            for (int i = 0; i <= (int)node.args.size(); i++)
-                subs2.push_back(token("POP", m));
-        }
-        else subs2.push_back(token(upperCase(node.val), m));
-        int outdepth = node.val == "debug" ? 0 : opoutputs(upperCase(node.val));
+        subs2.push_back(token(upperCase(node.val), m));
+        int outdepth = opoutputs(upperCase(node.val));
         return pd(aux, astnode("_", subs2, m), outdepth);
     }
 }

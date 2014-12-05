@@ -261,7 +261,7 @@ bool bodied(std::string tok) {
     return tok == "if" || tok == "elif" || tok == "while"
         || tok == "with" || tok == "def" || tok == "extern"
         || tok == "data" || tok == "assert" || tok == "return"
-        || tok == "fun" || tok == "scope";
+        || tok == "fun" || tok == "scope" || tok == "macro";
 }
 
 // Is this a command that takes an argument as a child block?
@@ -270,7 +270,7 @@ bool childBlocked(std::string tok) {
         || tok == "code" || tok == "shared" || tok == "init"
         || tok == "while" || tok == "repeat" || tok == "for"
         || tok == "with" || tok == "def" || tok == "fun"
-        || tok == "scope";
+        || tok == "scope" || tok == "macro";
 }
 
 // Are the two commands meant to continue each other? 

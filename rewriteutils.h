@@ -7,6 +7,13 @@
 #include <map>
 #include "util.h"
 
+// Valid functions and their min and max argument counts
+extern std::string validFunctions[][3];
+
+extern std::map<std::string, bool> vfMap;
+
+bool isValidFunctionName(std::string f);
+
 // Converts deep array access into ordered list of the arguments
 // along the descent
 std::vector<Node> listfyStorageAccess(Node node);
@@ -40,5 +47,8 @@ Node subst(Node pattern,
            Metadata m);
 
 Node withTransform(Node source);
+
+// Add dollar signs to all variables (for macroing)
+Node dollarize(Node node);
 
 #endif

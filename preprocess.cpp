@@ -9,6 +9,7 @@
 #include "optimize.h"
 #include "preprocess.h"
 #include "functions.h"
+#include "opcodes.h"
 
 // Convert a function of the form (def (f x y z) (do stuff)) into
 // (if (first byte of ABI is correct) (seq (setup x y z) (do stuff)))
@@ -187,6 +188,43 @@ preprocessResult preprocess(Node inp) {
                     out.localExterns[externName][v] = i;
                     out.localExternSigs[externName][v] = "";
                 }
+            }
+        }
+        // Custom macros
+        else if (obj.val == "macro") {
+            // Rules for valid macros:
+            //
+            // There are only four categories of valid macros:
+            //
+            // 1. a macro where the outer function is something
+            // which is NOT an existing valid function/extern/datum
+            // 2. a macro of the form set(c(x), d) where c must NOT
+            // be an existing valid function/extern/datum
+            // 3. something of the form access(c(x)), where c must NOT
+            // be an existing valid function/extern/datum
+            // 4. something of the form set(access(c(x)), d) where c must
+            // NOT be an existing valid function/extern/datum
+            bool valid = false;
+            Node pattern = obj.args[0];
+            if (opcode(pattern.val) < 0 && !isValidFunctionName(pattern.val))
+                valid = true;
+            if (pattern.val == "set" &&
+                    opcode(pattern.args[0].val) < 0 &&
+                    !isValidFunctionName(pattern.args[0].val))
+                valid = true;
+            if (pattern.val == "access" &&
+                    opcode(pattern.args[0].val) < 0 &&
+                    !isValidFunctionName(pattern.args[0].val))
+            if (pattern.val == "set" &&
+                    pattern.args[0].val == "access" &&
+                    opcode(pattern.args[0].args[0].val) < 0 &&
+                    !isValidFunctionName(pattern.args[0].args[0].val))
+                valid = true;
+            if (valid) {
+                std::vector<Node> o;
+                o.push_back(dollarize(obj.args[0]));
+                o.push_back(dollarize(obj.args[1]));
+                out.customMacros.push_back(o);
             }
         }
         // Storage variables/structures

@@ -8,6 +8,49 @@
 #include "rewriteutils.h"
 #include "optimize.h"
 
+// Valid functions and their min and max argument counts
+std::string validFunctions[][3] = {
+    { "if", "2", "3" },
+    { "unless", "2", "2" },
+    { "while", "2", "2" },
+    { "until", "2", "2" },
+    { "alloc", "1", "1" },
+    { "array", "1", "1" },
+    { "call", "2", tt256 },
+    { "callcode", "2", tt256 },
+    { "create", "1", "4" },
+    { "getch", "2", "2" },
+    { "setch", "3", "3" },
+    { "sha3", "1", "2" },
+    { "return", "1", "2" },
+    { "inset", "1", "1" },
+    { "min", "2", "2" },
+    { "max", "2", "2" },
+    { "array_lit", "0", tt256 },
+    { "seq", "0", tt256 },
+    { "log", "1", "6" },
+    { "outer", "1", "1" },
+    { "set", "2", "2" },
+    { "get", "1", "1" },
+    { "ref", "1", "1" },
+    { "declare", "1", tt256 },
+    { "with", "3", "3" },
+    { "---END---", "", "" } //Keep this line at the end of the list
+};
+
+std::map<std::string, bool> vfMap;
+
+// Is a function name one of the valid functions above?
+bool isValidFunctionName(std::string f) {
+    if (vfMap.size() == 0) {
+        for (int i = 0; ; i++) {
+            if (validFunctions[i][0] == "---END---") break;
+            vfMap[validFunctions[i][0]] = true;
+        }
+    }
+    return vfMap.count(f);
+}
+
 // Cool function for debug purposes (named cerrStringList to make
 // all prints searchable via 'cerr')
 void cerrStringList(std::vector<std::string> s, std::string suffix) {
@@ -160,4 +203,16 @@ Node withTransform (Node source) {
     if (o.val != "--")
         flipargs.push_back(o);
     return asn("seq", flipargs, m);
+}
+
+// Add dollar signs to macros
+Node dollarize(Node node) {
+    if (node.type == TOKEN) {
+        if (isNumberLike(node)) return tkn(node.val);
+        else return tkn("$"+node.val);
+    }
+    std::vector<Node> o;
+    for (unsigned i = 0; i < node.args.size(); i++)
+        o.push_back(dollarize(node.args[i]));
+    return asn(node.val, o);
 }

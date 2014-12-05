@@ -9,32 +9,7 @@
 #include "rewriteutils.h"
 #include "preprocess.h"
 #include "functions.h"
-
-// Valid functions and their min and max argument counts
-std::string valid[][3] = {
-    { "if", "2", "3" },
-    { "unless", "2", "2" },
-    { "while", "2", "2" },
-    { "until", "2", "2" },
-    { "alloc", "1", "1" },
-    { "array", "1", "1" },
-    { "call", "2", tt256 },
-    { "callcode", "2", tt256 },
-    { "create", "1", "4" },
-    { "getch", "2", "2" },
-    { "setch", "3", "3" },
-    { "sha3", "1", "2" },
-    { "return", "1", "2" },
-    { "inset", "1", "1" },
-    { "min", "2", "2" },
-    { "max", "2", "2" },
-    { "array_lit", "0", tt256 },
-    { "seq", "0", tt256 },
-    { "log", "1", "6" },
-    { "outer", "1", "1" },
-    { "set", "2", "2" },
-    { "---END---", "", "" } //Keep this line at the end of the list
-};
+#include "opcodes.h"
 
 // Rewrite rules
 std::string macros[][2] = {
@@ -637,11 +612,14 @@ Node apply_rules(preprocessResult pr) {
         }
         pos++;
     }
-    for (pos = 0; pos < nodeMacros.size(); pos++) {
-        Node pattern = nodeMacros[pos][0];
+    for (pos = 0; pos < nodeMacros.size() + pr.second.customMacros.size(); pos++) {
+        std::vector<Node> macro = pos < nodeMacros.size() 
+                ? nodeMacros[pos] 
+                : pr.second.customMacros[pos - nodeMacros.size()];
+        Node pattern = macro[0];
         matchResult mr = match(pattern, node);
         if (mr.success) {
-            Node pattern2 = nodeMacros[pos][1];
+            Node pattern2 = macro[1];
             node = subst(pattern2, mr.map, prefix, node.metadata);
             return apply_rules(preprocessResult(node, pr.second));
         }
@@ -719,15 +697,16 @@ Node apply_rules(preprocessResult pr) {
 }
 
 Node validate(Node inp) {
+    Metadata m = inp.metadata;
     if (inp.type == ASTNODE) {
         int i = 0;
-        while(valid[i][0] != "---END---") {
-            if (inp.val == valid[i][0]) {
+        while(validFunctions[i][0] != "---END---") {
+            if (inp.val == validFunctions[i][0]) {
                 std::string sz = unsignedToDecimal(inp.args.size());
-                if (decimalGt(valid[i][1], sz)) {
+                if (decimalGt(validFunctions[i][1], sz)) {
                     err("Too few arguments for "+inp.val, inp.metadata);   
                 }
-                if (decimalGt(sz, valid[i][2])) {
+                if (decimalGt(sz, validFunctions[i][2])) {
                     err("Too many arguments for "+inp.val, inp.metadata);   
                 }
             }
@@ -743,6 +722,16 @@ Node postValidate(Node inp) {
         if (inp.val == ".")
             err("Invalid object member (ie. a foo.bar not mapped to anything)",
                 inp.metadata);
+        else if (opcode(inp.val) >= 0) {
+            if ((signed)inp.args.size() < opinputs(inp.val))
+                err("Too few arguments for "+inp.val, inp.metadata);
+            if ((signed)inp.args.size() > opinputs(inp.val))
+                err("Too many arguments for "+inp.val, inp.metadata);
+        }
+        else if (isValidLLLFunc(inp.val, inp.args.size())) {
+            // do nothing
+        }
+        else err ("Invalid argument count or LLL function: "+inp.val, inp.metadata);
         for (unsigned i = 0; i < inp.args.size(); i++)
             postValidate(inp.args[i]);
     }
