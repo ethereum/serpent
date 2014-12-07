@@ -48,7 +48,4 @@ Node subst(Node pattern,
 
 Node withTransform(Node source);
 
-// Add dollar signs to all variables (for macroing)
-Node dollarize(Node node);
-
 #endif

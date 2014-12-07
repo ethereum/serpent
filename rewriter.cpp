@@ -62,6 +62,14 @@ std::string macros[][2] = {
         "(with $1 $a (with $2 $b (if (lt $1 $2) $2 $1)))"
     },
     {
+        "(smin $a $b)",
+        "(with $1 $a (with $2 $b (if (slt $1 $2) $1 $2)))"
+    },
+    {
+        "(smax $a $b)",
+        "(with $1 $a (with $2 $b (if (slt $1 $2) $2 $1)))"
+    },
+    {
         "(if $cond $do (else $else))",
         "(if $cond $do $else)"
     },
@@ -738,7 +746,7 @@ Node apply_rules(preprocessResult pr) {
             apply_rules(preprocessResult(pr.second.customMacros[i][0], preprocessAux()));
     }
     while (1) {
-        //std::cerr << printSimple(pr.first) << 
+        //std::cerr << printAST(pr.first) << 
         // " " << pr.second.customMacros.size() << "\n";
         std::pair<Node, bool> r = apply_rules_iter(pr);
         if (!r.second) {

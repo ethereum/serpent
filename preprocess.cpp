@@ -166,8 +166,9 @@ preprocessResult preprocess(Node inp) {
         }
         // Extern declarations
         else if (obj.val == "extern") {
-            std::string externName = obj.args[0].args[0].val;
-            Node al = obj.args[0].args[1];
+            std::cerr << "0\n";
+            std::string externName = obj.args[0].val;
+            Node al = obj.args[1];
             if (!out.localExterns.count(externName))
                 out.localExterns[externName] = std::map<std::string, int>();
             for (unsigned i = 0; i < al.args.size(); i++) {
@@ -187,6 +188,7 @@ preprocessResult preprocess(Node inp) {
                     out.localExternSigs[externName][v] = "";
                 }
             }
+            std::cerr << "1\n";
         }
         // Custom macros
         else if (obj.val == "macro") {
@@ -220,15 +222,15 @@ preprocessResult preprocess(Node inp) {
                 valid = true;
             if (valid) {
                 std::vector<Node> o;
-                o.push_back(dollarize(obj.args[0]));
-                o.push_back(dollarize(obj.args[1]));
+                o.push_back(obj.args[0]);
+                o.push_back(obj.args[1]);
                 out.customMacros.push_back(o);
             }
         }
         // Variable types
         else if (obj.val == "type") {
-            std::string typeName = obj.args[0].args[0].val;
-            std::vector<Node> vars = obj.args[0].args[1].args;
+            std::string typeName = obj.args[0].val;
+            std::vector<Node> vars = obj.args[1].args;
             for (unsigned i = 0; i < vars.size(); i++)
                 out.types[vars[i].val] = typeName;
         }

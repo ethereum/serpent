@@ -209,15 +209,3 @@ Node withTransform (Node source) {
         flipargs.push_back(o);
     return asn("seq", flipargs, m);
 }
-
-// Add dollar signs to macros
-Node dollarize(Node node) {
-    if (node.type == TOKEN) {
-        if (isNumberLike(node)) return tkn(node.val);
-        else return tkn("$"+node.val);
-    }
-    std::vector<Node> o;
-    for (unsigned i = 0; i < node.args.size(); i++)
-        o.push_back(dollarize(node.args[i]));
-    return asn(node.val, o);
-}

@@ -265,15 +265,6 @@ bool bodied(std::string tok) {
         || tok == "type";
 }
 
-// Is this a command that takes an argument as a child block?
-bool childBlocked(std::string tok) {
-    return tok == "if" || tok == "elif" || tok == "else"
-        || tok == "code" || tok == "shared" || tok == "init"
-        || tok == "while" || tok == "repeat" || tok == "for"
-        || tok == "with" || tok == "def" || tok == "fun"
-        || tok == "scope" || tok == "macro";
-}
-
 // Are the two commands meant to continue each other? 
 bool bodiedContinued(std::string prev, std::string tok) {
     return (prev == "if" && tok == "elif")
@@ -316,8 +307,11 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
                 tokens2.push_back(tokens[j]);
             }
         }
-        if (tokens2.size() > 0 && tokens2.back().val == ":")
+        bool expectingChildBlock = false;
+        if (tokens2.size() > 0 && tokens2.back().val == ":") {
             tokens2.pop_back();
+            expectingChildBlock = true;
+        }
         // Parse current line
         Node out = parseSerpentTokenStream(tokens2);
         // Parse child block
@@ -349,7 +343,7 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
                 out = astnode(tokens[0].val, out, out.metadata);
         }
         // Add child block to AST
-        if (childBlocked(tokens[0].val)) {
+        if (expectingChildBlock) {
             if (cbe)
                 err("Expected indented child block!", out.metadata);
             out.type = ASTNODE;
@@ -359,6 +353,12 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         else if (!cbe)
             err("Did not expect indented child block!", out.metadata);
+        // Convert top-level colon expressions into non-colon expressions;
+        // makes if statements and the like equivalent indented or not
+        if (out.val == ":" && out.args[0].type == TOKEN)
+            out = asn(out.args[0].val, out.args[1], out.metadata);
+        if (bodied(tokens[0].val) && out.args[0].val == ":")
+            out = asn(tokens[0].val, out.args[0].args);
         if (o.size() == 0 || o.back().type == TOKEN) {
             o.push_back(out);
             continue;
