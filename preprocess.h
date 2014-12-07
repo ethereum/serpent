@@ -16,6 +16,17 @@ struct svObj {
     std::string globalOffset;
 };
 
+class rewriteRule {
+    public:
+        rewriteRule(Node p, Node s) {
+            pattern = p;
+            substitution = s;
+        }
+        Node pattern;
+        Node substitution;
+};
+
+
 // Preprocessing result storing object
 class preprocessAux {
     public:
@@ -28,7 +39,7 @@ class preprocessAux {
         std::map<std::string, std::string> globalExternSigs;
         std::map<std::string, std::map<std::string, int> > localExterns;
         std::map<std::string, std::map<std::string, std::string> > localExternSigs;
-        std::vector<std::vector<Node> > customMacros;
+        std::vector<rewriteRule> customMacros;
         std::map<std::string, std::string> types;
         svObj storageVars;
 };

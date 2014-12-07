@@ -235,7 +235,7 @@ Node treefy(std::vector<Node> stream) {
         err("Output blank", Metadata());
     }
     else if (oq.size() > 1) {
-        err("Multiple expressions or unclosed bracket", oq[1].metadata);
+        return asn("multi", oq, oq[0].metadata);
     }
 
 	return oq[0];
@@ -299,13 +299,11 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         // Tokenize current line
         std::vector<Node> tokens = tokenize(main.substr(sp), metadata);
-        // Remove extraneous tokens, including if / elif
+        // Remove comments
         std::vector<Node> tokens2;
 		for (unsigned j = 0; j < tokens.size(); j++) {
             if (tokens[j].val == "#" || tokens[j].val == "//") break;
-            if (j >= 1 || !bodied(tokens[j].val)) {
-                tokens2.push_back(tokens[j]);
-            }
+            tokens2.push_back(tokens[j]);
         }
         bool expectingChildBlock = false;
         if (tokens2.size() > 0 && tokens2.back().val == ":") {
@@ -335,13 +333,6 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
 		for (unsigned i = 0; i < childBlock.size(); i++) {
             if (childBlock[i].length() > 0) { cbe = false; break; }
         }
-        // Bring back if / elif into AST
-        if (bodied(tokens[0].val)) {
-            if (out.val == "id")
-                out = astnode(tokens[0].val, out.args, out.metadata);
-            else
-                out = astnode(tokens[0].val, out, out.metadata);
-        }
         // Add child block to AST
         if (expectingChildBlock) {
             if (cbe)
@@ -353,12 +344,37 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         else if (!cbe)
             err("Did not expect indented child block!", out.metadata);
+        else if (out.args.size() && out.args[out.args.size() - 1].val == ":") {
+            Node n = out.args[out.args.size() - 1];
+            out.args.pop_back();
+            out.args.push_back(n.args[0]);
+            out.args.push_back(n.args[1]);
+        }
+        // Bring back if / elif into AST
+        if (bodied(tokens[0].val)) {
+            if (out.val != "multi") {
+                // token not being used in bodied form
+            }
+            else if (out.args[0].val == "id")
+                out = astnode(tokens[0].val, out.args[1].args, out.metadata);
+            else if (out.args[0].type == TOKEN) {
+                std::vector<Node> out2;
+                for (unsigned i = 1; i < out.args.size(); i++)
+                    out2.push_back(out.args[i]);
+                out = astnode(tokens[0].val, out2, out.metadata);
+            }
+            else
+                out = astnode("fun", out.args, out.metadata);
+        }
+        // Multi not supported
+        if (out.val == "multi")
+            err("Multiple expressions or unclosed bracket", out.metadata);
         // Convert top-level colon expressions into non-colon expressions;
         // makes if statements and the like equivalent indented or not
-        if (out.val == ":" && out.args[0].type == TOKEN)
-            out = asn(out.args[0].val, out.args[1], out.metadata);
-        if (bodied(tokens[0].val) && out.args[0].val == ":")
-            out = asn(tokens[0].val, out.args[0].args);
+        //if (out.val == ":" && out.args[0].type == TOKEN)
+        //    out = asn(out.args[0].val, out.args[1], out.metadata);
+        //if (bodied(tokens[0].val) && out.args[0].val == ":")
+        //    out = asn(tokens[0].val, out.args[0].args);
         if (o.size() == 0 || o.back().type == TOKEN) {
             o.push_back(out);
             continue;

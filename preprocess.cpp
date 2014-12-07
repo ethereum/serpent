@@ -127,7 +127,7 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix,
 //
 // Note that globalExterns and globalExternSigs may be ambiguous
 // Also, a null signature implies an infinite tail of integers
-preprocessResult preprocess(Node inp) {
+preprocessResult preprocessInit(Node inp) {
     Metadata m = inp.metadata;
     if (inp.val != "seq")
         inp = astnode("seq", inp, m);
@@ -206,6 +206,7 @@ preprocessResult preprocess(Node inp) {
             // NOT be an existing valid function/extern/datum
             bool valid = false;
             Node pattern = obj.args[0];
+            Node substitution = obj.args[1];
             if (opcode(pattern.val) < 0 && !isValidFunctionName(pattern.val))
                 valid = true;
             if (pattern.val == "set" &&
@@ -221,10 +222,7 @@ preprocessResult preprocess(Node inp) {
                     !isValidFunctionName(pattern.args[0].args[0].val))
                 valid = true;
             if (valid) {
-                std::vector<Node> o;
-                o.push_back(obj.args[0]);
-                o.push_back(obj.args[1]);
-                out.customMacros.push_back(o);
+                out.customMacros.push_back(rewriteRule(pattern, substitution));
             }
         }
         // Variable types
@@ -279,4 +277,24 @@ preprocessResult preprocess(Node inp) {
     if (main.size() == 1) result = main[0];
     else result = astnode("seq", main, inp.metadata);
     return preprocessResult(result, out);
+}
+
+preprocessResult processTypes (preprocessResult pr) {
+    preprocessAux aux = pr.second;
+    if (aux.types.size() == 0) return pr;
+    Node node = pr.first;
+    if (node.type == TOKEN && aux.types.count(node.val)) {
+        node = asn(aux.types[node.val], node, node.metadata);
+    }
+    else {
+        for (unsigned i = 0; i < node.args.size(); i++) {
+            node.args[i] =
+                processTypes(preprocessResult(node.args[i], aux)).first;
+        }
+    }
+    return preprocessResult(node, aux);
+}
+
+preprocessResult preprocess(Node n) {
+    return processTypes(preprocessInit(n));
 }

@@ -302,7 +302,7 @@ std::string macros[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
-std::vector<std::vector<Node> > nodeMacros;
+std::vector<rewriteRule> nodeMacros;
 
 // Token synonyms
 std::string synonyms[][2] = {
@@ -581,9 +581,10 @@ std::pair<Node, bool> apply_rules_iter(preprocessResult pr) {
         for (int i = 0; i < 9999; i++) {
             std::vector<Node> o;
             if (macros[i][0] == "---END---") break;
-            o.push_back(parseLLL(macros[i][0]));
-            o.push_back(parseLLL(macros[i][1]));
-            nodeMacros.push_back(o);
+            nodeMacros.push_back(rewriteRule(
+                parseLLL(macros[i][0]),
+                parseLLL(macros[i][1])
+            ));
         }
     }
     // Assignment transformations
@@ -640,13 +641,12 @@ std::pair<Node, bool> apply_rules_iter(preprocessResult pr) {
         pos++;
     }
     for (pos = 0; pos < nodeMacros.size() + pr.second.customMacros.size(); pos++) {
-        std::vector<Node> macro = pos < nodeMacros.size() 
+        rewriteRule macro = pos < nodeMacros.size() 
                 ? nodeMacros[pos] 
                 : pr.second.customMacros[pos - nodeMacros.size()];
-        matchResult mr = match(macro[0], node);
+        matchResult mr = match(macro.pattern, node);
         if (mr.success) {
-            Node pattern2 = macro[1];
-            node = subst(pattern2, mr.map, prefix, node.metadata);
+            node = subst(macro.substitution, mr.map, prefix, node.metadata);
             std::pair<Node, bool> o =
                  apply_rules_iter(preprocessResult(node, pr.second));
             o.second = true;
@@ -674,13 +674,6 @@ std::pair<Node, bool> apply_rules_iter(preprocessResult pr) {
                     && node.args[0].type == TOKEN && node.args[0].val[0] != '$') {
                 node.args[0].val = "'" + node.args[0].val;
                 changed = true;
-            }
-            if (node.val == "set" || node.val == "with" || node.val == "ref") {
-                std::string v = node.args[0].val.substr(1);
-                if (node.args[0].type == TOKEN && pr.second.types.count(v)) {
-                    node.args[0] = asn(pr.second.types[v], node.args[0], node.metadata);
-                    changed = true;
-                }
             }
             i = 1;
         }
@@ -726,14 +719,7 @@ std::pair<Node, bool> apply_rules_iter(preprocessResult pr) {
             std::vector<Node> args;
             args.push_back(node);
             std::string v = node.val.substr(1);
-            if (pr.second.types.count(v)) {
-                node = asn(pr.second.types[v],
-                           asn("get", node, node.metadata),
-                           node.metadata);
-            }
-            else {
-                node = astnode("get", args, node.metadata);
-            }
+            node = astnode("get", args, node.metadata);
             changed = true;
         }
     }
@@ -742,8 +728,8 @@ std::pair<Node, bool> apply_rules_iter(preprocessResult pr) {
 
 Node apply_rules(preprocessResult pr) {
     for (unsigned i = 0; i < pr.second.customMacros.size(); i++) {
-        pr.second.customMacros[i][0] =
-            apply_rules(preprocessResult(pr.second.customMacros[i][0], preprocessAux()));
+        pr.second.customMacros[i].pattern =
+            apply_rules(preprocessResult(pr.second.customMacros[i].pattern, preprocessAux()));
     }
     while (1) {
         //std::cerr << printAST(pr.first) << 

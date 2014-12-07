@@ -32,10 +32,12 @@ class Metadata {
             file = File;
             ln = Ln;
             ch = Ch;
+            fixed = false;
         }
         std::string file;
         int ln;
         int ch;
+        bool fixed;
 };
 
 std::string mkUniqueToken();
