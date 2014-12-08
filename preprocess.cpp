@@ -166,9 +166,8 @@ preprocessResult preprocessInit(Node inp) {
         }
         // Extern declarations
         else if (obj.val == "extern") {
-            std::cerr << "0\n";
-            std::string externName = obj.args[0].val;
-            Node al = obj.args[1];
+            std::string externName = obj.args[0].args[0].val;
+            Node al = obj.args[0].args[1];
             if (!out.localExterns.count(externName))
                 out.localExterns[externName] = std::map<std::string, int>();
             for (unsigned i = 0; i < al.args.size(); i++) {
@@ -188,7 +187,6 @@ preprocessResult preprocessInit(Node inp) {
                     out.localExternSigs[externName][v] = "";
                 }
             }
-            std::cerr << "1\n";
         }
         // Custom macros
         else if (obj.val == "macro") {
