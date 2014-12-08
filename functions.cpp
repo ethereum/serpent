@@ -171,10 +171,10 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
         for (unsigned i = 0; i < varNodes.size(); i++) {
             int pos = 1 + i * 32;
             std::string prefix = (i < longVarNames.size()) ? "_len_" : "";
-            sub.push_back(asn("set",
+            sub.push_back(asn("untyped", asn("set",
                               token(prefix+varNodes[i].val, m),
                               asn("calldataload", tkn(utd(pos), m), m),
-                              m));
+                              m)));
         }
         // Copy over long variables
         if (longVarNames.size() > 0) {
@@ -186,7 +186,8 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
                 Node varlen = longVarIsArray[i] 
                     ? asn("mul", tkn("32", m), tkn("_len_"+longVarNames[i], m))
                     : tkn("_len_"+longVarNames[i], m);
-                sub2.push_back(asn("set", var, asn("alloc", varlen)));
+                sub2.push_back(asn("untyped",
+                                   asn("set", var, asn("alloc", varlen))));
                 sub2.push_back(asn("calldatacopy", var, tot, varlen));
                 sub2.push_back(asn("set", tot, asn("add", tot, varlen)));
             }

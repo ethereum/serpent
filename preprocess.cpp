@@ -279,11 +279,12 @@ preprocessResult preprocessInit(Node inp) {
 
 preprocessResult processTypes (preprocessResult pr) {
     preprocessAux aux = pr.second;
-    if (aux.types.size() == 0) return pr;
     Node node = pr.first;
     if (node.type == TOKEN && aux.types.count(node.val)) {
         node = asn(aux.types[node.val], node, node.metadata);
     }
+    else if (node.val == "untyped")
+        return preprocessResult(node.args[0], aux);
     else {
         for (unsigned i = 0; i < node.args.size(); i++) {
             node.args[i] =
