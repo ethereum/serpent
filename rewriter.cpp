@@ -644,6 +644,7 @@ std::pair<Node, bool> apply_rules_iter(preprocessResult pr) {
         rewriteRule macro = pos < nodeMacros.size() 
                 ? nodeMacros[pos] 
                 : pr.second.customMacros[pos - nodeMacros.size()];
+
         matchResult mr = match(macro.pattern, node);
         if (mr.success) {
             node = subst(macro.substitution, mr.map, prefix, node.metadata);
@@ -791,14 +792,35 @@ Node postValidate(Node inp) {
     return inp;
 }
 
-Node rewrite(Node inp) {
-    return postValidate(optimize(apply_rules(preprocess(inp))));
-}
 
 Node rewriteChunk(Node inp) {
     return postValidate(optimize(apply_rules(
                         preprocessResult(
                         validate(inp), preprocessAux()))));
+}
+
+
+Node flattenSeq(Node inp) {
+    std::vector<Node> o;
+    if (inp.val == "seq" && inp.type == ASTNODE) {
+        for (unsigned i = 0; i < inp.args.size(); i++) {
+            if (inp.args[i].val == "seq" && inp.args[i].type == ASTNODE)
+                o = extend(o, flattenSeq(inp.args[i]).args);
+            else
+                o.push_back(flattenSeq(inp.args[i]));
+        }
+    }
+    else if (inp.type == ASTNODE) {
+        for (unsigned i = 0; i < inp.args.size(); i++) {
+            o.push_back(flattenSeq(inp.args[i]));
+        }
+    }
+    else return inp;
+    return asn(inp.val, o, inp.metadata);
+}
+
+Node rewrite(Node inp) {
+    return postValidate(optimize(apply_rules(preprocess(flattenSeq(inp)))));
 }
 
 using namespace std;

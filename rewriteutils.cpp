@@ -121,6 +121,11 @@ matchResult match(Node p, Node n) {
     o.success = false;
     if (p.type == TOKEN) {
         if (p.val == n.val && n.type == TOKEN) o.success = true;
+        else if (p.val.substr(0, 2) == "'_"
+              && n.val.substr(0, 2) == "'_"
+              && n.type == TOKEN) {
+            o.success = true;
+        }
         else if (p.val[0] == '$' || p.val[0] == '@') {
             o.success = true;
             o.map[p.val.substr(1)] = n;

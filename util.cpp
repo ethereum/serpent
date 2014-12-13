@@ -263,6 +263,14 @@ void err(std::string errtext, Metadata met) {
     throw(err);
 }
 
+//Report warning
+void warn(std::string errtext, Metadata met) {
+    std::string err = "Warning (file \"" + met.file + "\", line " +
+        unsignedToDecimal(met.ln + 1) + ", char " + unsignedToDecimal(met.ch) +
+        "): " + errtext;
+    std::cerr << err << "\n";
+}
+
 //Bin to hex
 std::string binToHex(std::string inp) {
     std::string o = "";
@@ -302,4 +310,10 @@ std::vector<int> triple(int a, int b, int c) {
     v.push_back(b);
     v.push_back(c);
     return v;
+}
+
+//Extend node vector
+std::vector<Node> extend(std::vector<Node> a, std::vector<Node> b) {
+    for (unsigned i = 0; i < b.size(); i++) a.push_back(b[i]);
+    return a;
 }

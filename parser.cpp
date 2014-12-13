@@ -221,8 +221,14 @@ Node treefy(std::vector<Node> stream) {
             filename = filename.substr(1, filename.length() - 2);
             if (!exists(root + filename))
                 err("File does not exist: "+root + filename, tok.metadata);
-            oq.back().args.pop_back();
-            oq.back().args.push_back(parseSerpent(root + filename));
+            if (v == "inset") {
+                oq.pop_back();
+                oq.push_back(parseSerpent(root + filename));
+            }
+            else {
+                oq.back().args.pop_back();
+                oq.back().args.push_back(parseSerpent(root + filename));
+            }
         }
         //Useful for debugging
         //for (int i = 0; i < oq.size(); i++) {

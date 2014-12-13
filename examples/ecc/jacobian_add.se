@@ -1,32 +1,33 @@
+inset('modint.type')
 extern all: [call]
 data DOUBLE
 
 def init():
     self.DOUBLE = create('jacobian_double.se')
 
-def call(axn, axd, ayn, ayd, bxn, bxd, byn, byd):
-    if !axn and !ayn:
-        o = [bxn, bxd, byn, byd]
-    if !bxn and !byn:
-        o = [axn, axd, ayn, ayd]
+def call(m_axn, m_axd, m_ayn, m_ayd, m_bxn, m_bxd, m_byn, m_byd):
+    if !u(m_axn) and !u(m_ayn):
+        o = u4([m_bxn, m_bxd, m_byn, m_byd])
+    if !u(m_bxn) and !u(m_byn):
+        o = u4([m_axn, m_axd, m_ayn, m_ayd])
     if o:
         return(o, 4)
-    with P = -4294968273:
-        if addmod(mulmod(axn, bxd, P), P - mulmod(axd, bxn, P), P) == 0:
-            if addmod(mulmod(ayn, byd, P), P - mulmod(ayd, byn, P), P) == 0:
-                return(self.DOUBLE.call(axn, axd, ayn, ayd, outsz=4), 4)
+    with P_______P = -4294968273:
+        if m_axn * m_bxd - m_axd * m_bxn == m(0):
+            if m_ayn * m_byd - m_ayd * m_byn == m(0):
+                return(self.DOUBLE.call(u(m_axn), u(m_axd), u(m_ayn), u(m_ayd), outsz=4), 4)
             else:
                 return([0, 1, 0, 1], 4)
-        with mn = mulmod(addmod(mulmod(byn, ayd, P), P - mulmod(ayn, byd, P), P), mulmod(bxd, axd, P), P):
-            with md = mulmod(mulmod(byd, ayd, P), addmod(mulmod(bxn, axd, P), P - mulmod(axn, bxd, P), P), P):
-                with msqn = mulmod(mn, mn, P):
-                    with msqd = mulmod(md, md, P):
-                        with msqman = addmod(mulmod(msqn, axd, P), P - mulmod(msqd, axn, P), P):
-                            with msqmad = mulmod(msqd, axd, P):
-                                with xn = addmod(mulmod(msqman, bxd, P), P - mulmod(msqmad, bxn, P), P):
-                                    with xd = mulmod(msqmad, bxd, P):
-                                        with mamxn = mulmod(mn, addmod(mulmod(axn, xd, P), P - mulmod(xn, axd, P), P), P):
-                                            with mamxd = mulmod(md, mulmod(axd, xd, P), P):
-                                                with yn = addmod(mulmod(mamxn, ayd, P), P - mulmod(mamxd, ayn, P), P):
-                                                    with yd = mulmod(mamxd, ayd, P):
-                                                        return([xn, xd, yn, yd], 4)
+        with m_mn = (m_byn * m_ayd - m_ayn * m_byd) * m_axd * m_bxd:
+            with m_md = m_byd * m_ayd * (m_bxn * m_axd - m_axn * m_bxd):
+                with m_msqn = m_mn * m_mn:
+                    with m_msqd = m_md * m_md:
+                        with m_msqman = m_msqn * m_axd - m_msqd * m_axn:
+                            with m_msqmad = m_msqd * m_axd:
+                                with m_xn = m_msqman * m_bxd - m_msqmad * m_bxn:
+                                    with m_xd = m_msqmad * m_bxd:
+                                        with m_mamxn = m_mn * (m_axn * m_xd - m_xn * m_axd):
+                                            with m_mamxd = m_md * m_axd * m_xd:
+                                                with m_yn = m_mamxn * m_ayd - m_mamxd * m_ayn:
+                                                    with m_yd = m_mamxd * m_ayd:
+                                                        return(u4([m_xn, m_xd, m_yn, m_yd]), 4)

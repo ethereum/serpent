@@ -202,6 +202,8 @@ preprocessResult preprocessInit(Node inp) {
             // be an existing valid function/extern/datum
             // 4. something of the form set(access(c(x)), d) where c must
             // NOT be an existing valid function/extern/datum
+            // 5. something of the form with(c(x), d, e) where c must
+            // NOT be an existing valid function/extern/datum
             bool valid = false;
             Node pattern = obj.args[0];
             Node substitution = obj.args[1];
@@ -219,9 +221,14 @@ preprocessResult preprocessInit(Node inp) {
                     opcode(pattern.args[0].args[0].val) < 0 &&
                     !isValidFunctionName(pattern.args[0].args[0].val))
                 valid = true;
+            if (pattern.val == "with" &&
+                    opcode(pattern.args[0].val) < 0 &&
+                    !isValidFunctionName(pattern.args[0].val))
+                valid = true;
             if (valid) {
                 out.customMacros.push_back(rewriteRule(pattern, substitution));
             }
+            else warn("Macro does not fit valid template: "+printSimple(pattern), m);
         }
         // Variable types
         else if (obj.val == "type") {

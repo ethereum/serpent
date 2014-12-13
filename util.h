@@ -106,6 +106,9 @@ bool exists(std::string fileName);
 //Report error
 void err(std::string errtext, Metadata met);
 
+//Report warning
+void warn(std::string errtext, Metadata met);
+
 //Bin to hex
 std::string binToHex(std::string inp);
 
@@ -117,6 +120,9 @@ std::string upperCase(std::string inp);
 
 //Three-int vector
 std::vector<int> triple(int a, int b, int c);
+
+//Extend node vector
+std::vector<Node> extend(std::vector<Node> a, std::vector<Node> b);
 
 #define asn astnode
 #define tkn token

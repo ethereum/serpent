@@ -1,16 +1,17 @@
-def call(axn, axd, ayn, ayd):
-    if !axn and !ayn:
+inset('modint.type')
+def call(m_axn, m_axd, m_ayn, m_ayd):
+    if !u(m_axn) and !u(m_ayn):
         return([0, 1, 0, 1], 4)
-    with P = -4294968273:
+    with P_______P = -4294968273:
         # No need to add (A, 1) because A = 0 for bitcoin
-        with mn = mulmod(mulmod(mulmod(axn, axn, P), 3, P), ayd, P):
-            with md = mulmod(mulmod(axd, axd, P), mulmod(ayn, 2, P), P):
-                with msqn = mulmod(mn, mn, P):
-                    with msqd = mulmod(md, md, P):
-                        with xn = addmod(mulmod(msqn, axd, P), P - mulmod(msqd, mulmod(axn, 2, P), P), P):
-                            with xd = mulmod(msqd, axd, P):
-                                with mamxn = mulmod(addmod(mulmod(axn, xd, P), P - mulmod(axd, xn, P), P), mn, P):
-                                    with mamxd = mulmod(mulmod(axd, xd, P), md, P):
-                                        with yn = addmod(mulmod(mamxn, ayd, P), P - mulmod(mamxd, ayn, P), P):
-                                            with yd = mulmod(mamxd, ayd, P):
-                                                return([xn, xd, yn, yd], 4)
+        with m_mn = m_axn * m_axn * m(3) * m_ayd:
+            with m_md = m_axd * m_axd * m_ayn * m(2):
+                with m_msqn = m_mn * m_mn:
+                    with m_msqd = m_md * m_md:
+                        with m_xn = m_msqn * m_axd - m_msqd * m_axn * m(2):
+                            with m_xd = m_msqd * m_axd:
+                                with m_mamxn = (m_axn * m_xd - m_axd * m_xn) * m_mn:
+                                    with m_mamxd = m_axd * m_xd * m_md:
+                                        with m_yn = m_mamxn * m_ayd - m_mamxd * m_ayn:
+                                            with m_yd = m_mamxd * m_ayd:
+                                                return(u4([m_xn, m_xd, m_yn, m_yd]), 4)
