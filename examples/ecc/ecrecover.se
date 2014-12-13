@@ -32,9 +32,9 @@ def call(h, v, r, s):
     
     GZ = self.JORDANMUL.call(Gx, 1, Gy, 1, N - h, outsz=4)
     XY = self.JORDANMUL.call(x, 1, y, 1, s, outsz=4)
-    COMB = self.JORDANADD.call(GZ[0], GZ[1], GZ[2], GZ[3], XY[0], XY[1], XY[2], XY[3], 1, outsz=5)
-    COMB[4] = self.EXP.call(r, N - 2, N)
-    Q = self.JORDANMUL.call(data=COMB, datasz=5, outsz=4)
+    COMB = self.JORDANADD.call(GZ[0], GZ[1], GZ[2], GZ[3], XY[0], XY[1], XY[2], XY[3], 1, outsz=4)
+    invr = self.EXP.call(r, N - 2, N)
+    Q = self.JORDANMUL.call(COMB[0], COMB[1], COMB[2], COMB[3], invr, outsz=4)
     ox = mulmod(Q[0], self.EXP.call(Q[1], P - 2, P), P)
     oy = mulmod(Q[2], self.EXP.call(Q[3], P - 2, P), P)
     return([ox, oy], 2)

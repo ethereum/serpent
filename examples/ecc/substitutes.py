@@ -53,18 +53,26 @@ def modexp_substitute(base, exp, mod):
 def ecrecover_substitute(z, v, r, s):
     P, A, B, N, Gx, Gy = b.P, b.A, b.B, b.N, b.Gx, b.Gy
     x = r
+    print x
     beta = pow(x*x*x+A*x+B, (P + 1) / 4, P)
+    print x*x*x % P
+    print beta
     BETA_PREMIUM = modexp_substitute(x, (P + 1) / 4, P)["gas"]
     y = beta if v % 2 ^ beta % 2 else (P - beta)
+    print y
     Gz = b.jordan_multiply(((Gx, 1), (Gy, 1)), (N - z) % N)
+    print Gz
     GZ_PREMIUM = jacobian_mul_substitute(Gx, 1, Gy, 1, (N - z) % N)["gas"]
     XY = b.jordan_multiply(((x, 1), (y, 1)), s)
+    print XY
     XY_PREMIUM = jacobian_mul_substitute(x, 1, y, 1, s % N)["gas"]
     Qr = b.jordan_add(Gz, XY)
+    print Qr
     QR_PREMIUM = jacobian_add_substitute(Gz[0][0], Gz[0][1], Gz[1][0], Gz[1][1],
                                          XY[0][0], XY[0][1], XY[1][0], XY[1][1]
                                          )["gas"]
     Q = b.jordan_multiply(Qr, pow(r, N - 2, N))
+    print Q
     Q_PREMIUM = jacobian_mul_substitute(Qr[0][0], Qr[0][1], Qr[1][0], Qr[1][1],
                                         pow(r, N - 2, N))["gas"]
     R_PREMIUM = modexp_substitute(r, N - 2, N)["gas"]
