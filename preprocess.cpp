@@ -292,6 +292,8 @@ preprocessResult processTypes (preprocessResult pr) {
     }
     else if (node.val == "untyped")
         return preprocessResult(node.args[0], aux);
+    else if (node.val == "outer")
+        return preprocessResult(node, aux);
     else {
         for (unsigned i = 0; i < node.args.size(); i++) {
             node.args[i] =

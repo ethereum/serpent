@@ -183,7 +183,7 @@ std::string macros[][2] = {
     },
     {
         "(create $endowment $code)",
-        "(with $1 (msize) (create $endowment (get $1) (lll (outer $code) (msize))))"
+        "(with $1 (msize) (create $endowment (get $1) (lll $code (msize))))"
     },
     {
         "(sha256 $x)",

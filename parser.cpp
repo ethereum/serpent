@@ -227,7 +227,8 @@ Node treefy(std::vector<Node> stream) {
             }
             else {
                 oq.back().args.pop_back();
-                oq.back().args.push_back(parseSerpent(root + filename));
+                oq.back().args.push_back(
+                    asn("outer", parseSerpent(root + filename), tok.metadata));
             }
         }
         //Useful for debugging
