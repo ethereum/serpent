@@ -39,7 +39,7 @@ class preprocessAux {
         std::map<std::string, std::string> globalExternSigs;
         std::map<std::string, std::map<std::string, int> > localExterns;
         std::map<std::string, std::map<std::string, std::string> > localExternSigs;
-        std::vector<rewriteRule> customMacros;
+        std::map<int, std::vector<rewriteRule> > customMacros;
         std::map<std::string, std::string> types;
         svObj storageVars;
 };

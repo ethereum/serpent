@@ -189,7 +189,7 @@ preprocessResult preprocessInit(Node inp) {
             }
         }
         // Custom macros
-        else if (obj.val == "macro") {
+        else if (obj.val == "macro" || (obj.val == "fun" && obj.args[0].val == "macro")) {
             // Rules for valid macros:
             //
             // There are only four categories of valid macros:
@@ -205,8 +205,24 @@ preprocessResult preprocessInit(Node inp) {
             // 5. something of the form with(c(x), d, e) where c must
             // NOT be an existing valid function/extern/datum
             bool valid = false;
-            Node pattern = obj.args[0];
-            Node substitution = obj.args[1];
+            Node pattern;
+            Node substitution;
+            int priority;
+            // Priority not set: default zero
+            if (obj.val == "macro") {
+                pattern = obj.args[0];
+                substitution = obj.args[1];
+                priority = 0;
+            }
+            // Specified priority
+            else {
+                pattern = obj.args[1];
+                substitution = obj.args[2];
+                if (obj.args[0].args.size())
+                    priority = dtu(obj.args[0].args[0].val);
+                else
+                    priority = 0;
+            }
             if (opcode(pattern.val) < 0 && !isValidFunctionName(pattern.val))
                 valid = true;
             if (pattern.val == "set" &&
@@ -226,7 +242,10 @@ preprocessResult preprocessInit(Node inp) {
                     !isValidFunctionName(pattern.args[0].val))
                 valid = true;
             if (valid) {
-                out.customMacros.push_back(rewriteRule(pattern, substitution));
+                if (!out.customMacros.count(priority))
+                    out.customMacros[priority] = std::vector<rewriteRule>();
+                out.customMacros[priority].push_back
+                    (rewriteRule(pattern, substitution));
             }
             else warn("Macro does not fit valid template: "+printSimple(pattern), m);
         }
@@ -247,6 +266,7 @@ preprocessResult preprocessInit(Node inp) {
         }
         else any.push_back(obj);
     }
+    // Set up top-level AST structure
     std::vector<Node> main;
     if (shared.args.size()) main.push_back(shared);
     if (init.args.size()) main.push_back(init);
@@ -287,9 +307,8 @@ preprocessResult preprocessInit(Node inp) {
 preprocessResult processTypes (preprocessResult pr) {
     preprocessAux aux = pr.second;
     Node node = pr.first;
-    if (node.type == TOKEN && aux.types.count(node.val)) {
+    if (node.type == TOKEN && aux.types.count(node.val))
         node = asn(aux.types[node.val], node, node.metadata);
-    }
     else if (node.val == "untyped")
         return preprocessResult(node.args[0], aux);
     else if (node.val == "outer")

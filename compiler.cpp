@@ -86,7 +86,7 @@ mss getVariables(Node node, mss cur=mss()) {
     else if (node.val == "get" || node.val == "set" || node.val == "ref") {
         if (node.args[0].type != TOKEN)
             err("Variable name must be simple token,"
-                " not complex expression!", m);
+                " not complex expression! " + printSimple(node.args[0]), m);
         if (!cur.count(node.args[0].val)) {
             cur[node.args[0].val] = utd(cur.size() * 32 + 32);
             //std::cerr << node.args[0].val << " " << cur[node.args[0].val] << "\n";
