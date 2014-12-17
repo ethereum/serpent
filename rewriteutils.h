@@ -48,4 +48,29 @@ Node subst(Node pattern,
 
 Node withTransform(Node source);
 
+class rewriteRule {
+    public:
+        rewriteRule(Node p, Node s) {
+            pattern = p;
+            substitution = s;
+        }
+        Node pattern;
+        Node substitution;
+};
+
+class rewriteRuleSet {
+    public:
+        rewriteRuleSet() {
+            ruleLists = std::map<std::string, std::vector<rewriteRule> >();
+        }
+        void addRule(rewriteRule r) {
+            if (!ruleLists.count(r.pattern.val))
+                ruleLists[r.pattern.val] = std::vector<rewriteRule>();
+            ruleLists[r.pattern.val].push_back(r);
+        }
+        std::map<std::string, std::vector<rewriteRule> > ruleLists;
+};
+
+
+
 #endif

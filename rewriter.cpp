@@ -306,8 +306,6 @@ std::string macros[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
-std::vector<rewriteRule> nodeMacros;
-
 // Token synonyms
 std::string synonyms[][2] = {
     { "or", "||" },
@@ -334,6 +332,8 @@ std::string synonyms[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
+std::map<std::string, std::string> synonymMap;
+
 // Custom setters (need to be registered separately
 // for use with managed storage)
 std::string setters[][2] = {
@@ -346,7 +346,7 @@ std::string setters[][2] = {
     { "---END---", "" } //Keep this line at the end of the list
 };
 
-std::vector<rewriteRule> setterMacros;
+std::map<std::string, std::string> setterMap;
 
 // Processes mutable array literals
 Node array_lit_transform(Node node) {
@@ -578,16 +578,20 @@ Node storageTransform(Node node, preprocessAux aux,
 }
 
 // Basic rewrite rule execution
-std::pair<Node, bool> rulesTransform(Node node, std::vector<rewriteRule> rules) {
+std::pair<Node, bool> rulesTransform(Node node, rewriteRuleSet macros) {
     std::string prefix = "_temp_"+mkUniqueToken();
     bool changed = false;
+    if (!macros.ruleLists.count(node.val))
+        return std::pair<Node, bool>(node, false);
+    std::vector<rewriteRule> rules = macros.ruleLists[node.val];
     for (unsigned pos = 0; pos < rules.size(); pos++) {
         rewriteRule macro = rules[pos];
         matchResult mr = match(macro.pattern, node);
         if (mr.success) {
             node = subst(macro.substitution, mr.map, prefix, node.metadata);
-            changed = true;
-            pos = 0;
+            std::pair<Node, bool> o = rulesTransform(node, macros);
+            o.second = true;
+            return o;
         }
     }
     return std::pair<Node, bool>(node, changed);
@@ -595,110 +599,116 @@ std::pair<Node, bool> rulesTransform(Node node, std::vector<rewriteRule> rules) 
 
 std::pair<Node, bool> synonymTransform(Node node) {
     bool changed = false;
-    for (unsigned pos = 0; pos < 9999; pos++) {
-        if (synonyms[pos][0] == "---END---") {
-            break;
-        }
-        else if (node.type == ASTNODE && node.val == synonyms[pos][0]) {
-            node.val = synonyms[pos][1];
-            changed = true;
+    if (node.type == ASTNODE && synonymMap.count(node.val)) {
+        node.val = synonymMap[node.val];
+        changed = true;
+    }
+    return std::pair<Node, bool>(node, changed);
+}
+
+rewriteRuleSet nodeMacros;
+rewriteRuleSet setterMacros;
+
+bool dontDescend(std::string s) {
+    return s == "macro" || s == "comment" || s == "outer";
+}
+
+// Recursively applies rewrite rules
+std::pair<Node, bool> apply_rules_iter(preprocessResult pr, rewriteRuleSet rules) {
+    bool changed = false;
+    Node node = pr.first;
+    if (dontDescend(node.val))
+        return std::pair<Node, bool>(node, false);
+    std::pair<Node, bool> o = rulesTransform(node, rules);
+    node = o.first;
+    changed = changed || o.second;
+    if (node.type == ASTNODE) {
+        for (unsigned i = 0; i < node.args.size(); i++) {
+            std::pair<Node, bool> r =
+                apply_rules_iter(preprocessResult(node.args[i], pr.second), rules);
+            node.args[i] = r.first;
+            changed = changed || r.second;
         }
     }
     return std::pair<Node, bool>(node, changed);
 }
 
-
-// Recursively applies rewrite rules
-std::pair<Node, bool> apply_rules_iter(preprocessResult pr, int priority) {
+// Recursively applies rewrite rules and other primary transformations
+std::pair<Node, bool> mainTransform(preprocessResult pr) {
     bool changed = false;
     Node node = pr.first;
-
-    // Do nothing to macros
-    if (node.val == "macro") {
-        return std::pair<Node, bool>(node, changed);
-    }
-    // Ignore comments
-    if (node.val == "comment") {
-        return std::pair<Node, bool>(node, changed);
-    }
-    if (priority == 99) {
-        // Special storage transformation
-        if (isNodeStorageVariable(node)) {
-            node = storageTransform(node, pr.second);
-            changed = true;
-        }
-        if (node.val == "ref" && isNodeStorageVariable(node.args[0])) {
-            node = storageTransform(node.args[0], pr.second, false, true);
-            changed = true;
-        }
-        if (node.val == "=" && isNodeStorageVariable(node.args[0])) {
-            Node t = storageTransform(node.args[0], pr.second);
-            if (t.val == "sload") {
-                std::vector<Node> o;
-                o.push_back(t.args[0]);
-                o.push_back(node.args[1]);
-                node = astnode("sstore", o, node.metadata);
-            }
-            changed = true;
-        }
-    }
-    // Main code
-    if (priority == 99) {
-        std::pair<Node, bool> pnb = synonymTransform(node);
-        node = pnb.first;
-        changed = changed || pnb.second;
-    }
-    std::vector<rewriteRule> macros =
-        (priority == 99) ? nodeMacros
-      : (priority == 98) ? setterMacros
-      :                    pr.second.customMacros[priority];
-    // std::cerr << priority << " " << macros.size() << "\n";
-    std::pair<Node, bool> pnb = rulesTransform(node, macros);
-    node = pnb.first;
-    changed = changed || pnb.second;
 
     if (node.val == "outer") {
         node = apply_rules(preprocess(node.args[0]));
         changed = true;
     }
+
+    if (dontDescend(node.val))
+        return std::pair<Node, bool>(node, changed);
+
+    // Special storage transformation
+    if (isNodeStorageVariable(node)) {
+        node = storageTransform(node, pr.second);
+        changed = true;
+    }
+    if (node.val == "ref" && isNodeStorageVariable(node.args[0])) {
+        node = storageTransform(node.args[0], pr.second, false, true);
+        changed = true;
+    }
+    if (node.val == "=" && isNodeStorageVariable(node.args[0])) {
+        Node t = storageTransform(node.args[0], pr.second);
+        if (t.val == "sload") {
+            std::vector<Node> o;
+            o.push_back(t.args[0]);
+            o.push_back(node.args[1]);
+            node = astnode("sstore", o, node.metadata);
+        }
+        changed = true;
+    }
+    // Main code
+    std::pair<Node, bool> pnb = synonymTransform(node);
+    node = pnb.first;
+    changed = changed || pnb.second;
+    // std::cerr << priority << " " << macros.size() << "\n";
+    std::pair<Node, bool> pnc = rulesTransform(node, nodeMacros);
+    node = pnc.first;
+    changed = changed || pnc.second;
+
+
     // Special transformations
-    if (priority == 99) {
-        if (node.val == "array_lit") {
-            node = array_lit_transform(node);
-            changed = true;
-        }
-        if (node.val == "fun" && node.args[0].val == ".") {
-            node = dotTransform(node, pr.second);
-            changed = true;
-        }
+    if (node.val == "array_lit") {
+        node = array_lit_transform(node);
+        changed = true;
+    }
+    if (node.val == "fun" && node.args[0].val == ".") {
+        node = dotTransform(node, pr.second);
+        changed = true;
     }
     if (node.type == ASTNODE) {
 		unsigned i = 0;
-        if (priority == 99) {
-            if (node.val == "set" || node.val == "ref" 
-                    || node.val == "get" || node.val == "with") {
-                if (node.args[0].val.size() > 0 && node.args[0].val[0] != '\'' 
-                        && node.args[0].type == TOKEN && node.args[0].val[0] != '$') {
-                    node.args[0].val = "'" + node.args[0].val;
-                    changed = true;
-                }
-                i = 1;
-            }
-            else if (node.val == "arglen") {
-                node.val = "get";
-                node.args[0].val = "'_len_" + node.args[0].val;
-                i = 1;
+        if (node.val == "set" || node.val == "ref" 
+                || node.val == "get" || node.val == "with") {
+            if (node.args[0].val.size() > 0 && node.args[0].val[0] != '\'' 
+                    && node.args[0].type == TOKEN && node.args[0].val[0] != '$') {
+                node.args[0].val = "'" + node.args[0].val;
                 changed = true;
             }
+            i = 1;
+        }
+        else if (node.val == "arglen") {
+            node.val = "get";
+            node.args[0].val = "'_len_" + node.args[0].val;
+            i = 1;
+            changed = true;
         }
         for (; i < node.args.size(); i++) {
             std::pair<Node, bool> r =
-                apply_rules_iter(preprocessResult(node.args[i], pr.second), priority);
+                mainTransform(preprocessResult(node.args[i], pr.second));
             node.args[i] = r.first;
             changed = changed || r.second;
         }
     }
-    else if (node.type == TOKEN && !isNumberLike(node) && priority == 99) {
+    else if (node.type == TOKEN && !isNumberLike(node)) {
         if (node.val.size() >= 2
                 && node.val[0] == '"'
                 && node.val[node.val.size() - 1] == '"') {
@@ -718,7 +728,7 @@ std::pair<Node, bool> apply_rules_iter(preprocessResult pr, int priority) {
             }
             node = astnode("array_lit", o, node.metadata);
             std::pair<Node, bool> r = 
-                apply_rules_iter(preprocessResult(node, pr.second), priority);
+                mainTransform(preprocessResult(node, pr.second));
             node = r.first;
             changed = true;
         }
@@ -738,7 +748,7 @@ void parseMacros() {
     for (int i = 0; i < 9999; i++) {
         std::vector<Node> o;
         if (macros[i][0] == "---END---") break;
-        nodeMacros.push_back(rewriteRule(
+        nodeMacros.addRule(rewriteRule(
             parseLLL(macros[i][0]),
             parseLLL(macros[i][1])
         ));
@@ -746,31 +756,42 @@ void parseMacros() {
     for (int i = 0; i < 9999; i++) {
         std::vector<Node> o;
         if (setters[i][0] == "---END---") break;
-        setterMacros.push_back(rewriteRule(
+        setterMacros.addRule(rewriteRule(
             asn(setters[i][0], tkn("$x"), tkn("$y")),
             asn("=", tkn("$x"), asn(setters[i][1], tkn("$x"), tkn("$y")))
         ));
+    }
+    for (int i = 0; i < 9999; i++) {
+        if (synonyms[i][0] == "---END---") break;
+        synonymMap[synonyms[i][0]] = synonyms[i][1];
     }
 }
 
 Node apply_rules(preprocessResult pr) {
     // If the rewrite rules have not yet been parsed, parse them
-    if (!nodeMacros.size()) parseMacros();
-    // Fill in customMacros at position 99
-    pr.second.customMacros[98] = std::vector<rewriteRule>();
-    pr.second.customMacros[99] = std::vector<rewriteRule>();
+    if (!nodeMacros.ruleLists.size()) parseMacros();
     // Iterate over macros by priority list
-    std::map<int, std::vector<rewriteRule> >::iterator it;
+    std::map<int, rewriteRuleSet >::iterator it;
     std::pair<Node, bool> r;
     for(it=pr.second.customMacros.begin();
         it != pr.second.customMacros.end(); it++) {
         while (1) {
             // std::cerr << "STARTING ARI CYCLE: " << (*it).first <<"\n";
             // std::cerr << printAST(pr.first) << "\n";
-            r = apply_rules_iter(pr, (*it).first);
+            r = apply_rules_iter(pr, (*it).second);
             pr.first = r.first;
             if (!r.second) break;
         }
+    }
+    while (1) {
+        r = apply_rules_iter(pr, setterMacros);
+        pr.first = r.first;
+        if (!r.second) break;
+    }
+    while (1) {
+        r = mainTransform(pr);
+        pr.first = r.first;
+        if (!r.second) break;
     }
     return r.first;
 }

@@ -243,8 +243,8 @@ preprocessResult preprocessInit(Node inp) {
                 valid = true;
             if (valid) {
                 if (!out.customMacros.count(priority))
-                    out.customMacros[priority] = std::vector<rewriteRule>();
-                out.customMacros[priority].push_back
+                    out.customMacros[priority] = rewriteRuleSet();
+                out.customMacros[priority].addRule
                     (rewriteRule(pattern, substitution));
             }
             else warn("Macro does not fit valid template: "+printSimple(pattern), m);

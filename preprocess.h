@@ -6,6 +6,7 @@
 #include <vector>
 #include <map>
 #include "util.h"
+#include "rewriteutils.h"
 
 // Storage variable index storing object
 struct svObj {
@@ -16,15 +17,6 @@ struct svObj {
     std::string globalOffset;
 };
 
-class rewriteRule {
-    public:
-        rewriteRule(Node p, Node s) {
-            pattern = p;
-            substitution = s;
-        }
-        Node pattern;
-        Node substitution;
-};
 
 
 // Preprocessing result storing object
@@ -39,7 +31,7 @@ class preprocessAux {
         std::map<std::string, std::string> globalExternSigs;
         std::map<std::string, std::map<std::string, int> > localExterns;
         std::map<std::string, std::map<std::string, std::string> > localExternSigs;
-        std::map<int, std::vector<rewriteRule> > customMacros;
+        std::map<int, rewriteRuleSet > customMacros;
         std::map<std::string, std::string> types;
         svObj storageVars;
 };
