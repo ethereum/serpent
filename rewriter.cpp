@@ -362,6 +362,33 @@ Node array_lit_transform(Node node) {
     return subst(parseLLL(o), d, prefix, m);
 }
 
+// Processes long text literals
+Node string_transform(Node node) {
+    Metadata m = node.metadata;
+    if (!node.args.size())
+        err("Empty text!", m);
+    if (node.args[0].val.size() < 2 
+     || node.args[0].val[0] != '"'
+     || node.args[0].val[node.args[0].val.size() - 1] != '"')
+        err("Text contents don't look like a string!", m);
+    std::string bin = node.args[0].val.substr(1, node.args[0].val.size() - 2);
+    unsigned sz = bin.size();
+    std::vector<Node> o;
+    for (unsigned i = 0; i < sz; i += 32) {
+        std::string t = binToNumeric(bin.substr(i, 32));
+        if ((sz - i) < 32 && (sz - i) > 0) {
+            while ((sz - i) < 32) {
+                t = decimalMul(t, "256");
+                i--;
+            }
+            i = sz;
+        }
+        o.push_back(token(t, node.metadata));
+    }
+    node = astnode("array_lit", o, node.metadata);
+    return array_lit_transform(node);
+}
+
 
 Node apply_rules(preprocessResult pr);
 
@@ -613,7 +640,7 @@ bool dontDescend(std::string s) {
     return s == "macro" || s == "comment" || s == "outer";
 }
 
-// Recursively applies rewrite rules
+// Recursively applies any set of rewrite rules
 std::pair<Node, bool> apply_rules_iter(preprocessResult pr, rewriteRuleSet rules) {
     bool changed = false;
     Node node = pr.first;
@@ -638,11 +665,14 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
     bool changed = false;
     Node node = pr.first;
 
+    // Anything inside "outer" should be treated as a separate program
+    // and thus recursively compiled in its entirety
     if (node.val == "outer") {
         node = apply_rules(preprocess(node.args[0]));
         changed = true;
     }
 
+    // Don't descend into comments, macros and inner scopes
     if (dontDescend(node.val))
         return std::pair<Node, bool>(node, changed);
 
@@ -684,23 +714,30 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
         node = dotTransform(node, pr.second);
         changed = true;
     }
+    if (node.val == "text") {
+        node = string_transform(node);
+        changed = true;
+    }
     if (node.type == ASTNODE) {
 		unsigned i = 0;
+        // Arg 0 of all of these is a variable, so should not be changed
         if (node.val == "set" || node.val == "ref" 
                 || node.val == "get" || node.val == "with") {
-            if (node.args[0].val.size() > 0 && node.args[0].val[0] != '\'' 
-                    && node.args[0].type == TOKEN && node.args[0].val[0] != '$') {
+            if (node.args[0].type == TOKEN && 
+                    node.args[0].val.size() > 0 && node.args[0].val[0] != '\'') {
                 node.args[0].val = "'" + node.args[0].val;
                 changed = true;
             }
             i = 1;
         }
+        // Convert arglen(x) to '_len_x
         else if (node.val == "arglen") {
             node.val = "get";
             node.args[0].val = "'_len_" + node.args[0].val;
             i = 1;
             changed = true;
         }
+        // Recursively process children
         for (; i < node.args.size(); i++) {
             std::pair<Node, bool> r =
                 mainTransform(preprocessResult(node.args[i], pr.second));
@@ -708,42 +745,24 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
             changed = changed || r.second;
         }
     }
+    // Add leading ' to variable names, and wrap them inside get
     else if (node.type == TOKEN && !isNumberLike(node)) {
-        if (node.val.size() >= 2
-                && node.val[0] == '"'
-                && node.val[node.val.size() - 1] == '"') {
-            std::string bin = node.val.substr(1, node.val.size() - 2);
-            unsigned sz = bin.size();
-            std::vector<Node> o;
-            for (unsigned i = 0; i < sz; i += 32) {
-                std::string t = binToNumeric(bin.substr(i, 32));
-                if ((sz - i) < 32 && (sz - i) > 0) {
-                    while ((sz - i) < 32) {
-                        t = decimalMul(t, "256");
-                        i--;
-                    }
-                    i = sz;
-                }
-                o.push_back(token(t, node.metadata));
-            }
-            node = astnode("array_lit", o, node.metadata);
-            std::pair<Node, bool> r = 
-                mainTransform(preprocessResult(node, pr.second));
-            node = r.first;
+        if (node.val.size() && node.val[0] != '\'' && node.val[0] != '$') {
+            Node n = astnode("get", tkn("'"+node.val), node.metadata);
+            node = n;
             changed = true;
         }
-        else if (node.val.size() && node.val[0] != '\'' && node.val[0] != '$') {
-            node.val = "'" + node.val;
-            std::vector<Node> args;
-            args.push_back(node);
-            std::string v = node.val.substr(1);
-            node = astnode("get", args, node.metadata);
-            changed = true;
-        }
+    }
+    // Convert all numbers to normalized form
+    else if (node.type == TOKEN && isNumberLike(node) && !isDecimal(node.val)) {
+        node.val = strToNumeric(node.val);
+        changed = true;
     }
     return std::pair<Node, bool>(node, changed);
 }
 
+// Do some preprocessing to convert all of our macro lists into compiled
+// forms that can then be reused
 void parseMacros() {
     for (int i = 0; i < 9999; i++) {
         std::vector<Node> o;
@@ -783,11 +802,13 @@ Node apply_rules(preprocessResult pr) {
             if (!r.second) break;
         }
     }
+    // Apply setter macros
     while (1) {
         r = apply_rules_iter(pr, setterMacros);
         pr.first = r.first;
         if (!r.second) break;
     }
+    // Apply all other mactos
     while (1) {
         r = mainTransform(pr);
         pr.first = r.first;
@@ -796,6 +817,7 @@ Node apply_rules(preprocessResult pr) {
     return r.first;
 }
 
+// Pre-validation
 Node validate(Node inp) {
     Metadata m = inp.metadata;
     if (inp.type == ASTNODE) {
@@ -812,6 +834,10 @@ Node validate(Node inp) {
             }
             i++;
         }
+    }
+    else if (inp.type == TOKEN) {
+        if (!inp.val.size()) err("??? empty token", m);
+        if (inp.val[0] == '_') err("Variables cannot start with _", m);
     }
 	for (unsigned i = 0; i < inp.args.size(); i++) validate(inp.args[i]);
     return inp;
@@ -852,7 +878,7 @@ Node rewriteChunk(Node inp) {
                         validate(inp), preprocessAux()))));
 }
 
-
+// Flatten nested sequence into flat sequence
 Node flattenSeq(Node inp) {
     std::vector<Node> o;
     if (inp.val == "seq" && inp.type == ASTNODE) {

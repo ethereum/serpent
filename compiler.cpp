@@ -6,6 +6,7 @@
 #include "bignum.h"
 #include "opcodes.h"
 
+// Auxiliary data that is gathered while compiling
 struct programAux {
     std::map<std::string, std::string> vars;
     int nextVarMem;
@@ -15,6 +16,8 @@ struct programAux {
     int labelLength;
 };
 
+// Auxiliary data that gets passed down vertically
+// but not back up
 struct programVerticalAux {
     int height;
     std::string innerScopeName;
@@ -23,6 +26,7 @@ struct programVerticalAux {
     std::vector<mss> scopes;
 };
 
+// Compilation result
 struct programData {
     programAux aux;
     Node code;

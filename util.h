@@ -43,11 +43,12 @@ class Metadata {
 std::string mkUniqueToken();
 
 // type can be TOKEN or ASTNODE
-struct Node {
-    int type;
-    std::string val;
-    std::vector<Node> args;
-    Metadata metadata;
+class Node {
+    public:
+        int type;
+        std::string val;
+        std::vector<Node> args;
+        Metadata metadata;
 };
 Node token(std::string val, Metadata met=Metadata());
 Node astnode(std::string val, std::vector<Node> args, Metadata met=Metadata());
@@ -123,6 +124,9 @@ std::vector<int> triple(int a, int b, int c);
 
 //Extend node vector
 std::vector<Node> extend(std::vector<Node> a, std::vector<Node> b);
+
+// Is the number decimal?
+bool isDecimal(std::string inp);
 
 #define asn astnode
 #define tkn token

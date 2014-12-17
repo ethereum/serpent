@@ -175,6 +175,12 @@ std::string strToNumeric(std::string inp) {
     if (inp == "") {
         o = "";
     }
+    else if ((inp[0] == '"' && inp[inp.length()-1] == '"')
+            || (inp[0] == '\'' && inp[inp.length()-1] == '\'')) {
+        for (unsigned i = 1; i < inp.length() - 1; i++) {
+            o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal((unsigned char)inp[i]));
+        }
+    }
     else if (inp.substr(0,2) == "0x") {
 		for (unsigned i = 2; i < inp.length(); i++) {
             int dig = std::string("0123456789abcdef0123456789ABCDEF").find(inp[i]) % 16;
@@ -196,6 +202,14 @@ std::string strToNumeric(std::string inp) {
 bool isNumberLike(Node node) {
     if (node.type == ASTNODE) return false;
     return strToNumeric(node.val) != "";
+}
+
+// Is the number decimal?
+bool isDecimal(std::string inp) {
+    for (unsigned i = 0; i < inp.length(); i++) {
+        if (inp[i] < '0' || inp[i] > '9') return false;
+    }
+    return true;
 }
 
 //Normalizes number representations
