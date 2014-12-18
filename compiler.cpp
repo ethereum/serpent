@@ -173,8 +173,7 @@ programData opcodeify(Node node,
     }
     // Comments do nothing
     else if (node.val == "comment") {
-        Node nodelist[] = { };
-        return pd(aux, multiToken(nodelist, 0, m), 0);
+        return pd(aux, astnode("_", m), 0);
     }
     // Custom operation sequence
     // eg. (ops bytez id msize swap1 msize add 0 swap1 mstore) == alloc
