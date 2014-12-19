@@ -91,6 +91,7 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix,
         }
         pre.offsets = sub.offsets;
         pre.coefficients = sub.coefficients;
+        pre.indices = sub.indices;
         pre.nonfinal = sub.nonfinal;
         pre.nonfinal[prefix+h[0].val.substr(2)] = true;
     }
