@@ -78,16 +78,16 @@ std::string macros[][2] = {
         "$code"
     },
     {
-        "(slice $arr $pos)",
-        "(add $arr (mul 32 $pos))",
-    },
-    {
         "(array $len)",
         "(with $l $len (with $x (alloc (add 32 (mul 32 $l))) (seq (mstore $x $l) (add $x 32))))"
     },
     {
         "(string $len)",
         "(with $l $len (with $x (alloc (add 32 $l)) (seq (mstore $x $l) (add $x 32))))"
+    },
+    {
+        "(shrink_array $arr $sz)",
+        "(mstore (sub $arr 32) $sz)"
     },
     {
         "(len $x)",
@@ -324,7 +324,6 @@ std::string synonyms[][2] = {
     { "!", "iszero" },
     { "~", "~not" },
     { "not", "iszero" },
-    { "string", "alloc" },
     { "+", "add" },
     { "-", "sub" },
     { "*", "mul" },
@@ -480,8 +479,8 @@ Node dotTransform(Node node, preprocessAux aux) {
     }
     else {
         main = parseLLL(
-            "(with _data $data (with _outsz (mul 32 $outsz) (with _out (alloc _outsz) (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out _outsz))"
+            "(with _data $data (with _outsz $outsz (with _out (array _outsz) (seq "
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (mul 32 _outsz)))"
                 "(get _out)))))");
     }
     // Set up main call

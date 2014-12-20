@@ -104,6 +104,7 @@ Node packArguments(std::vector<Node> args, std::string sig,
         int v = 1 + (i + vargs.size()) * 32;
         pattern +=
             "    (mstore (add _datastart "+utd(v)+") $"+utd(i)+")         ";
+        kwargs[utd(i)] = nargs[i];
     }
     // Loop through variable-sized arguments, store them
     pattern += 
@@ -118,7 +119,6 @@ Node packArguments(std::vector<Node> args, std::string sig,
             "        (unsafe_mcopy _pos                                   "
             "            (mload (add _vars "+vlArgPos+")) "+copySize+")   "
             "        (set _pos (add _pos "+copySize+"))                   ";
-        kwargs["vl"+utd(i)] = vargs[i];
     }
     // Return a 2-item array containing the start and size
     pattern += "     (array_lit _datastart _sztot))))))))";
@@ -174,6 +174,9 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
                 std::string sizePos = utd(1 + i * 32);
                 Node var = tkn(longVarNames[i], m);
                 std::string allocType = longVarIsArray[i] ? "array" : "string";
+                Node allocSz = longVarIsArray[i]
+                    ? asn("mul", tkn("32"), tkn("sz"))
+                    : tkn("sz");
                 sub2.push_back(
                     asn("with",
                         tkn("sz"),
@@ -184,8 +187,8 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
                             asn("calldatacopy",
                                    var,
                                    tot,
-                                   tkn("sz")),
-                            asn("set", tot, asn("add", tot, tkn("sz"))))));
+                                   allocSz),
+                            asn("set", tot, asn("add", tot, allocSz)))));
             }
             std::string prefix = "_temp_"+mkUniqueToken();
             sub.push_back(subst(
