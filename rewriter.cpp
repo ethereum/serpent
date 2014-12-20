@@ -94,6 +94,14 @@ std::string macros[][2] = {
         "(mload (sub $x 32))"
     },
     {
+        "(return (: $x s))",
+        "(with $y $x (~return $y (len $y)))"
+    },
+    {
+        "(return (: $x a))",
+        "(with $y $x (~return $y (mul 32 (len $y))))"
+    },
+    {
         "(while $cond $do)",
         "(until (iszero $cond) $do)",
     },

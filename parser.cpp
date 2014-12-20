@@ -351,7 +351,8 @@ Node parseLines(std::vector<std::string> lines, Metadata metadata, int sp) {
         }
         else if (!cbe)
             err("Did not expect indented child block!", out.metadata);
-        else if (out.args.size() && out.args[out.args.size() - 1].val == ":") {
+        else if (out.args.size() && out.val == "multi" 
+                && out.args[out.args.size() - 1].val == ":") {
             Node n = out.args[out.args.size() - 1];
             out.args.pop_back();
             out.args.push_back(n.args[0]);
