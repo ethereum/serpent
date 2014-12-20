@@ -32,8 +32,6 @@ Node packArguments(std::vector<Node> args, std::string sig,
     std::vector<Node> nargs;
     // Variable-sized arguments
     std::vector<Node> vargs;
-    // Variable sizes
-    std::vector<Node> sizes;
     // Is a variable an array?
     std::vector<bool> isArray;
     // Fill up above three argument lists
@@ -54,24 +52,16 @@ Node packArguments(std::vector<Node> args, std::string sig,
             else argType = 'i';
             // Integer (also usable for short strings)
             if (argType == 'i') {
-                if (args[i].val == ":")
-                    err("Function asks for int, provided string or array", m);
                 nargs.push_back(args[i]);
             }
             // Long string
             else if (argType == 's') {
-                if (args[i].val != ":")
-                    err("Must specify string length", m);
-                vargs.push_back(args[i].args[0]);
-                sizes.push_back(args[i].args[1]);
+                vargs.push_back(args[i]);
                 isArray.push_back(false);
             }
             // Array
             else if (argType == 'a') {
-                if (args[i].val != ":")
-                    err("Must specify array length", m);
-                vargs.push_back(args[i].args[0]);
-                sizes.push_back(args[i].args[1]);
+                vargs.push_back(args[i]);
                 isArray.push_back(true);
             }
             else err("Invalid arg type in signature", m);
@@ -84,45 +74,49 @@ Node packArguments(std::vector<Node> args, std::string sig,
     kwargs["funid"] = tkn(utd(funId), m);
     std::string pattern =
         "(with _sztot "+utd(static_arg_size)+"                            "
-        "    (with _sizes (alloc "+utd(sizes.size() * 32)+")              "
+        "    (with _vars (alloc "+utd(vargs.size() * 64)+")              "
         "        (seq                                                     ";
-    for (unsigned i = 0; i < sizes.size(); i++) {
+    for (unsigned i = 0; i < vargs.size(); i++) {
         std::string sizeIncrement = 
             isArray[i] ? "(mul 32 _x)" : "_x";
         pattern +=
-            "(with _x $sz"+utd(i)+"(seq                                   "
-            "    (mstore (add _sizes "+utd(i * 32)+") _x)                 "
+            "(with _x $vl"+utd(i)+" (seq                 "
+            "    (mstore (add _vars "+utd(i * 64)+") (mload (sub _x 32))) "
+            "    (mstore (add _vars "+utd(i * 64 + 32)+") _x)             "
             "    (set _sztot (add _sztot "+sizeIncrement+" ))))           ";
-        kwargs["sz"+utd(i)] = sizes[i];
+        kwargs["vl"+utd(i)] = vargs[i];
     }
     // Allocate memory, and set first data byte
     pattern +=
             "(with _datastart (alloc (add _sztot 32)) (seq                "
             "    (mstore8 _datastart $funid)                              ";
     // Copy over size variables
-    for (unsigned i = 0; i < sizes.size(); i++) {
-        int v = 1 + i * 32;
+    for (unsigned i = 0; i < vargs.size(); i++) {
+        std::string posInDatastart = utd(1 + i * 32);
+        std::string varArgSize = utd(i * 64);
         pattern +=
-            "    (mstore                                                  "
-            "          (add _datastart "+utd(v)+")                        "
-            "          (mload (add _sizes "+utd(v-1)+")))                 ";
+            "    (mstore                                                 "
+            "          (add _datastart "+posInDatastart+")               "
+            "          (mload (add _vars "+varArgSize+")))               ";
     }
     // Store normal arguments
     for (unsigned i = 0; i < nargs.size(); i++) {
-        int v = 1 + (i + sizes.size()) * 32;
+        int v = 1 + (i + vargs.size()) * 32;
         pattern +=
             "    (mstore (add _datastart "+utd(v)+") $"+utd(i)+")         ";
-        kwargs[utd(i)] = nargs[i];
     }
     // Loop through variable-sized arguments, store them
     pattern += 
             "    (with _pos (add _datastart "+utd(static_arg_size)+") (seq";
     for (unsigned i = 0; i < vargs.size(); i++) {
+        std::string vlArgPos = utd(i * 64 + 32);
+        std::string vlSizePos = utd(i * 64);
         std::string copySize =
-            isArray[i] ? "(mul 32 (mload (add _sizes "+utd(i * 32)+")))"
-                       : "(mload (add _sizes "+utd(i * 32)+"))";
+            isArray[i] ? "(mul 32 (mload (add _vars "+vlSizePos+")))"
+                       : "(mload (add _vars "+vlSizePos+"))";
         pattern +=
-            "        (unsafe_mcopy _pos $vl"+utd(i)+" "+copySize+")       "
+            "        (unsafe_mcopy _pos                                   "
+            "            (mload (add _vars "+vlArgPos+")) "+copySize+")   "
             "        (set _pos (add _pos "+copySize+"))                   ";
         kwargs["vl"+utd(i)] = vargs[i];
     }
@@ -162,38 +156,40 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
         // do nothing if we have no arguments
     }
     else {
-        std::vector<Node> varNodes;
-        for (unsigned i = 0; i < longVarNames.size(); i++)
-            varNodes.push_back(token(longVarNames[i], m));
-        for (unsigned i = 0; i < varNames.size(); i++)
-            varNodes.push_back(token(varNames[i], m));
-        // Copy over variable lengths and short variables
-        for (unsigned i = 0; i < varNodes.size(); i++) {
-            int pos = 1 + i * 32;
-            std::string prefix = (i < longVarNames.size()) ? "_len_" : "";
+        // Copy over short variables
+        for (unsigned i = 0; i < varNames.size(); i++) {
+            int pos = 1 + i * 32 + longVarNames.size() * 32;
             sub.push_back(asn("untyped", asn("set",
-                              token(prefix+varNodes[i].val, m),
+                              token(varNames[i], m),
                               asn("calldataload", tkn(utd(pos), m), m),
                               m)));
         }
         // Copy over long variables
         if (longVarNames.size() > 0) {
             std::vector<Node> sub2;
-            int pos = varNodes.size() * 32 + 1;
+            std::string startPos =
+                utd(varNames.size() * 32 + longVarNames.size() * 32 + 1);
             Node tot = tkn("_tot", m);
             for (unsigned i = 0; i < longVarNames.size(); i++) {
+                std::string sizePos = utd(1 + i * 32);
                 Node var = tkn(longVarNames[i], m);
-                Node varlen = longVarIsArray[i] 
-                    ? asn("mul", tkn("32", m), tkn("_len_"+longVarNames[i], m))
-                    : tkn("_len_"+longVarNames[i], m);
-                sub2.push_back(asn("untyped",
-                                   asn("set", var, asn("alloc", varlen))));
-                sub2.push_back(asn("calldatacopy", var, tot, varlen));
-                sub2.push_back(asn("set", tot, asn("add", tot, varlen)));
+                std::string allocType = longVarIsArray[i] ? "array" : "string";
+                sub2.push_back(
+                    asn("with",
+                        tkn("sz"),
+                        asn("calldataload", tkn(sizePos)),
+                        asn("seq",
+                            asn("untyped",
+                                   asn("set", var, asn(allocType, tkn("sz")))),
+                            asn("calldatacopy",
+                                   var,
+                                   tot,
+                                   tkn("sz")),
+                            asn("set", tot, asn("add", tot, tkn("sz"))))));
             }
             std::string prefix = "_temp_"+mkUniqueToken();
             sub.push_back(subst(
-                astnode("with", tot, tkn(utd(pos), m), asn("seq", sub2)),
+                astnode("with", tot, tkn(startPos, m), asn("seq", sub2)),
                 msn(),
                 prefix,
                 m));

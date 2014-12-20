@@ -83,7 +83,15 @@ std::string macros[][2] = {
     },
     {
         "(array $len)",
-        "(alloc (mul 32 $len))"
+        "(with $l $len (with $x (alloc (add 32 (mul 32 $l))) (seq (mstore $x $l) (add $x 32))))"
+    },
+    {
+        "(string $len)",
+        "(with $l $len (with $x (alloc (add 32 $l)) (seq (mstore $x $l) (add $x 32))))"
+    },
+    {
+        "(len $x)",
+        "(mload (sub $x 32))"
     },
     {
         "(while $cond $do)",
@@ -348,22 +356,26 @@ std::string setters[][2] = {
 
 std::map<std::string, std::string> setterMap;
 
-// Processes mutable array literals
+
+// processes mutable array literals
 Node array_lit_transform(Node node) {
     std::string prefix = "_temp"+mkUniqueToken() + "_";
     Metadata m = node.metadata;
     std::map<std::string, Node> d;
-    std::string o = "(seq (set $arr (alloc "+utd(node.args.size()*32)+"))";
+    std::string o = "(with $arr (alloc "+utd(node.args.size()*32+32)+")";
+    o +=     " (seq (mstore (get $arr) "+utd(node.args.size())+")";
     for (unsigned i = 0; i < node.args.size(); i++) {
-        o += " (mstore (add (get $arr) "+utd(i * 32)+") $"+utd(i)+")";
+        o += " (mstore (add (get $arr) "+utd(i * 32 + 32)+") $"+utd(i)+")";
         d[utd(i)] = node.args[i];
     }
-    o += " (get $arr))";
+    o += " (add (get $arr) 32)))";
     return subst(parseLLL(o), d, prefix, m);
 }
+ 
 
 // Processes long text literals
 Node string_transform(Node node) {
+    std::string prefix = "_temp"+mkUniqueToken() + "_";
     Metadata m = node.metadata;
     if (!node.args.size())
         err("Empty text!", m);
@@ -373,8 +385,11 @@ Node string_transform(Node node) {
         err("Text contents don't look like a string!", m);
     std::string bin = node.args[0].val.substr(1, node.args[0].val.size() - 2);
     unsigned sz = bin.size();
-    std::vector<Node> o;
+    std::map<std::string, Node> d;
+    std::string o = "(with $str (alloc "+utd(bin.size() + 32)+")";
+    o += " (seq (mstore (get $str) "+utd(bin.size())+")";
     for (unsigned i = 0; i < sz; i += 32) {
+        unsigned curpos = i;
         std::string t = binToNumeric(bin.substr(i, 32));
         if ((sz - i) < 32 && (sz - i) > 0) {
             while ((sz - i) < 32) {
@@ -383,10 +398,10 @@ Node string_transform(Node node) {
             }
             i = sz;
         }
-        o.push_back(token(t, node.metadata));
+        o += " (mstore (add (get $str) "+utd(curpos + 32)+") "+t+")";
     }
-    node = astnode("array_lit", o, node.metadata);
-    return array_lit_transform(node);
+    o += " (add (get $str) 32)))";
+    return subst(parseLLL(o), d, prefix, m);
 }
 
 
