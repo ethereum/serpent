@@ -2,10 +2,10 @@ def init():
     self.storage[msg.sender] = 1000000
 
 def balance_query(k):
-    return(self.storage[addr])
+    return(self.storage[k])
 
 def send(to, value):
     fromvalue = self.storage[msg.sender]
     if fromvalue >= value:
-        self.storage[from] = fromvalue - value
+        self.storage[msg.sender] = fromvalue - value
         self.storage[to] += value
