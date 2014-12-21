@@ -246,42 +246,6 @@ std::string macros[][2] = {
         "(with $var $val $cond)"
     },
     {
-        "(log $t1)",
-        "(~log1 0 0 $t1)"
-    },
-    {
-        "(log $t1 $t2)",
-        "(~log2 0 0 $t1 $t2)"
-    },
-    {
-        "(log $t1 $t2 $t3)",
-        "(~log3 0 0 $t1 $t2 $t3)"
-    },
-    {
-        "(log $t1 $t2 $t3 $t4)",
-        "(~log4 0 0 $t1 $t2 $t3 $t4)"
-    },
-    {
-        "(logarr $a $sz)",
-        "(~log0 $a (mul 32 $sz))"
-    },
-    {
-        "(logarr $a $sz $t1)",
-        "(~log1 $a (mul 32 $sz) $t1)"
-    },
-    {
-        "(logarr $a $sz $t1 $t2)",
-        "(~log2 $a (mul 32 $sz) $t1 $t2)"
-    },
-    {
-        "(logarr $a $sz $t1 $t2 $t3)",
-        "(~log3 $a (mul 32 $sz) $t1 $t2 $t3)"
-    },
-    {
-        "(logarr $a $sz $t1 $t2 $t3 $t4)",
-        "(~log4 $a (mul 32 $sz) $t1 $t2 $t3 $t4)"
-    },
-    {
         "(save $loc $array (= chars $count))",
         "(with $location (ref $loc) (with $c $count (with $end (div $c 32) (with $i 0 (seq (while (slt $i $end) (seq (sstore (add $i $location) (access $array $i)) (set $i (add $i 1)))) (sstore (add $i $location) (~and (access $array $i) (sub 0 (exp 256 (sub 32 (mod $c 32)))))))))))"
     },
@@ -377,6 +341,39 @@ Node array_lit_transform(Node node) {
     }
     o += " (add (get $arr) 32)))";
     return subst(parseLLL(o), d, prefix, m);
+}
+
+Node log_transform(Node node) {
+    Metadata m = node.metadata;
+    std::vector<Node> topics;
+    Node data;
+    bool usingData = false;
+    for (unsigned i = 0; i < node.args.size(); i++) {
+        if (node.args[i].val == "=") {
+            if (node.args[i].args[0].val == "data") {
+                data = node.args[i].args[1];
+                usingData = true;
+            }
+        }
+        else topics.push_back(node.args[i]);
+    }
+    if (topics.size() > 4) err("Too many topics!", m);
+    std::vector<Node> out;
+    if (usingData) {
+        out.push_back(tkn("_datarr", m));
+        out.push_back(asn("len", tkn("_datarr", m), m));
+    }
+    else {
+        out.push_back(tkn("0", m));
+        out.push_back(tkn("0", m));
+    }
+    std::string t = utd(topics.size());
+    for (unsigned i = 0; i < topics.size(); i++)
+        out.push_back(topics[i]);
+    if (usingData)
+        return asn("with", tkn("_datarr", m), data, asn("~log"+t, out, m), m);
+    else
+        return asn("~log"+t, out, m);
 }
  
 
@@ -728,6 +725,10 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
 
 
     // Special transformations
+    if (node.val == "log") {
+        node = log_transform(node);
+        changed = true;
+    }
     if (node.val == "array_lit") {
         node = array_lit_transform(node);
         changed = true;
@@ -751,13 +752,6 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
                 changed = true;
             }
             i = 1;
-        }
-        // Convert arglen(x) to '_len_x
-        else if (node.val == "arglen") {
-            node.val = "get";
-            node.args[0].val = "'_len_" + node.args[0].val;
-            i = 1;
-            changed = true;
         }
         // Recursively process children
         for (; i < node.args.size(); i++) {
