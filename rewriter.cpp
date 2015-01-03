@@ -86,7 +86,7 @@ std::string macros[][2] = {
         "(with $l $len (with $x (alloc (add 32 $l)) (seq (mstore $x $l) (add $x 32))))"
     },
     {
-        "(shrink_array $arr $sz)",
+        "(shrink $arr $sz)",
         "(mstore (sub $arr 32) $sz)"
     },
     {
@@ -206,16 +206,32 @@ std::string macros[][2] = {
         "(with $1 (msize) (create $endowment (get $1) (lll $code (msize))))"
     },
     {
+        "(sha256 (: $x a))",
+        "(with $0 $x (sha256 $0 (mload (sub $0 32))))"
+    },
+    {
+        "(sha256 (: $x s))",
+        "(with $0 $x (sha256 $0 (= chars (mload (sub $0 32)))))"
+    },
+    {
         "(sha256 $x)",
         "(with $1 (alloc 64) (seq (mstore (add (get $1) 32) $x) (pop (~call 101 2 0 (add (get $1) 32) 32 (get $1) 32)) (mload (get $1))))"
     },
     {
         "(sha256 $arr (= chars $sz))",
-        "(with $1 (alloc 32) (seq (pop (~call 101 2 0 $arr $sz (get $1) 32)) (mload (get $1))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 2 $0)) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(sha256 $arr $sz)",
-        "(with $1 (alloc 32) (seq (pop (~call 101 2 0 $arr (mul 32 $sz) (get $1) 32)) (mload (get $1))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 2 0 $arr (mul 32 $0) (get $1) 32)) (mload (get $1)))))"
+    },
+    {
+        "(ripemd160 (: $x a))",
+        "(with $0 $x (ripemd160 $0 (mload (sub $0 32))))"
+    },
+    {
+        "(ripemd160 (: $x s))",
+        "(with $0 $x (ripemd160 $0 (= chars (mload (sub $0 32)))))"
     },
     {
         "(ripemd160 $x)",
@@ -223,11 +239,11 @@ std::string macros[][2] = {
     },
     {
         "(ripemd160 $arr (= chars $sz))",
-        "(with $1 (alloc 32) (seq (pop (~call 101 3 0 $arr $sz (mload $1) 32)) (mload (get $1))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 2 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(ripemd160 $arr $sz)",
-        "(with $1 (alloc 32) (seq (pop (~call 101 3 0 $arr (mul 32 $sz) (get $1) 32)) (mload (get $1))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 3 0 $arr (mul 32 $0) (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(ecrecover $h $v $r $s)",
