@@ -26,6 +26,7 @@ class preprocessAux {
             globalExterns = std::map<std::string, int>();
             localExterns = std::map<std::string, std::map<std::string, int> >();
             localExterns["self"] = std::map<std::string, int>();
+            localExternSigs["self"] = std::map<std::string, std::string>();
         }
         std::map<std::string, int> globalExterns;
         std::map<std::string, std::string> globalExternSigs;
@@ -45,6 +46,9 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix="",
 
 // Preprocess a function (see cpp for details)
 preprocessResult preprocess(Node inp);
+
+// Make a signature for a file
+std::string mkExternLine(Node n);
 
 
 #endif

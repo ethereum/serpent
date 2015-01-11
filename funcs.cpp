@@ -9,6 +9,7 @@
 #include "compiler.h"
 #include "rewriter.h"
 #include "tokenize.h"
+#include "preprocess.h"
 
 Node compileToLLL(std::string input) {
     return rewrite(parseSerpent(input));
@@ -32,4 +33,8 @@ std::string compileChunk(std::string input) {
 
 std::vector<Node> prettyCompileChunk(std::string input) {
     return prettyCompileLLL(compileChunkToLLL(input));
+}
+
+std::string mkSignature(std::string input) {
+    return mkExternLine(parseSerpent(input));
 }

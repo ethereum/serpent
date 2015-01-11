@@ -326,3 +326,28 @@ preprocessResult processTypes (preprocessResult pr) {
 preprocessResult preprocess(Node n) {
     return processTypes(preprocessInit(n));
 }
+
+std::string mkExternLine(Node n) {
+    preprocessResult pr = preprocess(n);
+    std::vector<std::string> outNames;
+    std::vector<std::string> outSignatures;
+    if (!pr.second.localExternSigs["self"].size())
+        return "extern " + n.metadata.file + ": []";
+    for (unsigned i = 0; i < pr.second.localExterns["self"].size(); i++) {
+        outNames.push_back("");
+        outSignatures.push_back("");
+    }
+    for (std::map<std::string, int>::iterator it=
+            pr.second.localExterns["self"].begin();
+            it != pr.second.localExterns["self"].end(); it++) {
+        outNames[(*it).second] = (*it).first;
+        outSignatures[(*it).second] = 
+            pr.second.localExternSigs["self"][(*it).first];
+    }
+    std::string o = "extern " + n.metadata.file + ": [";
+    for (unsigned i = 0; i < outNames.size(); i++) {
+        o += outNames[i] + ":" + outSignatures[i];
+        o += (i < outNames.size() - 1) ? ", " : "]"; 
+    }
+    return o;
+}
