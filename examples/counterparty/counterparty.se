@@ -70,7 +70,7 @@ def send(to, asset, value):
 # Order
 def mkorder(selling, buying, quantity, price):
     # Make sure you have enough to pay for the order
-    assert self.balances[msg.sender][selling] >= quantity:
+    assert self.balances[msg.sender][selling] >= quantity
     # Try to match existing orders
     o = orderbooks[buying][selling]
     if not o:
