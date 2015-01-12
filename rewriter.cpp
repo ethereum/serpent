@@ -365,11 +365,14 @@ Node log_transform(Node node) {
     std::vector<Node> topics;
     Node data;
     bool usingData = false;
+    bool isDataString = false;
     for (unsigned i = 0; i < node.args.size(); i++) {
         if (node.args[i].val == "=") {
-            if (node.args[i].args[0].val == "data") {
+            std::string v = node.args[i].args[0].val;
+            if (v == "data" || v == "datastr") {
                 data = node.args[i].args[1];
                 usingData = true;
+                isDataString = (v == "datastr");
             }
         }
         else topics.push_back(node.args[i]);
@@ -378,7 +381,9 @@ Node log_transform(Node node) {
     std::vector<Node> out;
     if (usingData) {
         out.push_back(tkn("_datarr", m));
-        out.push_back(asn("len", tkn("_datarr", m), m));
+        out.push_back(isDataString
+            ? asn("len", tkn("_datarr", m), m)
+            : asn("mul", tkn("32", m), asn("len", tkn("_datarr", m), m)));
     }
     else {
         out.push_back(tkn("0", m));
