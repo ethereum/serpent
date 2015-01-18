@@ -50,5 +50,7 @@ preprocessResult preprocess(Node inp);
 // Make a signature for a file
 std::string mkExternLine(Node n);
 
+// Get the storage data mapping for a file
+std::vector<Node> getDataNodes(Node n);
 
 #endif

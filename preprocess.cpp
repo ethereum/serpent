@@ -351,3 +351,15 @@ std::string mkExternLine(Node n) {
     }
     return o;
 }
+
+std::vector<Node> getDataNodes(Node n) {
+    Metadata m = n.metadata;
+    if (n.val != "seq")
+        n = astnode("seq", n, m);
+    std::vector<Node> dataNodes;
+    for (unsigned i = 0; i < n.args.size(); i++) {
+        if (n.args[i].val == "data")
+            dataNodes.push_back(n.args[i]);
+    }
+    return dataNodes;
+}
