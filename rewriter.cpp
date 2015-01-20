@@ -278,12 +278,12 @@ std::string macros[][2] = {
         "(with $location (ref $loc) (with $c $count (with $a (alloc $c) (with $i 0 (seq (while (slt $i $c) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) $a)))))"
     },
     {
-        "(unsafe_mcopy $to $from $sz)",
-        "(with _sz $sz (with _from $from (with _to $to (seq (comment STARTING UNSAFE MCOPY) (with _i 0 (while (lt _i _sz) (seq (mstore (add $to _i) (mload (add _from _i))) (set _i (add _i 32)))))))))"
+        "(safe_call $gas $to $value $datain $datainsz $dataout $dataoutsz)",
+        "(unless (~call $gas $to $value $datain $datainsz $dataout $dataoutsz) (invalid))"
     },
     {
-        "(mcopy $to $from $_sz)",
-        "(with _to $to (with _from $from (with _sz $sz (seq (comment STARTING MCOPY (with _i 0 (seq (while (lt (add _i 31) _sz) (seq (mstore (add _to _i) (mload (add _from _i))) (set _i (add _i 32)))) (with _mask (exp 256 (sub 32 (mod _sz 32))) (mstore (add $to _i) (add (mod (mload (add $to _i)) _mask) (and (mload (add $from _i)) (sub 0 _mask))))))))))))"
+        "(mcopy $to $from $sz)",
+        "(with _sz $sz (safe_call (+ 1 (/ _sz 32)) 4 0 $from _sz $to _sz))"
     },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },

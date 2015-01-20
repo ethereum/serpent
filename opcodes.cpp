@@ -71,6 +71,7 @@ Mapping mapping[] = {
     Mapping("CALL", 0xf1, 7, 1),
     Mapping("CALLCODE", 0xf2, 7, 1),
     Mapping("RETURN", 0xf3, 2, 0),
+    Mapping("INVALID", 0xfe, 0, 0), //Not an opcode; use to cause an exception
     Mapping("SUICIDE", 0xff, 1, 0),
     Mapping("---END---", 0x00, 0, 0),
 };

@@ -116,7 +116,7 @@ Node packArguments(std::vector<Node> args, std::string sig,
             isArray[i] ? "(mul 32 (mload (add _vars "+vlSizePos+")))"
                        : "(mload (add _vars "+vlSizePos+"))";
         pattern +=
-            "        (unsafe_mcopy _pos                                   "
+            "        (mcopy _pos                                   "
             "            (mload (add _vars "+vlArgPos+")) "+copySize+")   "
             "        (set _pos (add _pos "+copySize+"))                   ";
     }
