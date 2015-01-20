@@ -55,12 +55,6 @@ int main(int argv, char** argc) {
     else if (command == "compile_to_lll") {
         std::cout << printAST(compileToLLL(input), haveSec) << "\n";
     }
-    else if (command == "rewrite_chunk") {
-        std::cout << printAST(rewriteChunk(parseLLL(input, true)), haveSec) << "\n";
-    }
-    else if (command == "compile_chunk_to_lll") {
-        std::cout << printAST(compileChunkToLLL(input), haveSec) << "\n";
-    }
     else if (command == "build_fragtree") {
         std::cout << printAST(buildFragmentTree(parseLLL(input, true))) << "\n";
     }
@@ -79,9 +73,6 @@ int main(int argv, char** argc) {
     else if (command == "pretty_compile") {
         std::cout << printTokens(prettyCompile(input)) << "\n";
     }
-    else if (command == "pretty_compile_chunk") {
-        std::cout << printTokens(prettyCompileChunk(input)) << "\n";
-    }
     else if (command == "assemble") {
         std::cout << assemble(parseLLL(input, true)) << "\n";
     }
@@ -93,9 +84,6 @@ int main(int argv, char** argc) {
     }
     else if (command == "compile") {
         std::cout << binToHex(compile(input)) << "\n";
-    }
-    else if (command == "compile_chunk") {
-        std::cout << binToHex(compileChunk(input)) << "\n";
     }
     else if (command == "encode_datalist") {
         std::vector<Node> tokens = tokenize(input);
