@@ -18,7 +18,7 @@ std::string getSignature(std::vector<Node> args) {
         else if (args[i].val == ":" && args[i].args[1].val == "arr")
             o += "a";
         else if (args[i].val == ":")
-            err("Invalid datatype!", args[0].metadata);
+            err("Invalid datatype! Remember to change s -> str and a -> arr for latest version", args[0].metadata);
         else
             o += "i";
     }
@@ -147,7 +147,7 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
             else if (tag == "arr")
                 longVarIsArray.push_back(true);
             else
-                err("Function value can only be string or array", m);
+                err("Function value can only be string or array. Remember to change s -> str and a -> arr for latest version", m);
         }
         else {
             varNames.push_back(vars[i].val);

@@ -219,7 +219,7 @@ std::string macros[][2] = {
     },
     {
         "(sha256 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 100 (mul 2 $0)) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(ripemd160 (: $x arr))",
@@ -235,7 +235,7 @@ std::string macros[][2] = {
     },
     {
         "(ripemd160 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 100 (mul 2 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(set chars $x)",
@@ -283,7 +283,7 @@ std::string macros[][2] = {
     },
     {
         "(mcopy $to $from $sz)",
-        "(with _sz $sz (safe_call (+ 1 (/ _sz 32)) 4 0 $from _sz $to _sz))"
+        "(with _sz $sz (safe_call (+ 2 (/ _sz 32)) 4 0 $from _sz $to _sz))"
     },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
