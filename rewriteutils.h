@@ -14,6 +14,10 @@ extern std::map<std::string, bool> vfMap;
 
 bool isValidFunctionName(std::string f);
 
+// Invalid variable names
+
+extern std::map<std::string, bool> reservedWords;
+
 // Converts deep array access into ordered list of the arguments
 // along the descent
 std::vector<Node> listfyStorageAccess(Node node);

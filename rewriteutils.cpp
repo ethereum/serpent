@@ -44,6 +44,15 @@ std::string validFunctions[][3] = {
 
 std::map<std::string, bool> vfMap;
 
+std::map<std::string, bool> reservedWords = create_map<std::string,bool>
+    ("arr", true)
+    ("str", true)
+    ("chars", true)
+    ("bytes", true)
+    ("items", true)
+    ("words", true)
+    ("string", true);
+
 // Is a function name one of the valid functions above?
 bool isValidFunctionName(std::string f) {
     if (vfMap.size() == 0) {

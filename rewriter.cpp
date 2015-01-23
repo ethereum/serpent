@@ -94,11 +94,11 @@ std::string macros[][2] = {
         "(mload (sub $x 32))"
     },
     {
-        "(return (: $x s))",
+        "(return (: $x str))",
         "(with $y $x (~return $y (len $y)))"
     },
     {
-        "(return (: $x a))",
+        "(return (: $x arr))",
         "(with $y $x (~return $y (mul 32 (len $y))))"
     },
     {
@@ -154,18 +154,6 @@ std::string macros[][2] = {
         "(~call $gas $to $value 0 0 0 0)"
     },
     {
-        "(sha3 $x)",
-        "(seq (set $1 $x) (~sha3 (ref $1) 32))"
-    },
-    {
-        "(sha3 $mstart (= chars $msize))",
-        "(~sha3 $mstart $msize)"
-    },
-    {
-        "(sha3 $mstart $msize)",
-        "(~sha3 $mstart (mul 32 $msize))"
-    },
-    {
         "(id $0)",
         "$0"
     },
@@ -206,44 +194,56 @@ std::string macros[][2] = {
         "(with $1 (msize) (create $endowment (get $1) (lll $code (msize))))"
     },
     {
-        "(sha256 (: $x a))",
-        "(with $0 $x (sha256 $0 (mload (sub $0 32))))"
+        "(sha3 (: $x arr))",
+        "(with $0 $x (sha3 $0 (= items (mload (sub $0 32)))))"
     },
     {
-        "(sha256 (: $x s))",
+        "(sha3 (: $x str))",
+        "(with $0 $x (sha3 $0 (= chars (mload (sub $0 32)))))"
+    },
+    {
+        "(sha3 $x)",
+        "(seq (set $1 $x) (~sha3 (ref $1) 32))"
+    },
+    {
+        "(sha256 (: $x arr))",
+        "(with $0 $x (sha256 $0 (= items (mload (sub $0 32)))))"
+    },
+    {
+        "(sha256 (: $x str))",
         "(with $0 $x (sha256 $0 (= chars (mload (sub $0 32)))))"
     },
     {
         "(sha256 $x)",
-        "(with $1 (alloc 64) (seq (mstore (add (get $1) 32) $x) (pop (~call 101 2 0 (add (get $1) 32) 32 (get $1) 32)) (mload (get $1))))"
-    },
-    {
-        "(sha256 $arr (= chars $sz))",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 2 $0)) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(seq (set $1 $x) (sha256 (ref $1) (= items 1)))",
     },
     {
         "(sha256 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 2 0 $arr (mul 32 $0) (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
-        "(ripemd160 (: $x a))",
-        "(with $0 $x (ripemd160 $0 (mload (sub $0 32))))"
+        "(ripemd160 (: $x arr))",
+        "(with $0 $x (ripemd160 $0 (= items (mload (sub $0 32)))))"
     },
     {
-        "(ripemd160 (: $x s))",
+        "(ripemd160 (: $x str))",
         "(with $0 $x (ripemd160 $0 (= chars (mload (sub $0 32)))))"
     },
     {
         "(ripemd160 $x)",
-        "(with $1 (alloc 64) (seq (mstore (add (get $1) 32) $x) (pop (~call 101 3 0 (add (get $1) 32) 32 (get $1) 32)) (mload (get $1))))"
-    },
-    {
-        "(ripemd160 $arr (= chars $sz))",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 2 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(seq (set $1 $x) (sha256 (ref $1) (= items 1)))",
     },
     {
         "(ripemd160 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 3 0 $arr (mul 32 $0) (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 101 (mul 50 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+    },
+    {
+        "(set chars $x)",
+        "$x",
+    },
+    {
+        "(set items $x)",
+        "(mul $x 32)",
     },
     {
         "(ecrecover $h $v $r $s)",
@@ -408,7 +408,7 @@ Node string_transform(Node node) {
     if (node.args[0].val.size() < 2 
      || node.args[0].val[0] != '"'
      || node.args[0].val[node.args[0].val.size() - 1] != '"')
-        err("Text contents don't look like a string!", m);
+        err("Text contents don't look like a string: "+node.args[0].val, m);
     std::string bin = node.args[0].val.substr(1, node.args[0].val.size() - 2);
     unsigned sz = bin.size();
     std::map<std::string, Node> d;
@@ -905,6 +905,13 @@ Node postValidate(Node inp) {
         for (unsigned i = 0; i < inp.args.size(); i++) {
             inp.args[i] = postValidate(inp.args[i]);
         }
+    }
+    if (inp.type == TOKEN) {
+        if (reservedWords.count(inp.val))
+            err("Reserved word: "+inp.val, inp.metadata);
+        if (inp.val[0] == '\'' && reservedWords.count(inp.val.substr(1)))
+            err("Reserved word: "+inp.val.substr(1), inp.metadata);
+        
     }
     return inp;
 }

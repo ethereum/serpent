@@ -13,10 +13,12 @@
 std::string getSignature(std::vector<Node> args) {
     std::string o;
     for (unsigned i = 0; i < args.size(); i++) {
-        if (args[i].val == ":" && args[i].args[1].val == "s")
+        if (args[i].val == ":" && args[i].args[1].val == "str")
             o += "s";
-        else if (args[i].val == ":" && args[i].args[1].val == "a")
+        else if (args[i].val == ":" && args[i].args[1].val == "arr")
             o += "a";
+        else if (args[i].val == ":")
+            err("Invalid datatype!", args[0].metadata);
         else
             o += "i";
     }
@@ -140,9 +142,9 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
                 err("Malformed def!", m);
             longVarNames.push_back(vars[i].args[0].val);
             std::string tag = vars[i].args[1].val;
-            if (tag == "s")
+            if (tag == "str")
                 longVarIsArray.push_back(false);
-            else if (tag == "a")
+            else if (tag == "arr")
                 longVarIsArray.push_back(true);
             else
                 err("Function value can only be string or array", m);
