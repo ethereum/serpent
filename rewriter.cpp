@@ -262,20 +262,28 @@ std::string macros[][2] = {
         "(with $var $val $cond)"
     },
     {
-        "(save $loc $array (= chars $count))",
-        "(with $location (ref $loc) (with $c $count (with $end (div $c 32) (with $i 0 (seq (while (slt $i $end) (seq (sstore (add $i $location) (access $array $i)) (set $i (add $i 1)))) (sstore (add $i $location) (~and (access $array $i) (sub 0 (exp 256 (sub 32 (mod $c 32)))))))))))"
+        "(save $loc (: $array arr))",
+        "(with $0 $array (save $loc $0 (= items (len $0))))"
     },
     {
-        "(save $loc $array $count)",
+        "(save $loc (: $string str))",
+        "(with $0 $string (save $loc $0 (= chars (len $0))))"
+    },
+    {
+        "(save $loc $array (= items $count))",
         "(with $location (ref $loc) (with $end $count (with $i 0 (while (slt $i $end) (seq (sstore (add $i $location) (access $array $i)) (set $i (add $i 1)))))))"
     },
     {
-        "(load $loc (= chars $count))",
-        "(with $location (ref $loc) (with $c $count (with $a (alloc $c) (with $i 0 (seq (while (slt $i (div $c 32)) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) (set (access $a $i) (~and (sload (add $location $i)) (sub 0 (exp 256 (sub 32 (mod $c 32)))))) $a)))))"
+        "(save $loc $array $count)",
+        "(with $location (ref $loc) (with $c $count (with $end (div $c 32) (with $i 0 (seq (while (slt $i $end) (seq (sstore (add $i $location) (access $array $i)) (set $i (add $i 1)))) (sstore (add $i $location) (~and (access $array $i) (sub 0 (exp 256 (sub 32 (mod $c 32)))))))))))"
+    },
+    {
+        "(load $loc (= items $count))",
+        "(with $location (ref $loc) (with $c $count (with $a (array $c) (with $i 0 (seq (while (slt $i $c) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) $a)))))"
     },
     {
         "(load $loc $count)",
-        "(with $location (ref $loc) (with $c $count (with $a (alloc $c) (with $i 0 (seq (while (slt $i $c) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) $a)))))"
+        "(with $location (ref $loc) (with $c $count (with $a (string $c) (with $i 0 (seq (while (slt $i (div $c 32)) (seq (set (access $a $i) (sload (add $location $i))) (set $i (add $i 1)))) (set (access $a $i) (~and (sload (add $location $i)) (sub 0 (exp 256 (sub 32 (mod $c 32)))))) $a)))))"
     },
     {
         "(safe_call $gas $to $value $datain $datainsz $dataout $dataoutsz)",
