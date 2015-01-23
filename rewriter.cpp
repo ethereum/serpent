@@ -477,6 +477,8 @@ Node dotTransform(Node node, preprocessAux aux) {
                 kwargs["value"] = arg.args[1];
             if (arg.args[0].val == "outsz")
                 kwargs["outsz"] = arg.args[1];
+            if (arg.args[0].val == "outbytes")
+                kwargs["outbytes"] = arg.args[1];
         }
     }
     if (dotOwner.val == "self") {
@@ -506,11 +508,17 @@ Node dotTransform(Node node, preprocessAux aux) {
     kwargs["to"] = dotOwner;
     Node main;
     // Pack output
-    if (!kwargs.count("outsz")) {
+    if (!kwargs.count("outsz") && !kwargs.count("outbytes")) {
         main = parseLLL(
             "(with _data $data (seq "
                 "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) (ref $dataout) 32))"
                 "(get $dataout)))");
+    }
+    else if (kwargs.count("outbytes")) {
+        main = parseLLL(
+            "(with _data $data (with _outbytes $outbytes (with _out (string _outbytes) (seq "
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out _outbytes))"
+                "(get _out)))))");
     }
     else {
         main = parseLLL(
