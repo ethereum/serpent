@@ -90,6 +90,14 @@ std::string macros[][2] = {
         "(mstore (sub $arr 32) $sz)"
     },
     {
+        "(slice $arr (= items $start) (= items $end))",  
+        "(with _s $start (with _l (sub $end _s) (with _a (array _l) (seq (mcopy _a (add $arr (mul 32 _s)) (mul 32 _l)) _a))))"
+    },
+    {
+        "(slice $arr (= chars $start) (= chars $end))",  
+        "(with _s $start (with _l (sub $end _s) (with _a (string _l) (seq (mcopy _a (add $arr _s) _l) _a))))"
+    },
+    {
         "(len $x)",
         "(mload (sub $x 32))"
     },
@@ -195,11 +203,19 @@ std::string macros[][2] = {
     },
     {
         "(sha3 (: $x arr))",
-        "(with $0 $x (sha3 $0 (= items (mload (sub $0 32)))))"
+        "(with $0 $x (~sha3 $0 (= items (mload (sub $0 32)))))"
     },
     {
         "(sha3 (: $x str))",
-        "(with $0 $x (sha3 $0 (= chars (mload (sub $0 32)))))"
+        "(with $0 $x (~sha3 $0 (= chars (mload (sub $0 32)))))"
+    },
+    {
+        "(sha3 $arr (= $type $sz))",
+        "(~sha3 $arr (= $type $sz))"
+    },
+    {
+        "(sha3 $arr $sz)",
+        "(error \"when hashing you must do sha3(arr, items=len) for arrays or sha3(arr, chars=len) for strings; sha3(arr, len) by itself is no longer valid\")"
     },
     {
         "(sha3 $x)",
@@ -207,35 +223,55 @@ std::string macros[][2] = {
     },
     {
         "(sha256 (: $x arr))",
-        "(with $0 $x (sha256 $0 (= items (mload (sub $0 32)))))"
+        "(with $0 $x (_sha256 $0 (= items (mload (sub $0 32)))))"
     },
     {
         "(sha256 (: $x str))",
-        "(with $0 $x (sha256 $0 (= chars (mload (sub $0 32)))))"
+        "(with $0 $x (_sha256 $0 (= chars (mload (sub $0 32)))))"
+    },
+    {
+        "(sha256 $arr (= $type $sz))",
+        "(_sha256 $arr (= $type $sz))"
+    },
+    {
+        "(sha256 (: $x str))",
+        "(with $0 $x (_sha256 $0 (= chars (mload (sub $0 32)))))"
     },
     {
         "(sha256 $x)",
-        "(seq (set $1 $x) (sha256 (ref $1) (= items 1)))",
+        "(seq (set $1 $x) (_sha256 (ref $1) (= items 1)))",
     },
     {
-        "(sha256 $arr $sz)",
+        "(_sha256 $arr $sz)",
         "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 100 (mul 2 $0)) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
+        "(sha256 $arr $sz)",
+        "(error \"when hashing you must do sha256(arr, items=len) for arrays or sha256(arr, chars=len) for strings; sha256(arr, len) by itself is no longer valid\")"
+    },
+    {
         "(ripemd160 (: $x arr))",
-        "(with $0 $x (ripemd160 $0 (= items (mload (sub $0 32)))))"
+        "(with $0 $x (_ripemd160 $0 (= items (mload (sub $0 32)))))"
     },
     {
         "(ripemd160 (: $x str))",
-        "(with $0 $x (ripemd160 $0 (= chars (mload (sub $0 32)))))"
+        "(with $0 $x (_ripemd160 $0 (= chars (mload (sub $0 32)))))"
+    },
+    {
+        "(ripemd160 $arr (= $type $sz))",
+        "(_ripemd160 $arr (= $type $sz))"
     },
     {
         "(ripemd160 $x)",
-        "(seq (set $1 $x) (sha256 (ref $1) (= items 1)))",
+        "(seq (set $1 $x) (_ripemd160 (ref $1) (= items 1)))",
+    },
+    {
+        "(_ripemd160 $arr $sz)",
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 100 (mul 2 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(ripemd160 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 100 (mul 2 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(error \"when hashing you must do ripemd160(arr, items=len) for arrays or ripemd160(arr, chars=len) for strings; ripemd160(arr, len) by itself is no longer valid\")"
     },
     {
         "(set chars $x)",
@@ -377,7 +413,7 @@ Node log_transform(Node node) {
     for (unsigned i = 0; i < node.args.size(); i++) {
         if (node.args[i].val == "=") {
             std::string v = node.args[i].args[0].val;
-            if (v == "data" || v == "datastr") {
+            if (v == "data" || v == "datastr" || v == "dataarr") {
                 data = node.args[i].args[1];
                 usingData = true;
                 isDataString = (v == "datastr");
@@ -475,10 +511,10 @@ Node dotTransform(Node node, preprocessAux aux) {
                 kwargs["gas"] = arg.args[1];
             if (arg.args[0].val == "value")
                 kwargs["value"] = arg.args[1];
-            if (arg.args[0].val == "outsz")
-                kwargs["outsz"] = arg.args[1];
-            if (arg.args[0].val == "outbytes")
-                kwargs["outbytes"] = arg.args[1];
+            if (arg.args[0].val == "outitems" || arg.args[0].val == "outsz")
+                kwargs["outitems"] = arg.args[1];
+            if (arg.args[0].val == "outchars")
+                kwargs["outchars"] = arg.args[1];
         }
     }
     if (dotOwner.val == "self") {
@@ -508,22 +544,22 @@ Node dotTransform(Node node, preprocessAux aux) {
     kwargs["to"] = dotOwner;
     Node main;
     // Pack output
-    if (!kwargs.count("outsz") && !kwargs.count("outbytes")) {
+    if (!kwargs.count("outitems") && !kwargs.count("outchars")) {
         main = parseLLL(
             "(with _data $data (seq "
                 "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) (ref $dataout) 32))"
                 "(get $dataout)))");
     }
-    else if (kwargs.count("outbytes")) {
+    else if (kwargs.count("outchars")) {
         main = parseLLL(
-            "(with _data $data (with _outbytes $outbytes (with _out (string _outbytes) (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out _outbytes))"
+            "(with _data $data (with _outchars $outchars (with _out (string _outchars) (seq "
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out _outchars))"
                 "(get _out)))))");
     }
     else {
         main = parseLLL(
-            "(with _data $data (with _outsz $outsz (with _out (array _outsz) (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (mul 32 _outsz)))"
+            "(with _data $data (with _outitems $outitems (with _out (array _outitems) (seq "
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (mul 32 _outitems)))"
                 "(get _out)))))");
     }
     // Set up main call
@@ -673,6 +709,8 @@ std::pair<Node, bool> rulesTransform(Node node, rewriteRuleSet macros) {
         matchResult mr = match(macro.pattern, node);
         if (mr.success) {
             node = subst(macro.substitution, mr.map, prefix, node.metadata);
+            if (node.val == "error")
+                err(node.args[0].val, node.metadata);
             std::pair<Node, bool> o = rulesTransform(node, macros);
             o.second = true;
             return o;
