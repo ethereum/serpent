@@ -28,10 +28,13 @@ class argPack {
 // Get a signature from a function
 std::string getSignature(std::vector<Node> args);
 
+// Get the list of argument names for a function
+std::vector<std::string> getArgNames(std::vector<Node> args);
+
 // Convert a list of arguments into a <pre, mstart, msize> node
 // triple, given the signature of a function
 Node packArguments(std::vector<Node> args, std::string sig,
-                   int funId, Metadata m);
+                   unsigned functionPrefix, Metadata m);
 
 // Create a node for argument unpacking
 Node unpackArguments(std::vector<Node> vars, Metadata m);

@@ -17,21 +17,26 @@ struct svObj {
     std::string globalOffset;
 };
 
+class functionMetadata {
+    public:
+        functionMetadata(int _id=0, std::string _sig="", strvec _argNames=strvec()) {
+            id = _id;
+            sig = _sig;
+            argNames = _argNames;
+        }
+        int id;
+        std::string sig;
+        std::vector<std::string> argNames;
+};
 
 
 // Preprocessing result storing object
 class preprocessAux {
     public:
         preprocessAux() {
-            globalExterns = std::map<std::string, int>();
-            localExterns = std::map<std::string, std::map<std::string, int> >();
-            localExterns["self"] = std::map<std::string, int>();
-            localExternSigs["self"] = std::map<std::string, std::string>();
         }
-        std::map<std::string, int> globalExterns;
-        std::map<std::string, std::string> globalExternSigs;
-        std::map<std::string, std::map<std::string, int> > localExterns;
-        std::map<std::string, std::map<std::string, std::string> > localExternSigs;
+        std::map<std::string, functionMetadata> globalExterns;
+        std::map<std::string, std::map<std::string, functionMetadata> > localExterns;
         std::map<int, rewriteRuleSet > customMacros;
         std::map<std::string, std::string> types;
         svObj storageVars;
@@ -49,6 +54,12 @@ preprocessResult preprocess(Node inp);
 
 // Make a signature for a file
 std::string mkExternLine(Node n);
+
+// Make the javascript import signature for a contract
+std::string mkWeb3Extern(Node n);
+
+// Get the prefix for a function name/sig combo
+unsigned int getPrefix(std::string functionName, std::string signature);
 
 // Get the storage data mapping for a file
 std::vector<Node> getDataNodes(Node n);

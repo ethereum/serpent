@@ -25,11 +25,22 @@ std::string getSignature(std::vector<Node> args) {
     return o;
 }
 
+std::vector<std::string> getArgNames(std::vector<Node> args) {
+    std::vector<std::string> o;
+    for (unsigned i = 0; i < args.size(); i++) {
+        if (args[i].val == ":")
+            o.push_back(args[i].args[0].val);
+        else
+            o.push_back(args[i].val);
+    }
+    return o;
+}
+
 // Convert a list of arguments into a node containing a
 // < datastart, datasz > pair
 
 Node packArguments(std::vector<Node> args, std::string sig,
-                      int funId, Metadata m) {
+                      unsigned functionPrefix, Metadata m) {
     // Plain old 32 byte arguments
     std::vector<Node> nargs;
     // Variable-sized arguments
@@ -48,7 +59,14 @@ Node packArguments(std::vector<Node> args, std::string sig,
             char argType;
             if (sig.size() > 0) {
                 if (argCount >= (signed)sig.size())
-                    err("Too many args", m);
+                    err("Too many args. Note that if you are using an extern "
+                        "declaration, under the new syntax including the "
+                        "function name by itself implies that the function "
+                        "accepts no arguments. If your function has arguments "
+                        ", then you need something like `extern foo: [bar:ii]`"
+                        ". If you want to be sure, run "
+                        "`serpent mk_signature <file>` on the contract you are "
+                        "including to determine the correct signature.", m);
                 argType = sig[argCount];
             }
             else argType = 'i';
@@ -70,13 +88,13 @@ Node packArguments(std::vector<Node> args, std::string sig,
             argCount++;
         }
     }
-    int static_arg_size = 1 + (vargs.size() + nargs.size()) * 32;
+    int static_arg_size = 4 + (vargs.size() + nargs.size()) * 32;
     // Start off by saving the size variables and calculating the total
     msn kwargs;
-    kwargs["funid"] = tkn(utd(funId), m);
+    kwargs["funid"] = tkn(utd(functionPrefix), m);
     std::string pattern =
         "(with _sztot "+utd(static_arg_size)+"                            "
-        "    (with _vars (alloc "+utd(vargs.size() * 64)+")              "
+        "    (with _vars (alloc "+utd(vargs.size() * 64)+")               "
         "        (seq                                                     ";
     for (unsigned i = 0; i < vargs.size(); i++) {
         std::string sizeIncrement = 
@@ -88,22 +106,22 @@ Node packArguments(std::vector<Node> args, std::string sig,
             "    (set _sztot (add _sztot "+sizeIncrement+" ))))           ";
         kwargs["vl"+utd(i)] = vargs[i];
     }
-    // Allocate memory, and set first data byte
+    // Allocate memory, and set first four data bytes
     pattern +=
-            "(with _datastart (alloc (add _sztot 32)) (seq                "
-            "    (mstore8 _datastart $funid)                              ";
+            "(with _datastart (add (alloc (add _sztot 64)) 28) (seq       "
+            "    (mstore (sub _datastart 28) $funid)                      ";
     // Copy over size variables
     for (unsigned i = 0; i < vargs.size(); i++) {
-        std::string posInDatastart = utd(1 + i * 32);
+        std::string posInDatastart = utd(4 + i * 32);
         std::string varArgSize = utd(i * 64);
         pattern +=
-            "    (mstore                                                 "
-            "          (add _datastart "+posInDatastart+")               "
-            "          (mload (add _vars "+varArgSize+")))               ";
+            "    (mstore                                                  "
+            "          (add _datastart "+posInDatastart+")                "
+            "          (mload (add _vars "+varArgSize+")))                ";
     }
     // Store normal arguments
     for (unsigned i = 0; i < nargs.size(); i++) {
-        int v = 1 + (i + vargs.size()) * 32;
+        int v = 4 + (i + vargs.size()) * 32;
         pattern +=
             "    (mstore (add _datastart "+utd(v)+") $"+utd(i)+")         ";
         kwargs[utd(i)] = nargs[i];
@@ -160,7 +178,7 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
     else {
         // Copy over short variables
         for (unsigned i = 0; i < varNames.size(); i++) {
-            int pos = 1 + i * 32 + longVarNames.size() * 32;
+            int pos = 4 + i * 32 + longVarNames.size() * 32;
             sub.push_back(asn("untyped", asn("set",
                               token(varNames[i], m),
                               asn("calldataload", tkn(utd(pos), m), m),
@@ -170,10 +188,10 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
         if (longVarNames.size() > 0) {
             std::vector<Node> sub2;
             std::string startPos =
-                utd(varNames.size() * 32 + longVarNames.size() * 32 + 1);
+                utd(varNames.size() * 32 + longVarNames.size() * 32 + 4);
             Node tot = tkn("_tot", m);
             for (unsigned i = 0; i < longVarNames.size(); i++) {
-                std::string sizePos = utd(1 + i * 32);
+                std::string sizePos = utd(4 + i * 32);
                 Node var = tkn(longVarNames[i], m);
                 std::string allocType = longVarIsArray[i] ? "array" : "string";
                 Node allocSz = longVarIsArray[i]

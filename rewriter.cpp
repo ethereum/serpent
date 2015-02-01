@@ -102,14 +102,6 @@ std::string macros[][2] = {
         "(mload (sub $x 32))"
     },
     {
-        "(return (: $x str))",
-        "(with $y $x (~return $y (len $y)))"
-    },
-    {
-        "(return (: $x arr))",
-        "(with $y $x (~return $y (mul 32 (len $y))))"
-    },
-    {
         "(while $cond $do)",
         "(until (iszero $cond) $do)",
     },
@@ -166,16 +158,24 @@ std::string macros[][2] = {
         "$0"
     },
     {
+        "(return (: $x arr))",
+        "(with $0 $x (~return $0 (= items (mload (sub $0 32)))))"
+    },
+    {
+        "(return (: $x str))",
+        "(with $0 $x (~return $0 (= chars (mload (sub $0 32)))))"
+    },
+    {
+        "(return $arr (= $type $sz))",
+        "(~return $arr (= $type $sz))"
+    },
+    {
+        "(return $arr $sz)",
+        "(error \"when returning you must do return(x) for values, return(arr, items=len) for arrays or return(arr, chars=len) for strings; return(arr, len) by itself is no longer valid. Uses of return(arr, len) should be substituted with return(arr, items=len).\")"
+    },
+    {
         "(return $x)",
         "(seq (set $1 $x) (~return (ref $1) 32))"
-    },
-    {
-        "(return $mstart (= chars $msize))",
-        "(~return $mstart $msize)"
-    },
-    {
-        "(return $start $len)",
-        "(~return $start (mul 32 $len))"
     },
     {
         "(&& $x $y)",
@@ -215,7 +215,7 @@ std::string macros[][2] = {
     },
     {
         "(sha3 $arr $sz)",
-        "(error \"when hashing you must do sha3(arr, items=len) for arrays or sha3(arr, chars=len) for strings; sha3(arr, len) by itself is no longer valid\")"
+        "(error \"when hashing you must do sha3(x) for values, sha3(arr, items=len) for arrays or sha3(arr, chars=len) for strings; sha3(arr, len) by itself is no longer valid\")"
     },
     {
         "(sha3 $x)",
@@ -247,7 +247,7 @@ std::string macros[][2] = {
     },
     {
         "(sha256 $arr $sz)",
-        "(error \"when hashing you must do sha256(arr, items=len) for arrays or sha256(arr, chars=len) for strings; sha256(arr, len) by itself is no longer valid\")"
+        "(error \"when hashing you must do sha256(x) for values, sha256(arr, items=len) for arrays or sha256(arr, chars=len) for strings; sha256(arr, len) by itself is no longer valid\")"
     },
     {
         "(ripemd160 (: $x arr))",
@@ -271,7 +271,7 @@ std::string macros[][2] = {
     },
     {
         "(ripemd160 $arr $sz)",
-        "(error \"when hashing you must do ripemd160(arr, items=len) for arrays or ripemd160(arr, chars=len) for strings; ripemd160(arr, len) by itself is no longer valid\")"
+        "(error \"when hashing you must do ripemd(x) for values, ripemd160(arr, items=len) for arrays or ripemd160(arr, chars=len) for strings; ripemd160(arr, len) by itself is no longer valid\")"
     },
     {
         "(set chars $x)",
@@ -521,26 +521,44 @@ Node dotTransform(Node node, preprocessAux aux) {
         if (as.size()) err("Cannot use \"as\" when calling self!", m);
         as = dotOwner.val;
     }
-    // Determine the funId and sig assuming the "as" keyword was used
-    int funId = 0;
+    int functionPrefix = 0;
     std::string sig;
+    // If :: was used, that implies that we are specifying the sig
+    if (dotMember == "::") {
+        sig = node.args[0].args[1].args[1].val;
+        dotMember = node.args[0].args[1].args[0].val;
+    }
+    // Determine the functionPrefix and sig assuming the "as" keyword was used
     if (as.size() > 0 && aux.localExterns.count(as)) {
         if (!aux.localExterns[as].count(dotMember))
             err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
-        funId = aux.localExterns[as][dotMember];
-        sig = aux.localExternSigs[as][dotMember];
+        functionPrefix = aux.localExterns[as][dotMember].id;
+        sig = aux.localExterns[as][dotMember].sig;
     }
     // Determine the funId and sig otherwise
     else if (!as.size()) {
         if (!aux.globalExterns.count(dotMember))
             err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
-        std::string key = unsignedToDecimal(aux.globalExterns[dotMember]);
-        funId = aux.globalExterns[dotMember];
-        sig = aux.globalExternSigs[dotMember];
+        std::string key = unsignedToDecimal(aux.globalExterns[dotMember].id);
+        functionPrefix = aux.globalExterns[dotMember].id;
+        sig = aux.globalExterns[dotMember].sig;
     }
     else err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
+
+    std::cerr << functionPrefix << " " << sig << "\n";
+
+    // In case of ambiguity, sig-specifying syntax becomes mandatory
+    if (sig == "_") {
+        err("Method "+dotMember+" has multiple definitions. Please use"
+            " the \"as\" keyword to distinguish between different external"
+            " contracts that you are calling or use the"
+            " account.function::sig(...) syntax to distinguish between"
+            " different functions in the same contract that have the same"
+            " name but different signatures", m);
+    }
+    
     // Pack arguments
-    kwargs["data"] = packArguments(fnargs, sig, funId, m);
+    kwargs["data"] = packArguments(fnargs, sig, functionPrefix, m);
     kwargs["to"] = dotOwner;
     Node main;
     // Pack output

@@ -38,3 +38,7 @@ std::vector<Node> prettyCompileChunk(std::string input) {
 std::string mkSignature(std::string input) {
     return mkExternLine(parseSerpent(input));
 }
+
+std::string mkWeb3Signature(std::string input) {
+    return mkWeb3Extern(parseSerpent(input));
+}

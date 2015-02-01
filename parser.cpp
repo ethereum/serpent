@@ -9,7 +9,7 @@
 // Extended BEDMAS precedence order
 int precedence(Node tok) {
     std::string v = tok.val;
-    if (v == ".") return -1;
+    if (v == "." || v == "::") return -1;
     else if (v == "!" || v == "not") return 1;
     else if (v=="^" || v == "**") return 2;
 	else if (v=="*" || v=="/" || v=="%") return 3;
@@ -20,7 +20,7 @@ int precedence(Node tok) {
     else if (v=="||" || v=="or") return 8;
     else if (v=="=") return 10;
     else if (v=="+=" || v=="-=" || v=="*=" || v=="/=" || v=="%=") return 10;
-    else if (v==":" || v == "::") return 11;
+    else if (v==":") return 11;
     else return 0;
 }
 

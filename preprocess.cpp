@@ -10,10 +10,32 @@
 #include "preprocess.h"
 #include "functions.h"
 #include "opcodes.h"
+#include "keccak-tiny-wrapper.h"
+
+// Convert single-letter types to long types
+std::string typeMap(char t) {
+    return
+        t == 'i' ? "uint256"
+      : t == 's' ? "string"
+      : t == 'a' ? "uint256[]"
+      :            "weird";
+}
+
+// Get the prefix bytes for a function based on its signature
+unsigned int getPrefix(std::string functionName, std::string signature) {
+    std::string o = functionName + "(";
+    for (unsigned i = 0; i < signature.size(); i++) {
+        o += typeMap(signature[i]);
+        if (i != signature.size() - 1) o += ",";
+        else o += ")";
+    }
+    std::vector<uint8_t> h = sha3(o);
+    return (h[0] << 24) + (h[1] << 16) + (h[2] << 8) + h[3];
+}
 
 // Convert a function of the form (def (f x y z) (do stuff)) into
 // (if (first byte of ABI is correct) (seq (setup x y z) (do stuff)))
-Node convFunction(Node node, int functionCount) {
+Node convFunction(Node node, int functionPrefix) {
     std::string prefix = "_temp"+mkUniqueToken()+"_";
     Metadata m = node.metadata;
 
@@ -27,7 +49,7 @@ Node convFunction(Node node, int functionCount) {
     return astnode("if",
                    astnode("eq",
                            astnode("get", token("__funid", m), m),
-                           token(unsignedToDecimal(functionCount), m),
+                           token(unsignedToDecimal(functionPrefix), m),
                            m),
                    astnode("seq", unpack, body, m));
 }
@@ -138,8 +160,8 @@ preprocessResult preprocessInit(Node inp) {
     std::vector<Node> any;
     std::vector<Node> functions;
     preprocessAux out = preprocessAux();
-    out.localExterns["self"] = std::map<std::string, int>();
-    int functionCount = 0;
+    out.localExterns["self"] = std::map<std::string, functionMetadata>();
+    std::map<int, std::string> functionPrefixesUsed;
     int storageDataCount = 0;
     for (unsigned i = 0; i < inp.args.size(); i++) {
         Node obj = inp.args[i];
@@ -156,13 +178,29 @@ preprocessResult preprocessInit(Node inp) {
             if (funName == "init") init = obj.args[1];
             else if (funName == "shared") shared = obj.args[1];
             else if (funName == "any") any.push_back(obj.args[1]);
+            // Other functions
             else {
-                // Other functions
-                functions.push_back(convFunction(obj, functionCount));
-                out.localExterns["self"][obj.args[0].val] = functionCount;
-                out.localExternSigs["self"][obj.args[0].val] 
-                    = getSignature(obj.args[0].args);
-                functionCount++;
+                // Calculate signature
+                std::string sig = getSignature(obj.args[0].args);
+                // Calculate argument name list
+                strvec argNames = getArgNames(obj.args[0].args);
+                // Get function prefix and check collisions
+                unsigned int functionPrefix = getPrefix(obj.args[0].val, sig);
+                if (functionPrefixesUsed.count(functionPrefix)) {
+                    err("Hash collision between function prefixes: "
+                        + obj.args[0].val
+                        + ", "
+                        + functionPrefixesUsed[functionPrefix], m);
+                }
+                if (out.localExterns["self"].count(obj.args[0].val)) {
+                    err("Defining the same function name twice: "
+                        +obj.args[0].val, m);
+                }
+                // Add function
+                functions.push_back(convFunction(obj, functionPrefix));
+                out.localExterns["self"][obj.args[0].val] =
+                    functionMetadata(functionPrefix, sig, argNames);
+                functionPrefixesUsed[functionPrefix] = obj.args[0].val;
             }
         }
         // Extern declarations
@@ -170,23 +208,24 @@ preprocessResult preprocessInit(Node inp) {
             std::string externName = obj.args[0].val;
             Node al = obj.args[1];
             if (!out.localExterns.count(externName))
-                out.localExterns[externName] = std::map<std::string, int>();
+                out.localExterns[externName] = std::map<std::string, functionMetadata>();
+            std::string v, sig;
             for (unsigned i = 0; i < al.args.size(); i++) {
-                if (al.args[i].val == ":") {
-                    std::string v = al.args[i].args[0].val;
-                    std::string sig = al.args[i].args[1].val;
-                    out.globalExterns[v] = i;
-                    out.globalExternSigs[v] = sig;
-                    out.localExterns[externName][v] = i;
-                    out.localExternSigs[externName][v] = sig;
+                if (al.args[i].val == ":" || al.args[i].val == "::") {
+                    v = al.args[i].args[0].val;
+                    sig = al.args[i].args[1].val;
                 }
                 else {
-                    std::string v = al.args[i].val;
-                    out.globalExterns[v] = i;
-                    out.globalExternSigs[v] = "";
-                    out.localExterns[externName][v] = i;
-                    out.localExternSigs[externName][v] = "";
+                    v = al.args[i].val;
+                    sig = "";
                 }
+                unsigned int functionPrefix = getPrefix(v, sig);
+                out.globalExterns[v] =
+                    functionMetadata(functionPrefix,
+                                     out.globalExterns.count(v) ? "_" : sig);
+                out.localExterns[externName][v] =
+                    functionMetadata(functionPrefix,
+                                     out.localExterns[externName].count(v) ? "_" : sig);
             }
         }
         // Custom macros
@@ -282,9 +321,9 @@ preprocessResult preprocessInit(Node inp) {
     if (functions.size() > 0) {
         codeNode = astnode("with",
                            token("__funid", m),
-                           astnode("byte",
-                                   token("0", m),
+                           astnode("div",
                                    astnode("calldataload", token("0", m), m),
+                                   astnode("exp", tkn("2", m), tkn("224", m)),
                                    m),
                            astnode("seq", code, m),
                            m);
@@ -330,24 +369,47 @@ preprocessResult preprocess(Node n) {
 std::string mkExternLine(Node n) {
     preprocessResult pr = preprocess(n);
     std::vector<std::string> outNames;
-    std::vector<std::string> outSignatures;
-    if (!pr.second.localExternSigs["self"].size())
+    std::vector<functionMetadata> outMetadata;
+    if (!pr.second.localExterns["self"].size())
         return "extern " + n.metadata.file + ": []";
-    for (unsigned i = 0; i < pr.second.localExterns["self"].size(); i++) {
-        outNames.push_back("");
-        outSignatures.push_back("");
-    }
-    for (std::map<std::string, int>::iterator it=
+    for (std::map<std::string, functionMetadata>::iterator it=
             pr.second.localExterns["self"].begin();
             it != pr.second.localExterns["self"].end(); it++) {
-        outNames[(*it).second] = (*it).first;
-        outSignatures[(*it).second] = 
-            pr.second.localExternSigs["self"][(*it).first];
+        outNames.push_back((*it).first);
+        outMetadata.push_back((*it).second);
     }
     std::string o = "extern " + n.metadata.file + ": [";
     for (unsigned i = 0; i < outNames.size(); i++) {
-        o += outNames[i] + ":" + outSignatures[i];
+        o += outNames[i]
+            + (outMetadata[i].sig.size() ? ":" : "")
+            + outMetadata[i].sig;
         o += (i < outNames.size() - 1) ? ", " : "]"; 
+    }
+    return o;
+}
+
+std::string mkWeb3Extern(Node n) {
+    preprocessResult pr = preprocess(n);
+    std::vector<std::string> outNames;
+    std::vector<functionMetadata> outMetadata;
+    if (!pr.second.localExterns["self"].size())
+        return "extern " + n.metadata.file + ": []";
+    for (std::map<std::string, functionMetadata>::iterator it=
+            pr.second.localExterns["self"].begin();
+            it != pr.second.localExterns["self"].end(); it++) {
+        outNames.push_back((*it).first);
+        outMetadata.push_back((*it).second);
+    }
+    std::string o = "[";
+    for (unsigned i = 0; i < outNames.size(); i++) {
+        o += "{\n    name: '"+outNames[i]+"',\n    inputs: [";
+        for (unsigned j = 0; j < outMetadata[i].sig.size(); j++) {
+            o += "{ name: '"+outMetadata[i].argNames[j]+
+                 "', type: '"+typeMap(outMetadata[i].sig[j])+"' }";
+            o += (j < outMetadata[i].sig.size() - 1) ? ", " : "],"; 
+        }
+        o += "\n    outputs: [{ name: 'out', type: 'string' }]\n}";
+        o += (i < outNames.size() - 1) ? ",\n" : "]"; 
     }
     return o;
 }

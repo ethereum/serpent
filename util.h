@@ -133,6 +133,7 @@ bool isDecimal(std::string inp);
 #define msi std::map<std::string, int>
 #define msn std::map<std::string, Node>
 #define mss std::map<std::string, std::string>
+#define strvec std::vector<std::string>
 
 template <typename T, typename U>
 class create_map

@@ -32,3 +32,5 @@ std::vector<Node> prettyCompile(std::string input);
 std::vector<Node> prettyCompile(std::string input);
 
 std::string mkSignature(std::string input);
+
+std::string mkWeb3Signature(std::string input);

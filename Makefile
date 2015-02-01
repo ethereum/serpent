@@ -5,8 +5,8 @@ CXXFLAGS = -fPIC
 BOOST_INC = /usr/include
 BOOST_LIB = /usr/lib
 TARGET = pyserpent
-COMMON_OBJS = bignum.o util.o tokenize.o lllparser.o parser.o opcodes.o optimize.o functions.o rewriteutils.o preprocess.o rewriter.o compiler.o funcs.o
-HEADERS = bignum.h util.h tokenize.h lllparser.h parser.h opcodes.h functions.h optimize.h rewriteutils.h preprocess.h rewriter.h compiler.h funcs.h
+COMMON_OBJS = keccak-tiny.o bignum.o util.o tokenize.o lllparser.o parser.o opcodes.o optimize.o functions.o rewriteutils.o preprocess.o rewriter.o compiler.o funcs.o
+HEADERS = bignum.h util.h keccak-tiny-wrapper.h tokenize.h lllparser.h parser.h opcodes.h functions.h optimize.h rewriteutils.h preprocess.h rewriter.h compiler.h funcs.h
 PYTHON_VERSION = 2.7
 
 serpent : serpentc lib
@@ -18,6 +18,8 @@ lib:
 serpentc: $(COMMON_OBJS) cmdline.o
 	rm -rf serpent
 	g++ -Wall $(COMMON_OBJS) cmdline.o -o serpent
+
+keccak-tiny.o : keccak-tiny.cpp
 
 bignum.o : bignum.cpp bignum.h
 

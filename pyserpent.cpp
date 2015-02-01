@@ -17,12 +17,34 @@
         } \
     }
 
+#define PYMETHOD2(name, FROM, method, TO) \
+    static PyObject * name(PyObject *, PyObject *args) { \
+        try { \
+        FROM(med) \
+        return TO(method(a1med, a2med)); \
+        } \
+        catch (std::string e) { \
+           PyErr_SetString(PyExc_Exception, e.c_str()); \
+           return NULL; \
+        } \
+    }
+
 #define FROMSTR(v) \
     const char *command; \
     int len; \
     if (!PyArg_ParseTuple(args, "s#", &command, &len)) \
         return NULL; \
     std::string v = std::string(command, len); \
+
+#define FROMSTRSTR(v) \
+    const char *command1; \
+    int len1; \
+    const char *command2; \
+    int len2; \
+    if (!PyArg_ParseTuple(args, "s#s#", &command1, &len1, &command2, &len2)) \
+        return NULL; \
+    std::string a1##v = std::string(command1, len1); \
+    std::string a2##v = std::string(command2, len2); \
 
 #define FROMNODE(v) \
     PyObject *node; \
@@ -60,6 +82,11 @@ PyObject* pyifyNode(Node n) {
 // Convert string into python wrapper form
 PyObject* pyifyString(std::string s) {
     return Py_BuildValue("s#", s.c_str(), s.length());
+}
+
+// Convert integer into python wrapper form
+PyObject* pyifyInteger(unsigned int i) {
+    return Py_BuildValue("i", i);
 }
 
 // Convert list of nodes into python wrapper form
@@ -129,6 +156,8 @@ PYMETHOD(ps_serialize, FROMLIST, serialize, pyifyString)
 PYMETHOD(ps_deserialize, FROMSTR, deserialize, pyifyNodeList)
 PYMETHOD(ps_parse_lll, FROMSTR, parseLLL, pyifyNode)
 PYMETHOD(ps_mk_signature, FROMSTR, mkSignature, pyifyString)
+PYMETHOD(ps_mk_web3_signature, FROMSTR, mkWeb3Signature, pyifyString)
+PYMETHOD2(ps_get_prefix, FROMSTRSTR, getPrefix, pyifyInteger)
 
 
 static PyMethodDef PyextMethods[] = {
@@ -154,6 +183,10 @@ static PyMethodDef PyextMethods[] = {
         "Parse LLL"},
     {"mk_signature",  ps_mk_signature, METH_VARARGS,
         "Make an extern signature for a file"},
+    {"mk_web3_signature",  ps_mk_web3_signature, METH_VARARGS,
+        "Make an extern signature for inclusion into javascript"},
+    {"get_prefix",  ps_get_prefix, METH_VARARGS,
+        "Get the prefix from a function and signature"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

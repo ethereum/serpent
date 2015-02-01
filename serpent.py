@@ -2,7 +2,7 @@ import serpent_pyext as pyext
 import sys
 import re
 
-VERSION = '1.7.9'
+VERSION = '1.8.0'
 
 
 class Metadata(object):
@@ -81,6 +81,8 @@ pretty_compile_lll = lambda x: map(node, pyext.pretty_compile_lll(take(x)))
 serialize = lambda x: pyext.serialize(takelist(x))
 deserialize = lambda x: map(node, pyext.deserialize(x))
 mk_signature = lambda x: pyext.mk_signature(x)
+mk_web3_signature = lambda x: pyext.mk_web3_signature(x)
+get_prefix = lambda x, y: pyext.get_prefix(x, y) % 2**32
 
 is_numeric = lambda x: isinstance(x, (int, long))
 is_string = lambda x: isinstance(x, (str, unicode))
@@ -114,16 +116,22 @@ def numberize(b):
 
 
 def enc(n):
-    if is_numeric(n):
-        return ''.join(map(chr, tobytearr(n, 32)))
+    if is_numeric(n) and n < 2**256 and n > -2**255:
+        return ''.join(map(chr, tobytearr(n % 2**256, 32)))
+    elif is_numeric(n):
+        raise Exception("Number out of range: %r" % n)
     elif is_string(n) and len(n) == 40:
         return '\x00' * 12 + n.decode('hex')
-    elif is_string(n):
+    elif is_string(n) and len(n) <= 32:
         return '\x00' * (32 - len(n)) + n
+    elif is_string(n) and len(n) > 32:
+        raise Exception("String too long: %r" % n)
     elif n is True:
         return 1
     elif n is False or n is None:
         return 0
+    else:
+        raise Exception("Cannot encode integer: %r" % n)
 
 
 def encode_datalist(*args):
@@ -145,22 +153,36 @@ def decode_datalist(arr):
     return o
 
 
-def encode_abi(funid, *args):
+def encode_4_byte_int(i):
+    return chr(i >> 24) + chr((i >> 16) & 255) + \
+        chr((i >> 8) & 255) + chr(i & 255)
+
+
+def encode_abi(function_name, sig, *args):
+    prefix = encode_4_byte_int(get_prefix(function_name, sig))
     len_args = ''
     normal_args = ''
     var_args = ''
-    for arg in args:
-        if isinstance(arg, str) and len(arg) and \
-                arg[0] == '"' and arg[-1] == '"':
-            len_args += enc(numberize(len(arg[1:-1])))
-            var_args += arg[1:-1]
-        elif isinstance(arg, list):
-            for a in arg:
-                var_args += enc(numberize(a))
-            len_args += enc(numberize(len(arg)))
+    if len(sig) != len(args):
+        raise Exception("Wrong number of arguments!")
+    for typ, arg in zip(sig, args):
+        if typ == 'i':
+            normal_args += enc(arg)
+        elif typ == 's':
+            if not isinstance(arg, str):
+                raise Exception("Expecting string: %r" % arg)
+            len_args += enc(len(arg))
+            var_args += arg
+        elif typ == 'a':
+            if isinstance(arg, list):
+                for a in arg:
+                    var_args += enc(a)
+            else:
+                raise Exception("Expecting array: %r" % arg)
+            len_args += enc(len(arg))
         else:
-            normal_args += enc(numberize(arg))
-    return chr(int(funid)) + len_args + normal_args + var_args
+            raise Exception("Invalid type in sig: %r" % typ)
+    return prefix + len_args + normal_args + var_args
 
 
 def decode_abi(arr, *lens):
