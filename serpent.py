@@ -100,21 +100,6 @@ def fromhex(b):
     return 0 if len(b) == 0 else hexord(b[-1]) + 16 * fromhex(b[:-1])
 
 
-def numberize(b):
-    if is_numeric(b):
-        return b
-    elif b[0] in ["'", '"']:
-        return frombytes(b[1:-1])
-    elif b[:2] == '0x':
-        return fromhex(b[2:])
-    elif re.match('^[0-9]*$', b):
-        return int(b)
-    elif len(b) == 40:
-        return fromhex(b)
-    else:
-        raise Exception("Cannot identify data type: %r" % b)
-
-
 def enc(n):
     if is_numeric(n) and n < 2**256 and n > -2**255:
         return ''.join(map(chr, tobytearr(n % 2**256, 32)))
@@ -134,14 +119,25 @@ def enc(n):
         raise Exception("Cannot encode integer: %r" % n)
 
 
-def encode_datalist(*args):
-    if isinstance(args, (tuple, list)):
-        return ''.join(map(enc, args))
-    elif not len(args) or args[0] == '':
-        return ''
+def cmdline_enc(n):
+    if n[:2] == '0x':
+        o = int(n[2:], 16)
+    elif re.match('^[0-9]*$', n):
+        o = int(n)
+    elif len(n) == 40:
+        o = n
     else:
-        # Assume you're getting in numbers or addresses or 0x...
-        return ''.join(map(enc, map(numberize, args)))
+        raise Exception("Cannot encode integer: %r" % n)
+    return enc(o)
+
+
+def list_dec(l):
+    assert l[0] == '[' and l[-1] == ']'
+    return [cmdline_enc(x.strip()) for x in l[1:-1].split(',')]
+
+
+def encode_datalist(*args):
+    raise Exception("Encode datalist deprecated")
 
 
 def decode_datalist(arr):
@@ -158,8 +154,9 @@ def encode_4_byte_int(i):
         chr((i >> 8) & 255) + chr(i & 255)
 
 
-def encode_abi(function_name, sig, *args):
+def encode_abi(function_name, sig, *args, **kwargs):
     prefix = encode_4_byte_int(get_prefix(function_name, sig))
+    argenc = cmdline_enc if kwargs.get('source') == 'cmdline' else enc
     len_args = ''
     normal_args = ''
     var_args = ''
@@ -167,13 +164,15 @@ def encode_abi(function_name, sig, *args):
         raise Exception("Wrong number of arguments!")
     for typ, arg in zip(sig, args):
         if typ == 'i':
-            normal_args += enc(arg)
+            normal_args += argenc(arg)
         elif typ == 's':
             if not isinstance(arg, str):
                 raise Exception("Expecting string: %r" % arg)
             len_args += enc(len(arg))
             var_args += arg
         elif typ == 'a':
+            if arg[0] == '[' and arg[-1] == ']':
+                arg = list_dec(arg)
             if isinstance(arg, list):
                 for a in arg:
                     var_args += enc(a)
@@ -211,12 +210,15 @@ def main():
         else:
             cmd = sys.argv[1]
             args = sys.argv[2:]
+        kwargs = {}
         if cmd in ['deserialize', 'decode_datalist', 'decode_abi']:
             args[0] = args[0].strip().decode('hex')
-        o = globals()[cmd](*args)
+        if cmd in ['encode_abi']:
+            kwargs['source'] = 'cmdline'
+        o = globals()[cmd](*args, **kwargs)
         if isinstance(o, (Token, Astnode, list)):
             print repr(o)
-        elif cmd in ['mk_signature']:
+        elif cmd in ['mk_signature', 'mk_web3_signature', 'get_prefix']:
             print o
         else:
             print o.encode('hex')
