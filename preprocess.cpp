@@ -27,8 +27,8 @@ unsigned int getPrefix(std::string functionName, std::string signature) {
     for (unsigned i = 0; i < signature.size(); i++) {
         o += typeMap(signature[i]);
         if (i != signature.size() - 1) o += ",";
-        else o += ")";
     }
+    o += ")";
     std::vector<uint8_t> h = sha3(o);
     return (h[0] << 24) + (h[1] << 16) + (h[2] << 8) + h[3];
 }
@@ -406,9 +406,9 @@ std::string mkWeb3Extern(Node n) {
         for (unsigned j = 0; j < outMetadata[i].sig.size(); j++) {
             o += "{ name: '"+outMetadata[i].argNames[j]+
                  "', type: '"+typeMap(outMetadata[i].sig[j])+"' }";
-            o += (j < outMetadata[i].sig.size() - 1) ? ", " : "],"; 
+            o += (j < outMetadata[i].sig.size() - 1) ? ", " : ""; 
         }
-        o += "\n    outputs: [{ name: 'out', type: 'string' }]\n}";
+        o += "],\n    outputs: [{ name: 'out', type: 'string' }]\n}";
         o += (i < outNames.size() - 1) ? ",\n" : "]"; 
     }
     return o;
