@@ -81,7 +81,7 @@ pretty_compile_lll = lambda x: map(node, pyext.pretty_compile_lll(take(x)))
 serialize = lambda x: pyext.serialize(takelist(x))
 deserialize = lambda x: map(node, pyext.deserialize(x))
 mk_signature = lambda x: pyext.mk_signature(x)
-mk_web3_signature = lambda x: pyext.mk_web3_signature(x)
+mk_full_signature = lambda x: pyext.mk_full_signature(x)
 get_prefix = lambda x, y: pyext.get_prefix(x, y) % 2**32
 
 is_numeric = lambda x: isinstance(x, (int, long))
@@ -218,7 +218,7 @@ def main():
         o = globals()[cmd](*args, **kwargs)
         if isinstance(o, (Token, Astnode, list)):
             print repr(o)
-        elif cmd in ['mk_signature', 'mk_web3_signature', 'get_prefix']:
+        elif cmd in ['mk_signature', 'mk_full_signature', 'get_prefix']:
             print o
         else:
             print o.encode('hex')

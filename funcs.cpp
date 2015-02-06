@@ -39,6 +39,6 @@ std::string mkSignature(std::string input) {
     return mkExternLine(parseSerpent(input));
 }
 
-std::string mkWeb3Signature(std::string input) {
-    return mkWeb3Extern(parseSerpent(input));
+std::string mkFullSignature(std::string input) {
+    return mkFullExtern(parseSerpent(input));
 }

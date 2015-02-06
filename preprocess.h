@@ -55,8 +55,8 @@ preprocessResult preprocess(Node inp);
 // Make a signature for a file
 std::string mkExternLine(Node n);
 
-// Make the javascript import signature for a contract
-std::string mkWeb3Extern(Node n);
+// Make the javascript/solidity import signature for a contract
+std::string mkFullExtern(Node n);
 
 // Get the prefix for a function name/sig combo
 unsigned int getPrefix(std::string functionName, std::string signature);

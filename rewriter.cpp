@@ -530,6 +530,7 @@ Node dotTransform(Node node, preprocessAux aux) {
     }
     // Determine the functionPrefix and sig assuming the "as" keyword was used
     if (as.size() > 0 && aux.localExterns.count(as)) {
+        std::cout << printSimple(node) << "<#-\n";
         if (!aux.localExterns[as].count(dotMember))
             err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
         functionPrefix = aux.localExterns[as][dotMember].id;
@@ -537,6 +538,7 @@ Node dotTransform(Node node, preprocessAux aux) {
     }
     // Determine the funId and sig otherwise
     else if (!as.size()) {
+        std::cout << printSimple(node) << " <@-\n";
         if (!aux.globalExterns.count(dotMember))
             err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
         std::string key = unsignedToDecimal(aux.globalExterns[dotMember].id);

@@ -388,7 +388,7 @@ std::string mkExternLine(Node n) {
     return o;
 }
 
-std::string mkWeb3Extern(Node n) {
+std::string mkFullExtern(Node n) {
     preprocessResult pr = preprocess(n);
     std::vector<std::string> outNames;
     std::vector<functionMetadata> outMetadata;
@@ -402,13 +402,13 @@ std::string mkWeb3Extern(Node n) {
     }
     std::string o = "[";
     for (unsigned i = 0; i < outNames.size(); i++) {
-        o += "{\n    name: '"+outNames[i]+"',\n    inputs: [";
+        o += "{\n    \"name\": \""+outNames[i]+"\",\n    \"inputs\": [";
         for (unsigned j = 0; j < outMetadata[i].sig.size(); j++) {
-            o += "{ name: '"+outMetadata[i].argNames[j]+
-                 "', type: '"+typeMap(outMetadata[i].sig[j])+"' }";
+            o += "{ \"name\": \""+outMetadata[i].argNames[j]+
+                 "\", \"type\": \""+typeMap(outMetadata[i].sig[j])+"\" }";
             o += (j < outMetadata[i].sig.size() - 1) ? ", " : ""; 
         }
-        o += "],\n    outputs: [{ name: 'out', type: 'string' }]\n}";
+        o += "],\n    \"outputs\": [{ \"name\": \"out\", \"type\": \"string\" }]\n}";
         o += (i < outNames.size() - 1) ? ",\n" : "]"; 
     }
     return o;

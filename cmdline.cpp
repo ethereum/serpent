@@ -88,8 +88,8 @@ int main(int argv, char** argc) {
     else if (command == "mk_signature") {
         std::cout << mkSignature(input) << "\n";
     }
-    else if (command == "mk_web3_signature") {
-        std::cout << mkWeb3Signature(input) << "\n";
+    else if (command == "mk_full_signature") {
+        std::cout << mkFullSignature(input) << "\n";
     }
     else if (command == "encode_datalist") {
         std::vector<Node> tokens = tokenize(input);
