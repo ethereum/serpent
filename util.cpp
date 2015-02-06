@@ -172,20 +172,25 @@ std::string binToNumeric(std::string inp) {
 std::string hexalpha = "0123456789abcdef";
 
 // Converts string to simple numeric format
-std::string strToNumeric(std::string inp) {
+std::string strToNumeric(std::string inp, int strpad=32) {
     std::string o = "0";
     if (inp == "") {
         o = "";
     }
     else if ((inp[0] == '"' && inp[inp.length()-1] == '"')
             || (inp[0] == '\'' && inp[inp.length()-1] == '\'')) {
+        int len = 0;
         for (unsigned i = 1; i < inp.length() - 1;) {
+            len += 1;
             unsigned char ch = 0;
             if (inp[i] == '\\') {
-                if (inp.substr(i, 2) == "\\x" && i + 3 < inp.length() - 1) {
-                    ch = (hexalpha.find(inp[i+2]) * 16
-                          + hexalpha.find(inp[i+3]));
-                    i += 4;
+                if (inp.substr(i, 2) == "\\x") {
+                    if ( i + 3 < inp.length() - 1) {
+                        ch = (hexalpha.find(inp[i+2]) * 16
+                              + hexalpha.find(inp[i+3]));
+                        i += 4;
+                    }
+                    else return "";
                 }
                 else if (inp.substr(i, 2) == "\\n") {
                     ch = 10;
@@ -202,6 +207,9 @@ std::string strToNumeric(std::string inp) {
             }
             o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal(ch));
         }
+        int pad = strpad - len;
+        if (pad < 0) return "";
+        return decimalMul(o, decimalExp("256", unsignedToDecimal(pad)));
     }
     else if (inp.substr(0,2) == "0x") {
 		for (unsigned i = 2; i < inp.length(); i++) {

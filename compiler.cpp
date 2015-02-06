@@ -481,30 +481,3 @@ std::string compileLLL(Node program) {
 std::vector<Node> prettyCompileLLL(Node program) {
     return prettyAssemble(buildFragmentTree(program));
 }
-
-// Converts a list of integer values to binary transaction data
-std::string encodeDatalist(std::vector<std::string> vals) {
-    std::string o;
-    for (unsigned i = 0; i < vals.size(); i++) {
-        std::vector<Node> n = toByteArr(strToNumeric(vals[i]), Metadata(), 32);
-        for (unsigned j = 0; j < n.size(); j++) {
-            int v = decimalToUnsigned(n[j].val);
-            o += (char)v;
-        }
-    }
-    return o;
-}
-
-// Converts binary transaction data into a list of integer values
-std::vector<std::string> decodeDatalist(std::string ser) {
-    std::vector<std::string> out;
-    for (unsigned i = 0; i < ser.length(); i+= 32) {
-        std::string o = "0";
-		for (unsigned j = i; j < i + 32; j++) {
-            int vj = (int)(unsigned char)ser[j];
-            o = decimalAdd(decimalMul(o, "256"), unsignedToDecimal(vj));
-        }
-        out.push_back(o);
-    }
-    return out;
-}

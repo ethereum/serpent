@@ -31,10 +31,4 @@ std::vector<Node> prettyCompileLLL(Node program);
 // bin -> opcodes
 std::vector<Node> deserialize(std::string ser);
 
-// Converts a list of integer values to binary transaction data
-std::string encodeDatalist(std::vector<std::string> vals);
-
-// Converts binary transaction data into a list of integer values
-std::vector<std::string> decodeDatalist(std::string ser);
-
 #endif

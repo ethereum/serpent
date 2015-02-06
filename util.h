@@ -84,7 +84,7 @@ std::string indentLines(std::string inp);
 std::string binToNumeric(std::string inp);
 
 // Converts string to simple numeric format
-std::string strToNumeric(std::string inp);
+std::string strToNumeric(std::string inp, int strpad);
 
 // Does the node contain a number (eg. 124, 0xf012c, "george")
 bool isNumberLike(Node node);

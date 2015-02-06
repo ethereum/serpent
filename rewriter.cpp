@@ -143,7 +143,7 @@ std::string macros[][2] = {
     },
     {
         "(setch $var $ind $val)",
-        "(mstore8 (add $var $ind) $val)",
+        "(mstore8 (add $var $ind) (or (byte 0 $val) (byte 31 $val)))",
     },
     {
         "(send $to $value)",
@@ -863,7 +863,7 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
     }
     // Convert all numbers to normalized form
     else if (node.type == TOKEN && isNumberLike(node) && !isDecimal(node.val)) {
-        node.val = strToNumeric(node.val);
+        node.val = strToNumeric(node.val, 32);
         changed = true;
     }
     return std::pair<Node, bool>(node, changed);

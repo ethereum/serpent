@@ -1,6 +1,5 @@
 import serpent_pyext as pyext
-import sys
-import re
+import sys, re
 
 VERSION = '1.8.0'
 
@@ -149,39 +148,9 @@ def decode_datalist(arr):
     return o
 
 
-def encode_4_byte_int(i):
-    return chr(i >> 24) + chr((i >> 16) & 255) + \
-        chr((i >> 8) & 255) + chr(i & 255)
-
-
 def encode_abi(function_name, sig, *args, **kwargs):
-    prefix = encode_4_byte_int(get_prefix(function_name, sig))
-    argenc = cmdline_enc if kwargs.get('source') == 'cmdline' else enc
-    len_args = ''
-    normal_args = ''
-    var_args = ''
-    if len(sig) != len(args):
-        raise Exception("Wrong number of arguments!")
-    for typ, arg in zip(sig, args):
-        if typ == 'i':
-            normal_args += argenc(arg)
-        elif typ == 's':
-            if not isinstance(arg, str):
-                raise Exception("Expecting string: %r" % arg)
-            len_args += enc(len(arg))
-            var_args += arg
-        elif typ == 'a':
-            if arg[0] == '[' and arg[-1] == ']':
-                arg = list_dec(arg)
-            if isinstance(arg, list):
-                for a in arg:
-                    var_args += enc(a)
-            else:
-                raise Exception("Expecting array: %r" % arg)
-            len_args += enc(len(arg))
-        else:
-            raise Exception("Invalid type in sig: %r" % typ)
-    return prefix + len_args + normal_args + var_args
+    raise Exception("encode_abi deprecated, please use "
+                    "the methods in pyethereum.abi")
 
 
 def decode_abi(arr, *lens):
