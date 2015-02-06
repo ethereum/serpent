@@ -7,7 +7,7 @@
 #include "bignum.h"
 
 // Compile-time arithmetic calculations
-Node optimize(Node inp) {
+Node calcArithmetic(Node inp, bool modulo=true) {
     if (inp.type == TOKEN) {
         Node o = tryNumberize(inp);
         if (decimalGt(o.val, tt256, true))
@@ -15,7 +15,7 @@ Node optimize(Node inp) {
         return o;
     }
 	for (unsigned i = 0; i < inp.args.size(); i++) {
-        inp.args[i] = optimize(inp.args[i]);
+        inp.args[i] = calcArithmetic(inp.args[i]);
     }
     // Arithmetic-specific transform
     if (inp.val == "+") inp.val = "add";
@@ -54,14 +54,16 @@ Node optimize(Node inp) {
             && inp.args[1].type == TOKEN) {
       std::string o;
       if (inp.val == "add") {
-          o = decimalMod(decimalAdd(inp.args[0].val, inp.args[1].val), tt256);
+          o = decimalAdd(inp.args[0].val, inp.args[1].val);
+          if (modulo) o = decimalMod(o, tt256);
       }
       else if (inp.val == "sub") {
           if (decimalGt(inp.args[0].val, inp.args[1].val, true))
               o = decimalSub(inp.args[0].val, inp.args[1].val);
       }
       else if (inp.val == "mul") {
-          o = decimalMod(decimalMul(inp.args[0].val, inp.args[1].val), tt256);
+          o = decimalMul(inp.args[0].val, inp.args[1].val);
+          if (modulo) o = decimalMod(o, tt256);
       }
       else if (inp.val == "div" && inp.args[1].val != "0") {
           o = decimalDiv(inp.args[0].val, inp.args[1].val);
@@ -80,11 +82,17 @@ Node optimize(Node inp) {
           o = decimalMod(inp.args[0].val, inp.args[1].val);
       }    
       else if (inp.val == "exp") {
-          o = decimalModExp(inp.args[0].val, inp.args[1].val, tt256);
+          if (modulo) o = decimalModExp(inp.args[0].val, inp.args[1].val, tt256);
+          else o = decimalExp(inp.args[0].val, inp.args[1].val);
       }
       if (o.length()) return token(o, inp.metadata);
     }
     return inp;
+}
+
+// Optimize a node (now does arithmetic, may do other things)
+Node optimize(Node inp) {
+    return calcArithmetic(inp, true);
 }
 
 // Is a node degenerate (ie. trivial to calculate) ?
@@ -94,5 +102,5 @@ bool isDegenerate(Node n) {
 
 // Is a node purely arithmetic?
 bool isPureArithmetic(Node n) {
-    return isNumberLike(optimize(n));
+    return isNumberLike(calcArithmetic(n));
 }

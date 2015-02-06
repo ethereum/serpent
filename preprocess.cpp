@@ -70,7 +70,8 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix,
         for (unsigned i = h.size() - 1; i >= 1; i--) {
             // Array sizes must be constant or at least arithmetically
             // evaluable at compile time
-            if (!isPureArithmetic(h[i]))
+            h[i] = calcArithmetic(h[i], false);
+            if (!isNumberLike(h[i]))
                 err("Array size must be fixed value", m);
             // Create a list of the coefficient associated with each
             // array index
@@ -105,7 +106,8 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix,
         for (unsigned i = h.size() - 1; i >= 1; i--) {
             // Array sizes must be constant or at least arithmetically
             // evaluable at compile time
-            if (!isPureArithmetic(h[i]))
+            h[i] = calcArithmetic(h[i], false);
+            if (!isNumberLike(h[i]))
                err("Array size must be fixed value", m);
             // Create a list of the coefficient associated with each
             // array index

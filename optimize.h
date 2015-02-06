@@ -7,8 +7,11 @@
 #include <map>
 #include "util.h"
 
-// Compile-time arithmetic calculations
+// LLL optimizations
 Node optimize(Node inp);
+
+// Compile-time arithmetic calculations
+Node calcArithmetic(Node inp, bool modulo);
 
 // Is a node degenerate (ie. trivial to calculate) ?
 bool isDegenerate(Node n);

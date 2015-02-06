@@ -31,6 +31,8 @@ std::string decimalMod(std::string a, std::string b);
 
 std::string decimalModExp(std::string b, std::string e, std::string m);
 
+std::string decimalExp(std::string b, std::string e);
+
 bool decimalGt(std::string a, std::string b, bool eqAllowed=false);
 
 unsigned decimalToUnsigned(std::string a);
