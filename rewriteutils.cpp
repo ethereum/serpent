@@ -217,3 +217,23 @@ Node withTransform (Node source) {
         flipargs.push_back(o);
     return asn("seq", flipargs, m);
 }
+
+// Flatten nested sequence into flat sequence
+Node flattenSeq(Node inp) {
+    std::vector<Node> o;
+    if (inp.val == "seq" && inp.type == ASTNODE) {
+        for (unsigned i = 0; i < inp.args.size(); i++) {
+            if (inp.args[i].val == "seq" && inp.args[i].type == ASTNODE)
+                o = extend(o, flattenSeq(inp.args[i]).args);
+            else
+                o.push_back(flattenSeq(inp.args[i]));
+        }
+    }
+    else if (inp.type == ASTNODE) {
+        for (unsigned i = 0; i < inp.args.size(); i++) {
+            o.push_back(flattenSeq(inp.args[i]));
+        }
+    }
+    else return inp;
+    return asn(inp.val, o, inp.metadata);
+}

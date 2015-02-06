@@ -369,7 +369,7 @@ preprocessResult preprocess(Node n) {
 }
 
 std::string mkExternLine(Node n) {
-    preprocessResult pr = preprocess(n);
+    preprocessResult pr = preprocess(flattenSeq(n));
     std::vector<std::string> outNames;
     std::vector<functionMetadata> outMetadata;
     if (!pr.second.localExterns["self"].size())
@@ -391,7 +391,7 @@ std::string mkExternLine(Node n) {
 }
 
 std::string mkFullExtern(Node n) {
-    preprocessResult pr = preprocess(n);
+    preprocessResult pr = preprocess(flattenSeq(n));
     std::vector<std::string> outNames;
     std::vector<functionMetadata> outMetadata;
     if (!pr.second.localExterns["self"].size())

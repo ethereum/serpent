@@ -75,6 +75,7 @@ class rewriteRuleSet {
         std::map<std::string, std::vector<rewriteRule> > ruleLists;
 };
 
-
+// Flatten nested sequence into flat sequence
+Node flattenSeq(Node inp);
 
 #endif

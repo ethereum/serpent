@@ -993,26 +993,6 @@ Node rewriteChunk(Node inp) {
                         validate(inp), preprocessAux()))));
 }
 
-// Flatten nested sequence into flat sequence
-Node flattenSeq(Node inp) {
-    std::vector<Node> o;
-    if (inp.val == "seq" && inp.type == ASTNODE) {
-        for (unsigned i = 0; i < inp.args.size(); i++) {
-            if (inp.args[i].val == "seq" && inp.args[i].type == ASTNODE)
-                o = extend(o, flattenSeq(inp.args[i]).args);
-            else
-                o.push_back(flattenSeq(inp.args[i]));
-        }
-    }
-    else if (inp.type == ASTNODE) {
-        for (unsigned i = 0; i < inp.args.size(); i++) {
-            o.push_back(flattenSeq(inp.args[i]));
-        }
-    }
-    else return inp;
-    return asn(inp.val, o, inp.metadata);
-}
-
 Node rewrite(Node inp) {
     return postValidate(optimize(apply_rules(preprocess(flattenSeq(inp)))));
 }
