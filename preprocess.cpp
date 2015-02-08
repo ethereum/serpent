@@ -15,9 +15,9 @@
 // Convert single-letter types to long types
 std::string typeMap(char t) {
     return
-        t == 'i' ? "uint256"
+        t == 'i' ? "int256"
       : t == 's' ? "string"
-      : t == 'a' ? "uint256[]"
+      : t == 'a' ? "int256[]"
       :            "weird";
 }
 
@@ -35,16 +35,12 @@ unsigned int getPrefix(std::string functionName, std::string signature) {
 
 // Convert a function of the form (def (f x y z) (do stuff)) into
 // (if (first byte of ABI is correct) (seq (setup x y z) (do stuff)))
-Node convFunction(Node node, int functionPrefix) {
+Node convFunction(int functionPrefix, std::vector<Node> args, Node body) {
     std::string prefix = "_temp"+mkUniqueToken()+"_";
-    Metadata m = node.metadata;
+    Metadata m = body.metadata;
 
-    if (node.args.size() != 2)
-        err("Malformed def!", m);
     // Collect the list of variable names and variable byte counts
-    Node unpack = unpackArguments(node.args[0].args, m);
-    // And the actual code
-    Node body = node.args[1];
+    Node unpack = unpackArguments(args, m);
     // Main LLL-based function body
     return astnode("if",
                    astnode("eq",
@@ -127,6 +123,55 @@ svObj getStorageVars(svObj pre, Node node, std::string prefix,
     return pre;
 }
 
+// Type inference on output (may fail if inconsistent or too low-level)
+std::string inferType(Node node) {
+    Metadata m = node.metadata;
+    if (node.type == TOKEN)
+        return "void";
+    std::string cur;
+    if (node.val == "return") {
+        if (node.args[0].val == ":") {
+            if (node.args[0].args[1].type == ASTNODE)
+                err("Invalid type: "+printSimple(node.args[0].args[1]), m);
+            else if (node.args[0].args[1].val == "arr")
+                cur = "arr";
+            else if (node.args[0].args[1].val == "str")
+                cur = "str";
+            else
+                err("Invalid type: "+printSimple(node.args[0].args[1]), m);
+        }
+        else if (node.args.size() == 1) {
+            cur = "int";
+        }
+        else if (node.args[1].val == "=") {
+            if (node.args[1].args[0].val == "items")
+                cur = "arr";
+            else if (node.args[1].args[0].val == "chars")
+                cur = "str";
+            else
+                err("Invalid type: "+printSimple(node.args[1].args[0]), m);
+        }
+        else
+            err("Invalid return command: "+printSimple(node), m);
+    }
+    else if (node.val == "~return") {
+        return "unknown";
+    }
+    else cur = "void";
+    for (unsigned i = 0; i < node.args.size(); i++) {
+        std::string newCur = inferType(node.args[i]);
+        if (newCur == "unknown" || newCur == "inconsistent")
+            return newCur;
+        else if (cur == "void")
+            cur = newCur;
+        else if (newCur != "void" && cur != newCur) {
+            warn("Warning: function return type inconsistent!", m);
+            return "inconsistent";
+        }
+    }
+    return cur;
+}
+
 // Preprocess input containing functions
 //
 // localExterns is a map of the form, eg,
@@ -162,7 +207,6 @@ preprocessResult preprocessInit(Node inp) {
     std::vector<Node> any;
     std::vector<Node> functions;
     preprocessAux out = preprocessAux();
-    out.localExterns["self"] = std::map<std::string, functionMetadata>();
     std::map<int, std::string> functionPrefixesUsed;
     int storageDataCount = 0;
     for (unsigned i = 0; i < inp.args.size(); i++) {
@@ -171,21 +215,27 @@ preprocessResult preprocessInit(Node inp) {
         if (obj.val == "def") {
             if (obj.args.size() == 0)
                 err("Empty def", m);
+            // Determine name, arguments, return type, body
             std::string funName = obj.args[0].val;
+            std::vector<Node> funArgs = obj.args[0].args;
+            Node body = obj.args[1];
+            std::string funReturnType = inferType(body);
+            if (funReturnType == "unknown" || funReturnType == "inconsistent")
+                funReturnType = "";
             // Init, shared and any are special functions
             if (funName == "init" || funName == "shared" || funName == "any") {
                 if (obj.args[0].args.size())
                     err(funName+" cannot have arguments", m);
             }
-            if (funName == "init") init = obj.args[1];
-            else if (funName == "shared") shared = obj.args[1];
-            else if (funName == "any") any.push_back(obj.args[1]);
+            if (funName == "init") init = body;
+            else if (funName == "shared") shared = body;
+            else if (funName == "any") any.push_back(body);
             // Other functions
             else {
                 // Calculate signature
-                std::string sig = getSignature(obj.args[0].args);
+                std::string sig = getSignature(funArgs);
                 // Calculate argument name list
-                strvec argNames = getArgNames(obj.args[0].args);
+                strvec argNames = getArgNames(funArgs);
                 // Get function prefix and check collisions
                 unsigned int functionPrefix = getPrefix(obj.args[0].val, sig);
                 if (functionPrefixesUsed.count(functionPrefix)) {
@@ -194,40 +244,65 @@ preprocessResult preprocessInit(Node inp) {
                         + ", "
                         + functionPrefixesUsed[functionPrefix], m);
                 }
-                if (out.localExterns["self"].count(obj.args[0].val)) {
+                if (out.interns.count(obj.args[0].val)) {
                     err("Defining the same function name twice: "
                         +obj.args[0].val, m);
                 }
                 // Add function
-                functions.push_back(convFunction(obj, functionPrefix));
-                out.localExterns["self"][obj.args[0].val] =
-                    functionMetadata(functionPrefix, sig, argNames);
+                functions.push_back(convFunction(functionPrefix, funArgs, body));
+                functionMetadata f = 
+                    functionMetadata(functionPrefix, sig, argNames, funReturnType);
+                out.interns[funName] = f;
+                out.interns[funName + "::" + sig] = f;
                 functionPrefixesUsed[functionPrefix] = obj.args[0].val;
             }
         }
         // Extern declarations
         else if (obj.val == "extern") {
             std::string externName = obj.args[0].val;
-            Node al = obj.args[1];
-            if (!out.localExterns.count(externName))
-                out.localExterns[externName] = std::map<std::string, functionMetadata>();
-            std::string v, sig;
-            for (unsigned i = 0; i < al.args.size(); i++) {
-                if (al.args[i].val == ":" || al.args[i].val == "::") {
-                    v = al.args[i].args[0].val;
-                    sig = al.args[i].args[1].val;
+            std::vector<Node> externFuns = obj.args[1].args;
+            std::string fun, sig, outsig;
+            // Process each function in each extern declaration
+            for (unsigned i = 0; i < externFuns.size(); i++) {
+                std::string fun, sig, o;
+                if (externFuns[i].val != ":") {
+                    warn("The extern foo: [bar, ...] extern format is "
+                         "deprecated. Please regenerate the signature "
+                         "for the contract you are including with "
+                         " `serpent mk_signature <file>` and reinsert "
+                         "it at your convenience", m);
+                    fun = externFuns[i].val;
+                    sig = "";
+                    o = "";
+                }
+                else if (externFuns[i].args[0].val != ":") {
+                    warn("The foo:i extern format is deprecated. It will "
+                         "still work for now but better regenerate the "
+                         "signature with `serpent mk_signature <file>` and "
+                         "paste the new signature in", m);
+                    fun = externFuns[i].args[0].val;
+                    sig = externFuns[i].args[1].val;
+                    o = "";
                 }
                 else {
-                    v = al.args[i].val;
-                    sig = "";
+                    fun = externFuns[i].args[0].args[0].val;
+                    sig = externFuns[i].args[0].args[1].val;
+                    if (sig == "_") sig = "";
+                    o = externFuns[i].args[1].val;
                 }
-                unsigned int functionPrefix = getPrefix(v, sig);
-                out.globalExterns[v] =
-                    functionMetadata(functionPrefix,
-                                     out.globalExterns.count(v) ? "_" : sig);
-                out.localExterns[externName][v] =
-                    functionMetadata(functionPrefix,
-                                     out.localExterns[externName].count(v) ? "_" : sig);
+
+                std::string outType = (o == "a") ? "arr"
+                                    : (o == "s") ? "str"
+                                    : (o == "i") ? "int"
+                                    :              "";
+                unsigned int functionPrefix = getPrefix(fun, sig);
+                functionMetadata f 
+                    = functionMetadata(functionPrefix, sig, strvec(), outType);
+                if (out.externs.count(fun))
+                    out.externs[fun].ambiguous = true;
+                else
+                    out.externs[fun] = f;
+                out.externs[fun + "::" + sig] = f;
             }
         }
         // Custom macros
@@ -372,19 +447,26 @@ std::string mkExternLine(Node n) {
     preprocessResult pr = preprocess(flattenSeq(n));
     std::vector<std::string> outNames;
     std::vector<functionMetadata> outMetadata;
-    if (!pr.second.localExterns["self"].size())
+    if (!pr.second.interns.size())
         return "extern " + n.metadata.file + ": []";
     for (std::map<std::string, functionMetadata>::iterator it=
-            pr.second.localExterns["self"].begin();
-            it != pr.second.localExterns["self"].end(); it++) {
-        outNames.push_back((*it).first);
-        outMetadata.push_back((*it).second);
+            pr.second.interns.begin();
+            it != pr.second.interns.end(); it++) {
+        if ((*it).first.find("::") == -1) {
+            outNames.push_back((*it).first);
+            outMetadata.push_back((*it).second);
+        }
     }
     std::string o = "extern " + n.metadata.file + ": [";
     for (unsigned i = 0; i < outNames.size(); i++) {
-        o += outNames[i]
-            + (outMetadata[i].sig.size() ? ":" : "")
-            + outMetadata[i].sig;
+        o += outNames[i] + ":"
+           + outMetadata[i].sig
+           + (outMetadata[i].sig.size() ? "" : "_") + ":";
+        o += outMetadata[i].outType == "str" ? "s"
+           : outMetadata[i].outType == "arr" ? "a"
+           : outMetadata[i].outType == "int" ? "i"
+           :                                   "_";
+        
         o += (i < outNames.size() - 1) ? ", " : "]"; 
     }
     return o;
@@ -394,13 +476,15 @@ std::string mkFullExtern(Node n) {
     preprocessResult pr = preprocess(flattenSeq(n));
     std::vector<std::string> outNames;
     std::vector<functionMetadata> outMetadata;
-    if (!pr.second.localExterns["self"].size())
+    if (!pr.second.interns.size())
         return "extern " + n.metadata.file + ": []";
     for (std::map<std::string, functionMetadata>::iterator it=
-            pr.second.localExterns["self"].begin();
-            it != pr.second.localExterns["self"].end(); it++) {
-        outNames.push_back((*it).first);
-        outMetadata.push_back((*it).second);
+            pr.second.interns.begin();
+            it != pr.second.interns.end(); it++) {
+        if ((*it).first.find("::") == -1) {
+            outNames.push_back((*it).first);
+            outMetadata.push_back((*it).second);
+        }
     }
     std::string o = "[";
     for (unsigned i = 0; i < outNames.size(); i++) {
@@ -410,8 +494,18 @@ std::string mkFullExtern(Node n) {
                  "\", \"type\": \""+typeMap(outMetadata[i].sig[j])+"\" }";
             o += (j < outMetadata[i].sig.size() - 1) ? ", " : ""; 
         }
-        o += "],\n    \"outputs\": [{ \"name\": \"out\", \"type\": \"string\" }]\n}";
-        o += (i < outNames.size() - 1) ? ",\n" : "]"; 
+        o += "],\n    \"outputs\": [";
+        std::string t = outMetadata[i].outType;
+        if (t != "void") {
+            std::string name, type;
+            if (t == "str") { name = "out"; type = "string"; }
+            else if (t == "arr") { name = "out"; type = "int256[]"; }
+            else if (t == "int") { name = "out"; type = "int256"; }
+            else { name = "unknown_out"; type = "int256[]"; }
+            o += "{ \"name\": \""+name+"\", \"type\": \""+type+"\" }";
+        }
+        o += "]\n}";
+        o += ((i < outNames.size() - 1) ? ",\n" : "]"); 
     }
     return o;
 }

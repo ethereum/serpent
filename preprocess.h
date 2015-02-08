@@ -19,14 +19,19 @@ struct svObj {
 
 class functionMetadata {
     public:
-        functionMetadata(int _id=0, std::string _sig="", strvec _argNames=strvec()) {
+        functionMetadata(int _id=0, std::string _sig="",
+                         strvec _argNames=strvec(), std::string _ot="int") {
             id = _id;
             sig = _sig;
             argNames = _argNames;
+            outType = _ot;
+            ambiguous = false;
         }
         int id;
         std::string sig;
         std::vector<std::string> argNames;
+        std::string outType;
+        bool ambiguous;
 };
 
 
@@ -35,8 +40,8 @@ class preprocessAux {
     public:
         preprocessAux() {
         }
-        std::map<std::string, functionMetadata> globalExterns;
-        std::map<std::string, std::map<std::string, functionMetadata> > localExterns;
+        std::map<std::string, functionMetadata> externs;
+        std::map<std::string, functionMetadata> interns;
         std::map<int, rewriteRuleSet > customMacros;
         std::map<std::string, std::string> types;
         svObj storageVars;

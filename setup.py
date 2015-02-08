@@ -25,11 +25,12 @@ setup(
     ext_modules=[
         Extension(
             'serpent_pyext',         # Python name of the module
-            ['keccak-tiny.cpp', 'bignum.cpp', 'util.cpp', 'tokenize.cpp',
-             'lllparser.cpp', 'parser.cpp', 'functions.cpp',
-             'optimize.cpp', 'opcodes.cpp',
-             'rewriteutils.cpp', 'preprocess.cpp', 'rewriter.cpp',
-             'compiler.cpp', 'funcs.cpp', 'pyserpent.cpp']
+            sources=['keccak-tiny.cpp', 'bignum.cpp', 'util.cpp',
+                     'tokenize.cpp', 'lllparser.cpp', 'parser.cpp',
+                     'functions.cpp', 'optimize.cpp', 'opcodes.cpp',
+                     'rewriteutils.cpp', 'preprocess.cpp', 'rewriter.cpp',
+                     'compiler.cpp', 'funcs.cpp', 'pyserpent.cpp'],
+            extra_compile_args=['-Wno-sign-compare']
         )],
     py_modules=[
         'serpent',

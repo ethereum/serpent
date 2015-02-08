@@ -57,19 +57,13 @@ Node packArguments(std::vector<Node> args, std::string sig,
         else {
             // Determine the correct argument type
             char argType;
-            if (sig.size() > 0) {
-                if (argCount >= (signed)sig.size())
-                    err("Too many args. Note that if you are using an extern "
-                        "declaration, under the new syntax including the "
-                        "function name by itself implies that the function "
-                        "accepts no arguments. If your function has arguments "
-                        ", then you need something like `extern foo: [bar:ii]`"
-                        ". If you want to be sure, run "
-                        "`serpent mk_signature <file>` on the contract you are "
-                        "including to determine the correct signature.", m);
-                argType = sig[argCount];
-            }
-            else argType = 'i';
+            if (argCount >= (signed)sig.size())
+                err("Too many args. Note that the signature of the function "
+                    "that you are using may no longer be valid. "
+                    "If you want to be sure, run "
+                    "`serpent mk_signature <file>` on the contract you are "
+                    "including to determine the correct signature.", m);
+            argType = sig[argCount];
             // Integer (also usable for short strings)
             if (argType == 'i') {
                 nargs.push_back(args[i]);

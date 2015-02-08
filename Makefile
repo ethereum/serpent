@@ -1,6 +1,6 @@
 PLATFORM_OPTS = 
 PYTHON = /usr/include/python2.7
-CXXFLAGS = -fPIC
+CXXFLAGS = -fPIC -Wno-sign-compare
 # -g3 -O0
 BOOST_INC = /usr/include
 BOOST_LIB = /usr/lib

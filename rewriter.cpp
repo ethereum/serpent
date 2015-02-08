@@ -158,20 +158,32 @@ std::string macros[][2] = {
         "$0"
     },
     {
+        "(return_int $x)", 
+        "(return $x)"
+    },
+    {
+        "(return_arr (: $x arr))",
+        "(return (: $x $arr))",
+    },
+    {
+        "(return_str (: $x str))",
+        "(return (: $x $str))",
+    },
+    {
         "(return (: $x arr))",
-        "(with $0 $x (~return $0 (= items (mload (sub $0 32)))))"
+        "(with $0 $x (~return (sub $0 32) (add 32 (= items (mload (sub $0 32))))))"
     },
     {
         "(return (: $x str))",
-        "(with $0 $x (~return $0 (= chars (mload (sub $0 32)))))"
+        "(with $0 $x (~return (sub $0 32) (add 32 (= chars (mload (sub $0 32))))))"
     },
     {
         "(return $arr (= $type $sz))",
-        "(~return $arr (= $type $sz))"
+        "(with _size $sz (seq (mstore (sub $arr 32) _size) (~return (sub $arr 32) (add (= $type $sz) 32))))"
     },
     {
         "(return $arr $sz)",
-        "(error \"when returning you must do return(x) for values, return(arr, items=len) for arrays or return(arr, chars=len) for strings; return(arr, len) by itself is no longer valid. Uses of return(arr, len) should be substituted with return(arr, items=len).\")"
+        "(error \"when returning you must do return(x) for values, return(x:arr) for arrays or return(x:str) for strings; return(arr, len) by itself is no longer valid. Uses of return(arr, len) should be substituted with return(arr, items=len) or ideally actual arrays.\")"
     },
     {
         "(return $x)",
@@ -484,12 +496,21 @@ Node dotTransform(Node node, preprocessAux aux) {
     // We're gonna make lots of temporary variables,
     // so set up a unique flag for them
     std::string prefix = "_temp"+mkUniqueToken()+"_";
-    // Check that the function name is a token
-    if (node.args[0].args[1].type == ASTNODE)
-        err("Function name must be static", m);
-
-    Node dotOwner = node.args[0].args[0];
-    std::string dotMember = node.args[0].args[1].val;
+    // Determine the callee and the name of the function we are calling
+    Node callee = node.args[0].args[0];
+    Node funNode = node.args[0].args[1];
+    std::string functionName;
+    if (funNode.val == "::") {
+        if (funNode.args[0].type == ASTNODE
+                || funNode.args[1].type == ASTNODE)
+            err("Function name must be a token: "+printSimple(funNode), m);
+        functionName = funNode.args[0].val + "::" + funNode.args[1].val;
+    }
+    else {
+        if (funNode.type == ASTNODE)
+            err("Function name must be a token: "+printSimple(funNode), m);
+        functionName = funNode.val;
+    }
     // kwargs = map of special arguments
     std::map<std::string, Node> kwargs;
     kwargs["value"] = token("0", m);
@@ -497,14 +518,14 @@ Node dotTransform(Node node, preprocessAux aux) {
     // Search for as=? and call=code keywords, and isolate the actual
     // function arguments
     std::vector<Node> fnargs;
-    std::string as = "";
     std::string op = "call";
     for (unsigned i = 1; i < node.args.size(); i++) {
         fnargs.push_back(node.args[i]);
         Node arg = fnargs.back();
         if (arg.val == "=" || arg.val == "set") {
             if (arg.args[0].val == "as")
-                as = arg.args[1].val;
+                err("As keyword deprecated. To disambiguate overloaded "
+                    "definitions, use the foo::sig syntax instead", m);
             if (arg.args[0].val == "call" && arg.args[1].val == "code")
                 op = "callcode";
             if (arg.args[0].val == "gas")
@@ -517,47 +538,45 @@ Node dotTransform(Node node, preprocessAux aux) {
                 kwargs["outchars"] = arg.args[1];
         }
     }
-    if (dotOwner.val == "self") {
-        if (as.size()) err("Cannot use \"as\" when calling self!", m);
-        as = dotOwner.val;
-    }
     int functionPrefix = 0;
     std::string sig;
-    // If :: was used, that implies that we are specifying the sig
-    if (dotMember == "::") {
-        sig = node.args[0].args[1].args[1].val;
-        dotMember = node.args[0].args[1].args[0].val;
-    }
-    // Determine the functionPrefix and sig assuming the "as" keyword was used
-    if (as.size() > 0 && aux.localExterns.count(as)) {
-        if (!aux.localExterns[as].count(dotMember))
-            err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
-        functionPrefix = aux.localExterns[as][dotMember].id;
-        sig = aux.localExterns[as][dotMember].sig;
+    std::string outType;
+    // Determine the functionPrefix and sig if calling self
+    if (callee.val == "self") {
+        if (!aux.interns.count(functionName))
+            err("Invalid call: "+functionName, m);
+        functionPrefix = aux.interns[functionName].id;
+        sig = aux.interns[functionName].sig;
+        outType = aux.interns[functionName].outType;
     }
     // Determine the funId and sig otherwise
-    else if (!as.size()) {
-        if (!aux.globalExterns.count(dotMember))
-            err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
-        std::string key = unsignedToDecimal(aux.globalExterns[dotMember].id);
-        functionPrefix = aux.globalExterns[dotMember].id;
-        sig = aux.globalExterns[dotMember].sig;
+    else {
+        if (!aux.externs.count(functionName))
+            err("Invalid call: "+functionName, m);
+        if (aux.externs[functionName].ambiguous)
+            err("Ambiguous call: "+functionName+". Please use the "
+                "functionName::sig(...) syntax to specify the signature "
+                "of the function you are using.", m);
+        std::string key = unsignedToDecimal(aux.externs[functionName].id);
+        functionPrefix = aux.externs[functionName].id;
+        sig = aux.externs[functionName].sig;
+        outType = aux.externs[functionName].outType;
     }
-    else err("Invalid call: "+printSimple(dotOwner)+"."+dotMember, m);
-
-    // In case of ambiguity, sig-specifying syntax becomes mandatory
-    if (sig == "_") {
-        err("Method "+dotMember+" has multiple definitions. Please use"
-            " the \"as\" keyword to distinguish between different external"
-            " contracts that you are calling or use the"
-            " account.function::sig(...) syntax to distinguish between"
-            " different functions in the same contract that have the same"
-            " name but different signatures", m);
-    }
-    
+    // Type checks
+    if (outType == "int" && (kwargs.count("outitems") || kwargs.count("outchars")))
+        err("Expecting int/addr/short-string output; "
+            "outitems or outchars keywords not valid", m);
+    if (outType == "str" && kwargs.count("outitems"))
+        err("Expecting string, use outchars instead of outitems", m);
+    if (outType == "str" && !kwargs.count("outchars"))
+        err("Please specify maximum string length with outchars", m);
+    if (outType == "arr" && kwargs.count("outchars"))
+        err("Expecting array, use outitems instead of outchars", m);
+    if (outType == "arr" && !kwargs.count("outitems"))
+        err("Please specify maximum array length with outitems", m);
     // Pack arguments
     kwargs["data"] = packArguments(fnargs, sig, functionPrefix, m);
-    kwargs["to"] = dotOwner;
+    kwargs["to"] = callee;
     Node main;
     // Pack output
     if (!kwargs.count("outitems") && !kwargs.count("outchars")) {
@@ -569,14 +588,14 @@ Node dotTransform(Node node, preprocessAux aux) {
     else if (kwargs.count("outchars")) {
         main = parseLLL(
             "(with _data $data (with _outchars $outchars (with _out (string _outchars) (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out _outchars))"
-                "(get _out)))))");
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (add 32 _outchars)))"
+                "(add (get _out) 32)))))");
     }
     else {
         main = parseLLL(
             "(with _data $data (with _outitems $outitems (with _out (array _outitems) (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (mul 32 _outitems)))"
-                "(get _out)))))");
+                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (add 32 (mul 32 _outitems))))"
+                "(add (get _out) 32)))))");
     }
     // Set up main call
 
