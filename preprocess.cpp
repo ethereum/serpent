@@ -477,7 +477,7 @@ std::string mkFullExtern(Node n) {
     std::vector<std::string> outNames;
     std::vector<functionMetadata> outMetadata;
     if (!pr.second.interns.size())
-        return "extern " + n.metadata.file + ": []";
+        return "[]";
     for (std::map<std::string, functionMetadata>::iterator it=
             pr.second.interns.begin();
             it != pr.second.interns.end(); it++) {
