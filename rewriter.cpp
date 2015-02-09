@@ -158,18 +158,6 @@ std::string macros[][2] = {
         "$0"
     },
     {
-        "(return_int $x)", 
-        "(return $x)"
-    },
-    {
-        "(return_arr (: $x arr))",
-        "(return (: $x $arr))",
-    },
-    {
-        "(return_str (: $x str))",
-        "(return (: $x $str))",
-    },
-    {
         "(return (: $x arr))",
         "(with $0 $x (~return (sub $0 32) (add 32 (= items (mload (sub $0 32))))))"
     },
