@@ -443,6 +443,8 @@ preprocessResult preprocess(Node n) {
     return processTypes(preprocessInit(n));
 }
 
+// Create the signature from a contract, usable for inclusion 
+// in other contracts
 std::string mkExternLine(Node n) {
     preprocessResult pr = preprocess(flattenSeq(n));
     std::vector<std::string> outNames;
@@ -472,6 +474,8 @@ std::string mkExternLine(Node n) {
     return o;
 }
 
+// Create the full signature from a contract, usable for
+// inclusion in solidity contracts and javascript objects
 std::string mkFullExtern(Node n) {
     preprocessResult pr = preprocess(flattenSeq(n));
     std::vector<std::string> outNames;
@@ -488,7 +492,9 @@ std::string mkFullExtern(Node n) {
     }
     std::string o = "[";
     for (unsigned i = 0; i < outNames.size(); i++) {
-        o += "{\n    \"name\": \""+outNames[i]+"\",\n    \"inputs\": [";
+        o += "{\n    \"name\": \""+outNames[i]+"\",\n";
+        o += "    \"type\": \"function\",\n";
+        o += "    \"inputs\": [";
         for (unsigned j = 0; j < outMetadata[i].sig.size(); j++) {
             o += "{ \"name\": \""+outMetadata[i].argNames[j]+
                  "\", \"type\": \""+typeMap(outMetadata[i].sig[j])+"\" }";
