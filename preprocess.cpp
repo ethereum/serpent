@@ -21,15 +21,20 @@ std::string typeMap(char t) {
       :            "weird";
 }
 
-// Get the prefix bytes for a function based on its signature
-unsigned int getPrefix(std::string functionName, std::string signature) {
+// Get the one-line argument summary for a function based on its signature
+std::string getSummary(std::string functionName, std::string signature) {
     std::string o = functionName + "(";
     for (unsigned i = 0; i < signature.size(); i++) {
         o += typeMap(signature[i]);
         if (i != signature.size() - 1) o += ",";
     }
     o += ")";
-    std::vector<uint8_t> h = sha3(o);
+    return o;
+}
+
+// Get the prefix bytes for a function based on its signature
+unsigned int getPrefix(std::string functionName, std::string signature) {
+    std::vector<uint8_t> h = sha3(getSummary(functionName, signature));
     return (h[0] << 24) + (h[1] << 16) + (h[2] << 8) + h[3];
 }
 
@@ -492,7 +497,8 @@ std::string mkFullExtern(Node n) {
     }
     std::string o = "[";
     for (unsigned i = 0; i < outNames.size(); i++) {
-        o += "{\n    \"name\": \""+outNames[i]+"\",\n";
+        std::string summary = getSummary(outNames[i], outMetadata[i].sig);
+        o += "{\n    \"name\": \""+summary+"\",\n";
         o += "    \"type\": \"function\",\n";
         o += "    \"inputs\": [";
         for (unsigned j = 0; j < outMetadata[i].sig.size(); j++) {
