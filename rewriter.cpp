@@ -329,6 +329,10 @@ std::string macros[][2] = {
         "(mcopy $to $from $sz)",
         "(with _sz $sz (safe_call (+ 2 (/ _sz 32)) 4 0 $from _sz $to _sz))"
     },
+    {
+        "(waste $n)",
+        "(with _n $n (call _n 2 0 0 _n 0 0))"
+    },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
     { "(. tx gasprice)", "(gasprice)" },
