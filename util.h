@@ -7,6 +7,7 @@
 #include <map>
 #include <fstream>
 #include <cerrno>
+#include <stdint.h>
 
 const int TOKEN = 0,
           ASTNODE = 1,
@@ -82,6 +83,9 @@ std::string indentLines(std::string inp);
 
 // Converts binary to simple numeric format
 std::string binToNumeric(std::string inp);
+
+// Converts string to list of bytes
+std::vector<uint8_t> strToBytes(std::string inp);
 
 // Converts string to simple numeric format
 std::string strToNumeric(std::string inp, int strpad);

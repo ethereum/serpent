@@ -171,6 +171,38 @@ std::string binToNumeric(std::string inp) {
 
 std::string hexalpha = "0123456789abcdef";
 
+// Converts string to list of bytes
+std::vector<uint8_t> strToBytes(std::string inp) {
+    std::vector<uint8_t> o;
+    for (unsigned i = 0; i < inp.length();) {
+        uint8_t ch = 0;
+        if (inp[i] == '\\') {
+            if (inp.substr(i, 2) == "\\x") {
+                if ( i + 3 < inp.length()) {
+                    ch = (hexalpha.find(inp[i+2]) * 16
+                          + hexalpha.find(inp[i+3]));
+                    i += 4;
+                }
+                else return std::vector<uint8_t>();
+            }
+            else if (inp.substr(i, 2) == "\\n") {
+                ch = 10;
+                i += 2;
+            }
+            else if (i + 1 < inp.length()) {
+                ch += inp[i + 1];
+                i += 2;
+            }
+        }
+        else {
+            ch = inp[i];
+            i += 1;
+        }
+        o.push_back(ch);
+    }
+    return o;
+}
+
 // Converts string to simple numeric format
 std::string strToNumeric(std::string inp, int strpad=32) {
     std::string o = "0";
@@ -179,35 +211,11 @@ std::string strToNumeric(std::string inp, int strpad=32) {
     }
     else if ((inp[0] == '"' && inp[inp.length()-1] == '"')
             || (inp[0] == '\'' && inp[inp.length()-1] == '\'')) {
-        int len = 0;
-        for (unsigned i = 1; i < inp.length() - 1;) {
-            len += 1;
-            unsigned char ch = 0;
-            if (inp[i] == '\\') {
-                if (inp.substr(i, 2) == "\\x") {
-                    if ( i + 3 < inp.length() - 1) {
-                        ch = (hexalpha.find(inp[i+2]) * 16
-                              + hexalpha.find(inp[i+3]));
-                        i += 4;
-                    }
-                    else return "";
-                }
-                else if (inp.substr(i, 2) == "\\n") {
-                    ch = 10;
-                    i += 2;
-                }
-                else if (i + 1 < inp.length() - 1) {
-                    ch += inp[i + 1];
-                    i += 2;
-                }
+            std::vector<uint8_t> bytes = strToBytes(inp.substr(1, inp.size() - 2));
+            for (unsigned i = 0; i < bytes.size(); i++) {
+                o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal(bytes[i]));
             }
-            else {
-                ch = inp[i];
-                i += 1;
-            }
-            o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal(ch));
-        }
-        int pad = strpad - len;
+        int pad = strpad - bytes.size();
         if (pad < 0) return "";
         return decimalMul(o, decimalExp("256", unsignedToDecimal(pad)));
     }

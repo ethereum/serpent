@@ -331,7 +331,7 @@ std::string macros[][2] = {
     },
     {
         "(waste $n)",
-        "(with _n $n (call _n 2 0 0 _n 0 0))"
+        "(call $n (create (lll (invalid))) 0 0 0 0 0)"
     },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
@@ -457,20 +457,19 @@ Node string_transform(Node node) {
      || node.args[0].val[0] != '"'
      || node.args[0].val[node.args[0].val.size() - 1] != '"')
         err("Text contents don't look like a string: "+node.args[0].val, m);
-    std::string bin = node.args[0].val.substr(1, node.args[0].val.size() - 2);
+    std::vector<uint8_t> bin =
+        strToBytes(node.args[0].val.substr(1, node.args[0].val.size() - 2));
     unsigned sz = bin.size();
     std::map<std::string, Node> d;
     std::string o = "(with $str (alloc "+utd(bin.size() + 32)+")";
     o += " (seq (mstore (get $str) "+utd(bin.size())+")";
     for (unsigned i = 0; i < sz; i += 32) {
         unsigned curpos = i;
-        std::string t = binToNumeric(bin.substr(i, 32));
-        if ((sz - i) < 32 && (sz - i) > 0) {
-            while ((sz - i) < 32) {
-                t = decimalMul(t, "256");
-                i--;
-            }
-            i = sz;
+        std::string t = "0";
+        for (unsigned j = i; j < i + 32; j++) {
+            uint8_t x = j < sz ? bin[j] : 0;
+            t = decimalMul(t, "256");
+            t = decimalAdd(t, unsignedToDecimal(x));
         }
         o += " (mstore (add (get $str) "+utd(curpos + 32)+") "+t+")";
     }
