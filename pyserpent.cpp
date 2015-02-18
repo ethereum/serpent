@@ -6,6 +6,12 @@
 #include <iostream>
 #include "funcs.h"
 
+#if PY_MAJOR_VERSION >= 3
+#define PY_STRING_FORMAT "y#"
+#else
+#define PY_STRING_FORMAT "s#"
+#endif
+
 #define PYMETHOD(name, FROM, method, TO) \
     static PyObject * name(PyObject *, PyObject *args) { \
         try { \
@@ -21,7 +27,7 @@
 #define FROMSTR(v) \
     const char *command; \
     int len; \
-    if (!PyArg_ParseTuple(args, "s#", &command, &len)) \
+    if (!PyArg_ParseTuple(args, PY_STRING_FORMAT, &command, &len)) \
         return NULL; \
     std::string v = std::string(command, len); \
 
@@ -40,7 +46,7 @@
 // Convert metadata into python wrapper form [file, ln, ch]
 PyObject* pyifyMetadata(Metadata m) {
     PyObject* a = PyList_New(0);
-    PyList_Append(a, Py_BuildValue("s#", m.file.c_str(), m.file.length()));
+    PyList_Append(a, Py_BuildValue(PY_STRING_FORMAT, m.file.c_str(), m.file.length()));
     PyList_Append(a, Py_BuildValue("i", m.ln));
     PyList_Append(a, Py_BuildValue("i", m.ch));
     return a;
@@ -51,7 +57,7 @@ PyObject* pyifyMetadata(Metadata m) {
 PyObject* pyifyNode(Node n) {
     PyObject* a = PyList_New(0);
     PyList_Append(a, Py_BuildValue("i", n.type == ASTNODE));
-    PyList_Append(a, Py_BuildValue("s#", n.val.c_str(), n.val.length()));
+    PyList_Append(a, Py_BuildValue(PY_STRING_FORMAT, n.val.c_str(), n.val.length()));
     PyList_Append(a, pyifyMetadata(n.metadata));
     for (unsigned i = 0; i < n.args.size(); i++)
         PyList_Append(a, pyifyNode(n.args[i]));
@@ -60,7 +66,7 @@ PyObject* pyifyNode(Node n) {
 
 // Convert string into python wrapper form
 PyObject* pyifyString(std::string s) {
-    return Py_BuildValue("s#", s.c_str(), s.length());
+    return Py_BuildValue(PY_STRING_FORMAT, s.c_str(), s.length());
 }
 
 // Convert list of nodes into python wrapper form
@@ -82,7 +88,11 @@ int cppifyInt(PyObject* o) {
 // Convert pyobject string into normal form
 std::string cppifyString(PyObject* o) {
     const char *command;
+#if PY_MAJOR_VERSION >= 3
+    if (!PyArg_Parse(o, "y", &command))
+#else
     if (!PyArg_Parse(o, "s", &command))
+#endif
         err("Argument should be string", Metadata());
     return std::string(command);
 }
@@ -167,7 +177,22 @@ static PyMethodDef PyextMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef SerpentModule = {
+    PyModuleDef_HEAD_INIT,
+    "serpent_pyext",
+    "...",
+    -1,
+    PyextMethods
+};
+
+PyMODINIT_FUNC PyInit_serpent_pyext(void) {
+    return PyModule_Create(&SerpentModule);
+}
+
+#else
 PyMODINIT_FUNC initserpent_pyext(void)
 {
      Py_InitModule( "serpent_pyext", PyextMethods );
 }
+#endif
