@@ -75,7 +75,7 @@ code:
         elif contract.storage[USD_EXPOSURE] > 0:
             contract.storage[LAST_INTEREST_RATE] = last_interest_rate + 10000 * delta
         
-        last_accum = contract.storage[EPOCHSTORE + last_accum]
+        last_accum = contract.storage[EPOCHSTORE + last_epoch]
         contract.storage[EPOCHSTORE + epoch] = last_accum + last_accum * last_interest_rate * delta / 10^9
 
         # Proceeds go to support the SchellingCoin feeding it price data, ultimately providing the depositors
