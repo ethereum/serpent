@@ -1,8 +1,15 @@
 import serpent_pyext as pyext
-import sys, re
+import sys
+import re
+import binascii
 
 VERSION = '1.8.1'
 
+def strtobytes(x):
+    return x.encode('ascii') if isinstance(x, str) else x
+
+def bytestostr(x):
+    return x.decode('ascii') if isinstance(x, bytes) else x
 
 class Metadata(object):
     def __init__(self, li):
@@ -23,7 +30,7 @@ class Token(object):
         return [0, self.val, self.metadata.out()]
 
     def __repr__(self):
-        return str(self.val)
+        return str(bytestostr(self.val))
 
 
 class Astnode(object):
@@ -37,18 +44,18 @@ class Astnode(object):
         return o
 
     def __repr__(self):
-        o = '(' + self.val
-        subs = map(repr, self.args)
+        o = '(' + bytestostr(self.val)
+        subs = list(map(repr, self.args))
         k = 0
         out = " "
         while k < len(subs) and o != "(seq":
             if '\n' in subs[k] or len(out + subs[k]) >= 80:
                 break
-            out += subs[k] + " "
+            out += bytestostr(subs[k]) + " "
             k += 1
         if k < len(subs):
             o += out + "\n  "
-            o += '\n  '.join('\n'.join(subs[k:]).split('\n'))
+            o += '\n  '.join('\n'.join(map(bytestostr, subs[k:])).split('\n'))
             o += '\n)'
         else:
             o += out[:-1] + ')'
@@ -63,25 +70,28 @@ def node(li):
 
 
 def take(x):
-    return pyext.parse_lll(x) if isinstance(x, (str, unicode)) else x.out()
+    return pyext.parse_lll(x) if isinstance(x, (str, unicode, bytes)) else x.out()
 
 
 def takelist(x):
-    return map(take, parse(x).args if isinstance(x, (str, unicode)) else x)
+    return map(take, parse(x).args if isinstance(x, (str, unicode, bytes)) else x)
 
-
-compile = lambda x: pyext.compile(x)
-compile_to_lll = lambda x: node(pyext.compile_to_lll(x))
-compile_lll = lambda x: pyext.compile_lll(take(x))
-parse = lambda x: node(pyext.parse(x))
-rewrite = lambda x: node(pyext.rewrite(take(x)))
-pretty_compile = lambda x: map(node, pyext.pretty_compile(x))
-pretty_compile_lll = lambda x: map(node, pyext.pretty_compile_lll(take(x)))
-serialize = lambda x: pyext.serialize(takelist(x))
-deserialize = lambda x: map(node, pyext.deserialize(x))
-mk_signature = lambda x: pyext.mk_signature(x)
-mk_full_signature = lambda x: pyext.mk_full_signature(x)
-get_prefix = lambda x, y: pyext.get_prefix(x, y) % 2**32
+compile = lambda x: pyext.compile(strtobytes(x))
+compile_chunk = lambda x: pyext.compile_chunk(strtobytes(x))
+compile_to_lll = lambda x: node(pyext.compile_to_lll(strtobytes(x)))
+compile_chunk_to_lll = lambda x: node(pyext.compile_chunk_to_lll(strtobytes(x)))
+compile_lll = lambda x: pyext.compile_lll(take(strtobytes(x)))
+parse = lambda x: node(pyext.parse(strtobytes(x)))
+rewrite = lambda x: node(pyext.rewrite(take(strtobytes(x))))
+rewrite_chunk = lambda x: node(pyext.rewrite_chunk(take(strtobytes(x))))
+pretty_compile = lambda x: map(node, pyext.pretty_compile(strtobytes(x)))
+pretty_compile_chunk = lambda x: map(node, pyext.pretty_compile_chunk(strtobytes(x)))
+pretty_compile_lll = lambda x: map(node, pyext.pretty_compile_lll(take(strtobytes(x))))
+serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
+deserialize = lambda x: map(node, pyext.deserialize(strtobytes(x)))
+mk_signature = lambda x: pyext.mk_signature(strtobytes(x))
+mk_full_signature = lambda x: pyext.mk_full_signature(strtobytes(x))
+get_prefix = lambda x, y: pyext.get_prefix(strtobytes(x), y) % 2**32
 
 is_numeric = lambda x: isinstance(x, (int, long))
 is_string = lambda x: isinstance(x, (str, unicode))
@@ -168,13 +178,13 @@ def decode_abi(arr, *lens):
 
 def main():
     if len(sys.argv) == 1:
-        print "serpent <command> <arg1> <arg2> ..."
+        print("serpent <command> <arg1> <arg2> ...")
     else:
         cmd = sys.argv[2] if sys.argv[1] == '-s' else sys.argv[1]
         if sys.argv[1] == '-s':
             args = [sys.stdin.read()] + sys.argv[3:]
         elif sys.argv[1] == '-v':
-            print VERSION
+            print(VERSION)
             sys.exit()
         else:
             cmd = sys.argv[1]
@@ -190,4 +200,4 @@ def main():
         elif cmd in ['mk_signature', 'mk_full_signature', 'get_prefix']:
             print o
         else:
-            print o.encode('hex')
+            print(binascii.b2a_hex(o).decode('ascii'))
