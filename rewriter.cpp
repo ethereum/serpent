@@ -147,7 +147,7 @@ std::string macros[][2] = {
     },
     {
         "(send $to $value)",
-        "(~call (sub (gas) 25) $to $value 0 0 0 0)"
+        "(~call 5000 $to $value 0 0 0 0)"
     },
     {
         "(send $gas $to $value)",
@@ -283,7 +283,7 @@ std::string macros[][2] = {
     },
     {
         "(ecrecover $h $v $r $s)",
-        "(with $1 (alloc 160) (seq (mstore (get $1) $h) (mstore (add (get $1) 32) $v) (mstore (add (get $1) 64) $r) (mstore (add (get $1) 96) $s) (pop (~call 101 1 0 (get $1) 128 (add (get $1 128)) 32)) (mload (add (get $1) 128))))"
+        "(with $1 (alloc 160) (seq (mstore (get $1) $h) (mstore (add (get $1) 32) $v) (mstore (add (get $1) 64) $r) (mstore (add (get $1) 96) $s) (pop (~call 500 1 0 (get $1) 128 (add (get $1) 128) 32)) (mload (add (get $1) 128))))"
     },
     {
         "(inset $x)",
@@ -335,9 +335,10 @@ std::string macros[][2] = {
     },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
+    { "(. msg gas)", "(gas)" },
     { "(. tx gasprice)", "(gasprice)" },
     { "(. tx origin)", "(origin)" },
-    { "(. tx gas)", "(gas)" },
+    { "(. tx gas)", "(error \"Replace tx.gas with msg.gas\")" },
     { "(. $x balance)", "(balance $x)" },
     { "self", "(address)" },
     { "(. block prevhash)", "(blockhash (sub (number) 1))" },
@@ -505,7 +506,7 @@ Node dotTransform(Node node, preprocessAux aux) {
     // kwargs = map of special arguments
     std::map<std::string, Node> kwargs;
     kwargs["value"] = token("0", m);
-    kwargs["gas"] = subst(parseLLL("(- (gas) 25)"), msn(), prefix, m);
+    kwargs["gas"] = subst(parseLLL("(- (gas) 525)"), msn(), prefix, m);
     // Search for as=? and call=code keywords, and isolate the actual
     // function arguments
     std::vector<Node> fnargs;

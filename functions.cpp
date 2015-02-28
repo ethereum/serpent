@@ -92,7 +92,7 @@ Node packArguments(std::vector<Node> args, std::string sig,
         "        (seq                                                     ";
     for (unsigned i = 0; i < vargs.size(); i++) {
         std::string sizeIncrement = 
-            isArray[i] ? "(mul 32 _x)" : "_x";
+            isArray[i] ? "(mul 32 (len _x))" : "(len _x)";
         pattern +=
             "(with _x $vl"+utd(i)+" (seq                 "
             "    (mstore (add _vars "+utd(i * 64)+") (mload (sub _x 32))) "
