@@ -243,7 +243,7 @@ std::string macros[][2] = {
     },
     {
         "(_sha256 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 100 (mul 2 $0)) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 72 $0) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(sha256 $arr $sz)",
@@ -267,7 +267,7 @@ std::string macros[][2] = {
     },
     {
         "(_ripemd160 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 100 (mul 2 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 720 (mul 4 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
     },
     {
         "(ripemd160 $arr $sz)",
@@ -327,7 +327,7 @@ std::string macros[][2] = {
     },
     {
         "(mcopy $to $from $sz)",
-        "(with _sz $sz (safe_call (+ 2 (/ _sz 32)) 4 0 $from _sz $to _sz))"
+        "(with _sz $sz (safe_call (+ 18 (/ _sz 10)) 4 0 $from _sz $to _sz))"
     },
     {
         "(waste $n)",
@@ -506,7 +506,7 @@ Node dotTransform(Node node, preprocessAux aux) {
     // kwargs = map of special arguments
     std::map<std::string, Node> kwargs;
     kwargs["value"] = token("0", m);
-    kwargs["gas"] = subst(parseLLL("(- (gas) 525)"), msn(), prefix, m);
+    kwargs["gas"] = subst(parseLLL("(- (gas) 45)"), msn(), prefix, m);
     // Search for as=? and call=code keywords, and isolate the actual
     // function arguments
     std::vector<Node> fnargs;
@@ -522,8 +522,10 @@ Node dotTransform(Node node, preprocessAux aux) {
                 op = "callcode";
             if (arg.args[0].val == "gas")
                 kwargs["gas"] = arg.args[1];
-            if (arg.args[0].val == "value")
+            if (arg.args[0].val == "value") {
                 kwargs["value"] = arg.args[1];
+                kwargs["gas"] = subst(parseLLL("(- (gas) 6755)"), msn(), prefix, m);
+            }
             if (arg.args[0].val == "outitems" || arg.args[0].val == "outsz")
                 kwargs["outitems"] = arg.args[1];
             if (arg.args[0].val == "outchars")
