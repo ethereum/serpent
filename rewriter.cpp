@@ -283,7 +283,7 @@ std::string macros[][2] = {
     },
     {
         "(ecrecover $h $v $r $s)",
-        "(with $1 (alloc 160) (seq (mstore (get $1) $h) (mstore (add (get $1) 32) $v) (mstore (add (get $1) 64) $r) (mstore (add (get $1) 96) $s) (pop (~call 500 1 0 (get $1) 128 (add (get $1) 128) 32)) (mload (add (get $1) 128))))"
+        "(with $1 (alloc 160) (seq (mstore (get $1) $h) (mstore (add (get $1) 32) $v) (mstore (add (get $1) 64) $r) (mstore (add (get $1) 96) $s) (pop (~call 3000 1 0 (get $1) 128 (add (get $1) 128) 32)) (mload (add (get $1) 128))))"
     },
     {
         "(inset $x)",
@@ -524,7 +524,7 @@ Node dotTransform(Node node, preprocessAux aux) {
                 kwargs["gas"] = arg.args[1];
             if (arg.args[0].val == "value") {
                 kwargs["value"] = arg.args[1];
-                kwargs["gas"] = subst(parseLLL("(- (gas) 6755)"), msn(), prefix, m);
+                kwargs["gas"] = subst(parseLLL("(- (gas) 9045)"), msn(), prefix, m);
             }
             if (arg.args[0].val == "outitems" || arg.args[0].val == "outsz")
                 kwargs["outitems"] = arg.args[1];
