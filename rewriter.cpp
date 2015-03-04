@@ -569,32 +569,30 @@ Node dotTransform(Node node, preprocessAux aux) {
     if (outType == "arr" && !kwargs.count("outitems"))
         err("Please specify maximum array length with outitems", m);
     // Pack arguments
-    kwargs["data"] = packArguments(fnargs, sig, functionPrefix, m);
     kwargs["to"] = callee;
     Node main;
     // Pack output
     if (!kwargs.count("outitems") && !kwargs.count("outchars")) {
         main = parseLLL(
-            "(with _data $data (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) (ref $dataout) 32))"
-                "(get $dataout)))");
+            "(seq "
+                "(pop (~"+op+" $gas $to $value _datastart _datasz (ref $dataout) 32))"
+                "(get $dataout))");
     }
     else if (kwargs.count("outchars")) {
         main = parseLLL(
-            "(with _data $data (with _outchars $outchars (with _out (string _outchars) (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (add 32 _outchars)))"
-                "(add (get _out) 32)))))");
+            "(with _outchars $outchars (with _out (string _outchars) (seq "
+                "(pop (~"+op+" $gas $to $value _datastart _datasz _out (add 32 _outchars)))"
+                "(add (get _out) 32))))");
     }
     else {
         main = parseLLL(
-            "(with _data $data (with _outitems $outitems (with _out (array _outitems) (seq "
-                "(pop (~"+op+" $gas $to $value (access _data 0) (access _data 1) _out (add 32 (mul 32 _outitems))))"
-                "(add (get _out) 32)))))");
+            "(with _outitems $outitems (with _out (array _outitems) (seq "
+                "(pop (~"+op+" $gas $to $value _datastart _datasz _out (add 32 (mul 32 _outitems))))"
+                "(add (get _out) 32))))");
     }
     // Set up main call
-
-    Node o = subst(main, kwargs, prefix, m);
-    return o;
+    Node inner = subst(main, kwargs, prefix, m);
+    return packArguments(fnargs, sig, functionPrefix, inner, m);
 }
 
 // Transform an access of the form self.bob, self.users[5], etc into

@@ -36,11 +36,11 @@ std::vector<std::string> getArgNames(std::vector<Node> args) {
     return o;
 }
 
-// Convert a list of arguments into a node containing a
-// < datastart, datasz > pair
+// Convert a list of arguments into a node wrapping another
+// node that can use _datastart and _datasz
 
 Node packArguments(std::vector<Node> args, std::string sig,
-                      unsigned functionPrefix, Metadata m) {
+                   unsigned functionPrefix, Node inner, Metadata m) {
     // Plain old 32 byte arguments
     std::vector<Node> nargs;
     // Variable-sized arguments
@@ -87,7 +87,7 @@ Node packArguments(std::vector<Node> args, std::string sig,
     msn kwargs;
     kwargs["funid"] = tkn(utd(functionPrefix), m);
     std::string pattern =
-        "(with _sztot "+utd(static_arg_size)+"                            "
+        "(with _datasz "+utd(static_arg_size)+"                            "
         "    (with _vars (alloc "+utd(vargs.size() * 64)+")               "
         "        (seq                                                     ";
     for (unsigned i = 0; i < vargs.size(); i++) {
@@ -97,12 +97,12 @@ Node packArguments(std::vector<Node> args, std::string sig,
             "(with _x $vl"+utd(i)+" (seq                 "
             "    (mstore (add _vars "+utd(i * 64)+") (mload (sub _x 32))) "
             "    (mstore (add _vars "+utd(i * 64 + 32)+") _x)             "
-            "    (set _sztot (add _sztot "+sizeIncrement+" ))))           ";
+            "    (set _datasz (add _datasz "+sizeIncrement+" ))))           ";
         kwargs["vl"+utd(i)] = vargs[i];
     }
     // Allocate memory, and set first four data bytes
     pattern +=
-            "(with _datastart (add (alloc (add _sztot 64)) 28) (seq       "
+            "(with _datastart (add (alloc (add _datasz 64)) 28) (seq       "
             "    (mstore (sub _datastart 28) $funid)                      ";
     // Copy over size variables
     for (unsigned i = 0; i < vargs.size(); i++) {
@@ -135,8 +135,9 @@ Node packArguments(std::vector<Node> args, std::string sig,
             "        (set _pos (add _pos "+copySize+"))                   ";
     }
     // Return a 2-item array containing the start and size
-    pattern += "     (array_lit _datastart _sztot))))))))";
+    pattern += "     $inner)))))))";
     std::string prefix = "_temp_"+mkUniqueToken();
+    kwargs["inner"] = inner;
     // Fill in pattern, return triple
     return subst(parseLLL(pattern), kwargs, prefix, m);
 }
