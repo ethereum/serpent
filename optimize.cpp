@@ -5,6 +5,7 @@
 #include "util.h"
 #include "lllparser.h"
 #include "bignum.h"
+#include "optimize.h"
 
 // Compile-time arithmetic calculations
 Node calcArithmetic(Node inp, bool modulo=true) {
@@ -88,6 +89,33 @@ Node calcArithmetic(Node inp, bool modulo=true) {
       if (o.length()) return token(o, inp.metadata);
     }
     return inp;
+}
+
+// Filter out with statements where the underlying variable
+// is only used once
+std::pair<Node, int> filterTrivialWiths(Node inp, std::string focus) {
+    if (inp.type == TOKEN) {
+        return std::pair<Node, int>(inp, (inp.val == focus) ? 1 : 0);
+    }
+    else if (inp.val != "with") {
+        std::vector<Node> o;
+        int total = 0;
+        for (int i = 0; i < inp.args.size(); i++) {
+            std::pair<Node, int> sub = filterTrivialWiths(inp.args[i], focus);
+            o.push_back(sub.first);
+            total += sub.second;
+        }
+        return std::pair<Node, int>(asn(inp.val, o, inp.metadata), total);
+    }
+    else {
+        std::string var = inp.args[0].val;
+        bool compress = false;
+        std::pair<Node, int> sub;
+        if (!isDegenerate(inp.args[1])) {
+            sub = filterTrivialWiths(inp.args[2], var);
+                
+        }
+    }
 }
 
 // Optimize a node (now does arithmetic, may do other things)
