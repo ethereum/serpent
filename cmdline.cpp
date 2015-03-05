@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include "funcs.h"
+#include "bignum.h"
 
 int main(int argv, char** argc) {
     if (argv == 1) {
