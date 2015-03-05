@@ -13,18 +13,18 @@ const std::string tt255 =
 
 std::string unsignedToDecimal(unsigned branch);
 
-std::string decimalAdd(std::string a, std::string b);
+std::string decimalAdd(const std::string &a, const std::string &b);
 
-std::string decimalMul(std::string a, std::string b);
+std::string decimalMul(const std::string &a, const std::string &b);
 
-std::string decimalSub(std::string a, std::string b);
+std::string decimalSub(const std::string &a, const std::string &b);
 
 std::string decimalDiv(std::string a, std::string b);
 
-std::string decimalMod(std::string a, std::string b);
+std::string decimalMod(const std::string &a, const std::string &b);
 
-bool decimalGt(std::string a, std::string b, bool eqAllowed=false);
+bool decimalGt(const std::string &a, const std::string &b, bool eqAllowed=false);
 
-unsigned decimalToUnsigned(std::string a);
+unsigned decimalToUnsigned(const std::string &a);
 
 #endif
