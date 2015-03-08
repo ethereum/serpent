@@ -6,46 +6,35 @@
 #include "funcs.h"
 #include "bignum.h"
 
+static void print_help(const char *program_name) {
+       std::cout << "Usage: " << program_name <<
+      " command input\n"
+      "Where input -s for from stdin, a file, or interpreted as serpent code if does not exist as file."
+      "where command: \n"
+      " parse:          Just parses and returns s-expression code.\n"
+      " rewrite:        Parse, use rewrite rules print s-expressions of result.\n"
+      " compile:        Return resulting compiled EVM code in hex.\n"
+      " assemble:       Return result from step before compilation.\n";
+}
+
 int main(int argv, char** argc) {
     if (argv == 1) {
         std::cerr << "Must provide a command and arguments! Try parse, rewrite, compile, assemble\n";
         return 0;
     }
-    if (argv == 2 && std::string(argc[1]) == "--help" || std::string(argc[1]) == "-h" ) {
-        std::cout << argc[1] << "\n";
-        
-        std::cout << "serpent command input\n";
-        std::cout << "where input -s for from stdin, a file, or interpreted as serpent code if does not exist as file.";
-        std::cout << "where command: \n";
-        std::cout << " parse:          Just parses and returns s-expression code.\n";
-        std::cout << " rewrite:        Parse, use rewrite rules print s-expressions of result.\n";
-        std::cout << " compile:        Return resulting compiled EVM code in hex.\n";
-        std::cout << " assemble:       Return result from step before compilation.\n";
+    std::string command = argc[1];
+    if (command == "--help" || command == "-h") {
+        print_help(argc[0]);
         return 0;
     }
-        
-    std::string flag = "";
-    std::string command = argc[1];
     std::string input;
     std::string secondInput;
-    if (std::string(argc[1]) == "-s") {
-        flag = command.substr(1);
-        command = argc[2];
-        input = "";
-        std::string line;
-        while (std::getline(std::cin, line)) {
-            input += line + "\n";
-        }
-        secondInput = argv == 3 ? "" : argc[3];
+    if (argv == 2) {
+         std::cerr << "Not enough arguments for serpent cmdline\n";
+         return 1;
     }
-    else {
-        if (argv == 2) {
-            std::cerr << "Not enough arguments for serpent cmdline\n";
-            throw(0);
-        }
-        input = argc[2];
-        secondInput = argv == 3 ? "" : argc[3];
-    }
+    input = argc[2];
+    secondInput = argv == 3 ? "" : argc[3];
     bool haveSec = secondInput.length() > 0;
     if (command == "parse" || command == "parse_serpent") {
         std::cout << printAST(parseSerpent(input), haveSec) << "\n";
@@ -129,5 +118,10 @@ int main(int argv, char** argc) {
         Metadata m = n[pos].metadata;
         std::cout << "Opcode: " << n[pos].val << ", file: " << m.file << 
              ", line: " << m.ln << ", char: " << m.ch << "\n";
+    } else {
+        std::cerr << "Unknown command" << std::endl;
+        print_help(argc[0]);
+        return 1;
     }
+    return 0;
 }
