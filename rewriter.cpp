@@ -409,12 +409,13 @@ Node array_lit_transform(Node node) {
     return subst(parseLLL(o), d, prefix, m);
 }
 
-Node log_transform(Node node) {
+Node logTransform(Node node, preprocessAux aux) {
     Metadata m = node.metadata;
     std::vector<Node> topics;
     Node data;
     bool usingData = false;
     bool isDataString = false;
+    std::string type = "";
     for (unsigned i = 0; i < node.args.size(); i++) {
         if (node.args[i].val == "=") {
             std::string v = node.args[i].args[0].val;
@@ -423,9 +424,37 @@ Node log_transform(Node node) {
                 usingData = true;
                 isDataString = (v == "datastr");
             }
+            if (v == "type") {
+                type = node.args[i].args[1].val;
+                if (type[0] == '\"') type = type.substr(1, type.size() - 2);
+            }
         }
         else topics.push_back(node.args[i]);
     }
+    // ABI logging
+    if (type != "") {
+        functionMetadata fm = aux.events[type];
+        std::vector<Node> indexedArgs;
+        std::vector<Node> serializedArgs;
+        std::string sig;
+        for (int i = 0; i < topics.size(); i++) {
+            if (fm.indexed[i]) indexedArgs.push_back(topics[i]);
+            else {
+                serializedArgs.push_back(topics[i]);
+                sig += fm.sig[i];
+            }
+        }
+        Node inner = asn("~log"+utd(indexedArgs.size()+1),
+                         tkn("_datastart", m),
+                         tkn("_datasz", m),
+                         tkn(bytesToDecimal(fm.prefix), m), 
+                         m);
+        for (unsigned i = 0; i < indexedArgs.size(); i++) {
+            inner.args.push_back(indexedArgs[i]);
+        }
+        return packArguments(serializedArgs, sig, 0, inner, m, false);
+    }
+    // Standard (non-ABI) logging
     if (topics.size() > 4) err("Too many topics!", m);
     std::vector<Node> out;
     if (usingData) {
@@ -829,7 +858,7 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
 
     // Special transformations
     if (node.val == "log") {
-        node = log_transform(node);
+        node = logTransform(node, pr.second);
         changed = true;
     }
     if (node.val == "array_lit") {

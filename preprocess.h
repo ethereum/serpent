@@ -17,19 +17,29 @@ struct svObj {
     std::string globalOffset;
 };
 
+// Grab the first 4 bytes
+unsigned int getLeading4Bytes(std::vector<uint8_t> p);
+
 class functionMetadata {
     public:
-        functionMetadata(int _id=0, std::string _sig="",
-                         strvec _argNames=strvec(), std::string _ot="int") {
-            id = _id;
+        functionMetadata(std::vector<uint8_t> _prefix=zeroes(32),
+                         std::string _sig="", strvec _argNames=strvec(),
+                         std::string _ot="int",
+                         std::vector<bool> _indexed=falses(0)) {
+            prefix = _prefix;
+            id = getLeading4Bytes(prefix);
             sig = _sig;
             argNames = _argNames;
             outType = _ot;
+            indexed = _indexed;
+            if (!indexed.size()) indexed = falses(argNames.size());
             ambiguous = false;
         }
         int id;
+        std::vector<uint8_t> prefix;
         std::string sig;
         std::vector<std::string> argNames;
+        std::vector<bool> indexed;
         std::string outType;
         bool ambiguous;
 };
@@ -42,6 +52,7 @@ class preprocessAux {
         }
         std::map<std::string, functionMetadata> externs;
         std::map<std::string, functionMetadata> interns;
+        std::map<std::string, functionMetadata> events;
         std::map<int, rewriteRuleSet > customMacros;
         std::map<std::string, std::string> types;
         svObj storageVars;
@@ -64,7 +75,7 @@ std::string mkExternLine(Node n);
 std::string mkFullExtern(Node n);
 
 // Get the prefix for a function name/sig combo
-unsigned int getPrefix(std::string functionName, std::string signature);
+std::vector<uint8_t> getPrefix(std::string functionName, std::string signature);
 
 // Get the storage data mapping for a file
 std::vector<Node> getDataNodes(Node n);

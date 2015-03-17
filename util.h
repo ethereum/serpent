@@ -126,8 +126,17 @@ std::string upperCase(std::string inp);
 //Three-int vector
 std::vector<int> triple(int a, int b, int c);
 
+//Empty hash
+std::vector<uint8_t> zeroes(int n);
+
+//Empty boolean vector
+std::vector<bool> falses(int n);
+
 //Extend node vector
 std::vector<Node> extend(std::vector<Node> a, std::vector<Node> b);
+
+//Converts a byte array into a value
+std::string bytesToDecimal(std::vector<uint8_t> b);
 
 // Is the number decimal?
 bool isDecimal(std::string inp);

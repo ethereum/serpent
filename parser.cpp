@@ -269,7 +269,7 @@ bool bodied(std::string tok) {
         || tok == "with" || tok == "def" || tok == "extern"
         || tok == "data" || tok == "assert" || tok == "return"
         || tok == "fun" || tok == "scope" || tok == "macro"
-        || tok == "type";
+        || tok == "type" || tok == "event";
 }
 
 // Are the two commands meant to continue each other? 

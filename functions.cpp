@@ -17,6 +17,8 @@ std::string getSignature(std::vector<Node> args) {
             o += "s";
         else if (args[i].val == ":" && args[i].args[1].val == "arr")
             o += "a";
+        else if (args[i].val == ":" && args[i].args[1].val == "int")
+            o += "i";
         else if (args[i].val == ":")
             err("Invalid datatype! Remember to change s -> str and a -> arr for latest version", args[0].metadata);
         else
@@ -40,7 +42,8 @@ std::vector<std::string> getArgNames(std::vector<Node> args) {
 // node that can use _datastart and _datasz
 
 Node packArguments(std::vector<Node> args, std::string sig,
-                   unsigned functionPrefix, Node inner, Metadata m) {
+                   unsigned functionPrefix, Node inner, Metadata m,
+                   bool usePrefix) {
     // Plain old 32 byte arguments
     std::vector<Node> nargs;
     // Variable-sized arguments
@@ -82,31 +85,36 @@ Node packArguments(std::vector<Node> args, std::string sig,
             argCount++;
         }
     }
-    int static_arg_size = 4 + (vargs.size() + nargs.size()) * 32;
+    int static_arg_size = (4 * usePrefix) + (vargs.size() + nargs.size()) * 32;
     // Start off by saving the size variables and calculating the total
     msn kwargs;
     kwargs["funid"] = tkn(utd(functionPrefix), m);
     std::string pattern =
-        "(with _datasz "+utd(static_arg_size)+"                            "
-        "    (with _vars (alloc "+utd(vargs.size() * 64)+")               "
-        "        (seq                                                     ";
+        "(with _datasz "+utd(static_arg_size)+"                             "
+        "    (with _vars (alloc "+utd(vargs.size() * 64)+")                 "
+        "        (seq                                                       ";
     for (unsigned i = 0; i < vargs.size(); i++) {
         std::string sizeIncrement = 
             isArray[i] ? "(mul 32 (len _x))" : "(len _x)";
         pattern +=
             "(with _x $vl"+utd(i)+" (seq                 "
-            "    (mstore (add _vars "+utd(i * 64)+") (mload (sub _x 32))) "
-            "    (mstore (add _vars "+utd(i * 64 + 32)+") _x)             "
+            "    (mstore (add _vars "+utd(i * 64)+") (mload (sub _x 32)))   "
+            "    (mstore (add _vars "+utd(i * 64 + 32)+") _x)               "
             "    (set _datasz (add _datasz "+sizeIncrement+" ))))           ";
         kwargs["vl"+utd(i)] = vargs[i];
     }
     // Allocate memory, and set first four data bytes
-    pattern +=
-            "(with _datastart (add (alloc (add _datasz 64)) 28) (seq       "
-            "    (mstore (sub _datastart 28) $funid)                      ";
+    if (usePrefix) {
+        pattern +=
+                "(with _datastart (add (alloc (add _datasz 64)) 28) (seq    "
+                "    (mstore (sub _datastart 28) $funid)                    ";
+    }
+    else {
+        pattern += "(with _datastart (alloc (add _datasz 64)) (seq          ";
+    }
     // Copy over size variables
     for (unsigned i = 0; i < vargs.size(); i++) {
-        std::string posInDatastart = utd(4 + i * 32);
+        std::string posInDatastart = utd(4 * usePrefix + i * 32);
         std::string varArgSize = utd(i * 64);
         pattern +=
             "    (mstore                                                  "
@@ -115,7 +123,7 @@ Node packArguments(std::vector<Node> args, std::string sig,
     }
     // Store normal arguments
     for (unsigned i = 0; i < nargs.size(); i++) {
-        int v = 4 + (i + vargs.size()) * 32;
+        int v = 4 * usePrefix + (i + vargs.size()) * 32;
         pattern +=
             "    (mstore (add _datastart "+utd(v)+") $"+utd(i)+")         ";
         kwargs[utd(i)] = nargs[i];

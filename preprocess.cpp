@@ -32,15 +32,19 @@ std::string getSummary(std::string functionName, std::string signature) {
     return o;
 }
 
-// Get the prefix bytes for a function based on its signature
-unsigned int getPrefix(std::string functionName, std::string signature) {
-    std::vector<uint8_t> h = sha3(getSummary(functionName, signature));
-    return (h[0] << 24) + (h[1] << 16) + (h[2] << 8) + h[3];
+// Get the prefix bytes for a function/event based on its signature
+std::vector<uint8_t> getPrefix(std::string functionName, std::string signature) {
+    return sha3(getSummary(functionName, signature));
+}
+
+// Grab the first 4 bytes
+unsigned int getLeading4Bytes(std::vector<uint8_t> p) {
+    return (p[0] << 24) + (p[1] << 16) + (p[2] << 8) + p[3];
 }
 
 // Convert a function of the form (def (f x y z) (do stuff)) into
 // (if (first byte of ABI is correct) (seq (setup x y z) (do stuff)))
-Node convFunction(int functionPrefix, std::vector<Node> args, Node body) {
+Node convFunction(int prefix4, std::vector<Node> args, Node body) {
     std::string prefix = "_temp"+mkUniqueToken()+"_";
     Metadata m = body.metadata;
 
@@ -50,7 +54,7 @@ Node convFunction(int functionPrefix, std::vector<Node> args, Node body) {
     return astnode("if",
                    astnode("eq",
                            astnode("get", token("__funid", m), m),
-                           token(unsignedToDecimal(functionPrefix), m),
+                           token(unsignedToDecimal(prefix4), m),
                            m),
                    astnode("seq", unpack, body, m));
 }
@@ -242,25 +246,68 @@ preprocessResult preprocessInit(Node inp) {
                 // Calculate argument name list
                 strvec argNames = getArgNames(funArgs);
                 // Get function prefix and check collisions
-                unsigned int functionPrefix = getPrefix(obj.args[0].val, sig);
-                if (functionPrefixesUsed.count(functionPrefix)) {
+                std::vector<uint8_t> functionPrefix = getPrefix(obj.args[0].val, sig);
+                unsigned int prefix4 = getLeading4Bytes(functionPrefix);
+                if (functionPrefixesUsed.count(prefix4)) {
                     err("Hash collision between function prefixes: "
                         + obj.args[0].val
                         + ", "
-                        + functionPrefixesUsed[functionPrefix], m);
+                        + functionPrefixesUsed[prefix4], m);
                 }
                 if (out.interns.count(obj.args[0].val)) {
                     err("Defining the same function name twice: "
                         +obj.args[0].val, m);
                 }
                 // Add function
-                functions.push_back(convFunction(functionPrefix, funArgs, body));
+                functions.push_back(convFunction(prefix4, funArgs, body));
                 functionMetadata f = 
                     functionMetadata(functionPrefix, sig, argNames, funReturnType);
                 out.interns[funName] = f;
                 out.interns[funName + "::" + sig] = f;
-                functionPrefixesUsed[functionPrefix] = obj.args[0].val;
+                functionPrefixesUsed[prefix4] = obj.args[0].val;
             }
+        }
+        // Events
+        else if (obj.val == "event") {
+            if (obj.args.size() == 0)
+                err("Empty event def", m);
+            std::string eventName = obj.args[0].val;
+            std::vector<Node> eventArgs = std::vector<Node>();
+            std::vector<bool> indexed;
+            int indexedCount = 0;
+            for (unsigned i = 0; i < obj.args[0].args.size(); i++) {
+                Node arg = obj.args[0].args[i];
+                if (arg.type == TOKEN) {
+                    eventArgs.push_back(asn(":", arg, tkn("int")));
+                    indexed.push_back(false);
+                }
+                else if (arg.args[1].val == "indexed") {
+                    if (arg.args[0].type == TOKEN) {
+                        eventArgs.push_back(asn(":", arg.args[0], tkn("int")));
+                    }
+                    else eventArgs.push_back(arg.args[0]);
+                    indexed.push_back(true);
+                    indexedCount += 1;
+                    if (indexedCount > 3)
+                        err("Too many indexed variables", m);
+                    if (eventArgs.back().args[1].val != "int")
+                        err("Cannot index a "+eventArgs.back().args[1].val, m);
+                }
+                else if (arg.args[0].type == TOKEN) {
+                    eventArgs.push_back(arg);
+                    indexed.push_back(false);
+                }
+
+                else err("Cannot understand event signature", obj.metadata);
+            }
+            std::string sig = getSignature(eventArgs);
+            strvec argNames = getArgNames(eventArgs);
+            std::vector<uint8_t> eventPrefix = getPrefix(eventName, sig);
+            functionMetadata f =
+                functionMetadata(eventPrefix, sig, argNames, "", indexed);
+            if (out.events.count(eventName))
+                err("Defining the same event name twice", obj.metadata);
+            out.events[eventName] = f;
         }
         // Extern declarations
         else if (obj.val == "extern") {
@@ -300,7 +347,8 @@ preprocessResult preprocessInit(Node inp) {
                                     : (o == "s") ? "str"
                                     : (o == "i") ? "int"
                                     :              "";
-                unsigned int functionPrefix = getPrefix(fun, sig);
+                std::vector<uint8_t> functionPrefix = getPrefix(fun, sig);
+                unsigned int prefix4 = getLeading4Bytes(functionPrefix);
                 functionMetadata f 
                     = functionMetadata(functionPrefix, sig, strvec(), outType);
                 if (out.externs.count(fun))
@@ -485,7 +533,7 @@ std::string mkFullExtern(Node n) {
     preprocessResult pr = preprocess(flattenSeq(n));
     std::vector<std::string> outNames;
     std::vector<functionMetadata> outMetadata;
-    if (!pr.second.interns.size())
+    if (!pr.second.interns.size() && !pr.second.events.size())
         return "[]";
     for (std::map<std::string, functionMetadata>::iterator it=
             pr.second.interns.begin();
@@ -516,10 +564,27 @@ std::string mkFullExtern(Node n) {
             else { name = "unknown_out"; type = "int256[]"; }
             o += "{ \"name\": \""+name+"\", \"type\": \""+type+"\" }";
         }
-        o += "]\n}";
-        o += ((i < outNames.size() - 1) ? ",\n" : "]"); 
+        o += "]\n},\n";
     }
-    return o;
+    for (std::map<std::string, functionMetadata>::iterator it=
+            pr.second.events.begin();
+            it != pr.second.events.end(); it++) {
+        std::string name = (*it).first;
+        functionMetadata outMetadata = (*it).second;
+        std::string summary = getSummary(name, outMetadata.sig);
+        o += "{\n    \"name\": \""+summary+"\",\n";
+        o += "    \"type\": \"event\",\n";
+        o += "    \"inputs\": [";
+        for (unsigned j = 0; j < outMetadata.sig.size(); j++) {
+            std::string indexed = outMetadata.indexed[j] ? "true" : "false";
+            o += "{ \"name\": \""+outMetadata.argNames[j]+
+                 "\", \"type\": \""+typeMap(outMetadata.sig[j])+
+                 "\", \"indexed\": "+indexed +" }";
+            o += (j < outMetadata.sig.size() - 1) ? ", " : ""; 
+        }
+        o += "]\n},\n";
+    }
+    return o.substr(0, o.size() - 2) + "]";
 }
 
 std::vector<Node> getDataNodes(Node n) {

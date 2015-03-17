@@ -34,7 +34,8 @@ std::vector<std::string> getArgNames(std::vector<Node> args);
 // Convert a list of arguments into a <pre, mstart, msize> node
 // triple, given the signature of a function
 Node packArguments(std::vector<Node> args, std::string sig,
-                   unsigned functionPrefix, Node inner, Metadata m);
+                   unsigned functionPrefix, Node inner, Metadata m,
+                   bool usePrefix=true);
 
 // Create a node for argument unpacking
 Node unpackArguments(std::vector<Node> vars, Metadata m);

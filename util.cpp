@@ -275,6 +275,15 @@ std::vector<Node> toByteArr(std::string val, Metadata metadata, int minLen) {
     return o2;
 }
 
+//Converts a byte array into a value
+std::string bytesToDecimal(std::vector<uint8_t> b) {
+    std::string o = "0";
+    for (int i = 0; i < b.size(); i++) {
+        o = decimalAdd(decimalMul(o, "256"), unsignedToDecimal(b[i]));
+    }
+    return o;
+}
+
 int counter = 0;
 
 //Makes a unique token
@@ -362,6 +371,20 @@ std::vector<int> triple(int a, int b, int c) {
     v.push_back(b);
     v.push_back(c);
     return v;
+}
+
+//Empty hash
+std::vector<uint8_t> zeroes(int n) {
+    std::vector<uint8_t> o;
+    for (unsigned i = 0; i < n; i++) o.push_back(0);
+    return o;
+}
+
+//Empty boolean vector
+std::vector<bool> falses(int n) {
+    std::vector<bool> o;
+    for (unsigned i = 0; i < n; i++) o.push_back(false);
+    return o;
 }
 
 //Extend node vector
