@@ -75,7 +75,7 @@ std::string mkExternLine(Node n);
 std::string mkFullExtern(Node n);
 
 // Get the prefix for a function name/sig combo
-std::vector<uint8_t> getPrefix(std::string functionName, std::string signature);
+unsigned int getPrefix(std::string functionName, std::string signature);
 
 // Get the storage data mapping for a file
 std::vector<Node> getDataNodes(Node n);

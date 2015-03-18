@@ -33,13 +33,17 @@ std::string getSummary(std::string functionName, std::string signature) {
 }
 
 // Get the prefix bytes for a function/event based on its signature
-std::vector<uint8_t> getPrefix(std::string functionName, std::string signature) {
+std::vector<uint8_t> getSigHash(std::string functionName, std::string signature) {
     return sha3(getSummary(functionName, signature));
 }
 
 // Grab the first 4 bytes
 unsigned int getLeading4Bytes(std::vector<uint8_t> p) {
     return (p[0] << 24) + (p[1] << 16) + (p[2] << 8) + p[3];
+}
+
+unsigned int getPrefix(std::string functionName, std::string signature) {
+    return getLeading4Bytes(getSigHash(functionName, signature));
 }
 
 // Convert a function of the form (def (f x y z) (do stuff)) into
@@ -246,7 +250,7 @@ preprocessResult preprocessInit(Node inp) {
                 // Calculate argument name list
                 strvec argNames = getArgNames(funArgs);
                 // Get function prefix and check collisions
-                std::vector<uint8_t> functionPrefix = getPrefix(obj.args[0].val, sig);
+                std::vector<uint8_t> functionPrefix = getSigHash(obj.args[0].val, sig);
                 unsigned int prefix4 = getLeading4Bytes(functionPrefix);
                 if (functionPrefixesUsed.count(prefix4)) {
                     err("Hash collision between function prefixes: "
@@ -302,7 +306,7 @@ preprocessResult preprocessInit(Node inp) {
             }
             std::string sig = getSignature(eventArgs);
             strvec argNames = getArgNames(eventArgs);
-            std::vector<uint8_t> eventPrefix = getPrefix(eventName, sig);
+            std::vector<uint8_t> eventPrefix = getSigHash(eventName, sig);
             functionMetadata f =
                 functionMetadata(eventPrefix, sig, argNames, "", indexed);
             if (out.events.count(eventName))
@@ -347,7 +351,7 @@ preprocessResult preprocessInit(Node inp) {
                                     : (o == "s") ? "str"
                                     : (o == "i") ? "int"
                                     :              "";
-                std::vector<uint8_t> functionPrefix = getPrefix(fun, sig);
+                std::vector<uint8_t> functionPrefix = getSigHash(fun, sig);
                 unsigned int prefix4 = getLeading4Bytes(functionPrefix);
                 functionMetadata f 
                     = functionMetadata(functionPrefix, sig, strvec(), outType);

@@ -157,6 +157,7 @@ PYMETHOD(ps_deserialize, FROMSTR, deserialize, pyifyNodeList)
 PYMETHOD(ps_parse_lll, FROMSTR, parseLLL, pyifyNode)
 PYMETHOD(ps_mk_signature, FROMSTR, mkSignature, pyifyString)
 PYMETHOD(ps_mk_full_signature, FROMSTR, mkFullSignature, pyifyString)
+PYMETHOD2(ps_get_prefix, FROMSTRSTR, getPrefix, pyifyInteger)
 
 
 static PyMethodDef PyextMethods[] = {
@@ -184,6 +185,8 @@ static PyMethodDef PyextMethods[] = {
         "Make an extern signature for a file"},
     {"mk_full_signature",  ps_mk_full_signature, METH_VARARGS,
         "Make an extern signature for ABI use"},
+    {"get_prefix",  ps_get_prefix, METH_VARARGS,
+        "Get the prefix from a function and a signature"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
