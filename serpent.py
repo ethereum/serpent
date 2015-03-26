@@ -68,13 +68,12 @@ def node(li):
     else:
         return Token(li[1], li[2])
 
-
 def take(x):
-    return pyext.parse_lll(x) if isinstance(x, (str, unicode, bytes)) else x.out()
+    return pyext.parse_lll(x) if is_string(x) else x.out()
 
 
 def takelist(x):
-    return map(take, parse(x).args if isinstance(x, (str, unicode, bytes)) else x)
+    return map(take, parse(x).args if is_string(x) else x)
 
 compile = lambda x: pyext.compile(strtobytes(x))
 compile_chunk = lambda x: pyext.compile_chunk(strtobytes(x))
@@ -93,8 +92,13 @@ mk_signature = lambda x: pyext.mk_signature(strtobytes(x))
 mk_full_signature = lambda x: pyext.mk_full_signature(strtobytes(x))
 get_prefix = lambda x, y: pyext.get_prefix(strtobytes(x), y) % 2**32
 
-is_numeric = lambda x: isinstance(x, (int, long))
-is_string = lambda x: isinstance(x, (str, unicode))
+if sys.version_info.major == 2:
+    is_string = lambda x: isinstance(x, (str, unicode, bytes))
+    is_numeric = lambda x: isinstance(x, (int, long))
+else:
+    is_string = lambda x: isinstance(x, (str, bytes))
+    is_numeric = lambda x: isinstance(x, int)
+
 tobytearr = lambda n, L: [] if L == 0 else tobytearr(n / 256, L - 1)+[n % 256]
 
 
@@ -196,8 +200,8 @@ def main():
             kwargs['source'] = 'cmdline'
         o = globals()[cmd](*args, **kwargs)
         if isinstance(o, (Token, Astnode, list)):
-            print repr(o)
+            print(repr(o))
         elif cmd in ['mk_signature', 'mk_full_signature', 'get_prefix']:
-            print o
+            print(o)
         else:
             print(binascii.b2a_hex(o).decode('ascii'))
