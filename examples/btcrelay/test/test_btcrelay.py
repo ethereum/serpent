@@ -323,9 +323,10 @@ class TestBtcRelay(object):
     def testFastHashBlock(self):
         blockHeaderStr = "0100000050120119172a610421a6c3011dd330d9df07b63616c2cc1f1cd00200000000006657a9252aacd5c0b2940996ecff952228c3067cc38d4885efb5a4ac4247e9f337221b4d4c86041b0f2b5710"
         bhBinary = blockHeaderStr.decode('hex')
-        res = self.c.fastHashBlock(bhBinary)
+        res = self.c.fastHashBlock(bhBinary, profiling=True)
+        print('GAS: '+str(res['gas']))
         exp = 0x000000000003ba27aa200b1cecaad478d2b00432346c3f1f3986da1afd33e506
-        assert res == exp
+        assert res['output'] == exp
 
     def testComputeMerkle(self):
         # values are from block 100K
@@ -342,6 +343,11 @@ class TestBtcRelay(object):
         hash[1] = 0x8e30899078ca1813be036a073bbf80b86cdddde1c96e9e9c99e9e3782df4ae49
         path[1] = RIGHT_HASH
 
-        r = self.c.computeMerkle(tx, proofLen, hash, path)
+        res = self.c.computeMerkle(tx, proofLen, hash, path, profiling=True)
+        print('GAS: '+str(res['gas']))
         expMerkle = 0xf3e94742aca4b5ef85488dc37c06c3282295ffec960994b2c0d5ac2a25a95766
-        return(r == expMerkle)
+        return(res['output'] == expMerkle)
+
+    def testSetPreGenesisOnlyOnce(self):
+        assert self.c.setPreGenesis(0) == 1
+        assert self.c.setPreGenesis(0) == 0
