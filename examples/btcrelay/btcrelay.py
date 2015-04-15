@@ -85,11 +85,11 @@ def setPreGenesis(blockHash):
 def storeBlockHeader(blockHeaderBinary:str):
     hashPrevBlock = flip32Bytes(~calldataload(40))  # 36 (header start) + 4 (offset for hashPrevBlock)
 
-    assert self.block[hashPrevBlock]._score  # score0 means block does NOT exist; genesis has score of 1
+    assert self.block[hashPrevBlock]._score  # assert prev block exists
 
     blockHash = self.fastHashBlock(blockHeaderBinary)
 
-    if self.block[blockHash]._score != 0:  # block already exists
+    if self.block[blockHash]._score != 0:  # block already stored/exists
         return(0)
 
     bits = getBytesLE(blockHeaderBinary, 4, 72)
@@ -152,14 +152,33 @@ def getBlockchainHead():
     return(self.heaviestBlock)
 
 
-# return the score of the Head
+# return the (total) cumulative difficulty of the Head
+def getCumulativeDifficulty():
+    # Because of setPreGenesis(), the score is 1 more than than the
+    # cumulative difficulty
+    cumulDifficulty = self.block[self.heaviestBlock]._score - 1
+    return(cumulDifficulty)
+
+
+# return the difference between the cumulative difficulty at
+# the blockchain Head and its 10th ancestor
 #
-# Because of setPreGenesis(), the score is 1 more than than the
-# cumulative difficulty
-def getChainScore():
-    score = self.block[self.heaviestBlock]._score
-    # log(score)
-    return(score)
+# this is not needed by the relay itself, but is provided in
+# case some contract wants to use the
+# Bitcoin network difficulty as a data feed for some purpose
+def getAverageBlockDifficulty():
+    blockHash = self.heaviestBlock
+
+    cumulDifficultyHead = self.block[blockHash]._score - 1
+
+    i = 0
+    while i < 10:
+        blockHash = getPrevBlock(blockHash)
+        i += 1
+
+    cumulDifficulty10Ancestors = self.block[blockHash]._score - 1
+
+    return(cumulDifficultyHead - cumulDifficulty10Ancestors)
 
 
 # return -1 if there's an error (eg called with incorrect params)
