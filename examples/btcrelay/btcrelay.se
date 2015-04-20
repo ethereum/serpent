@@ -1,5 +1,5 @@
 
-inset('btcChain.py')
+inset('btcChain.se')
 
 
 # btcrelay can relay a transaction to any contract that has a function
