@@ -16,7 +16,7 @@
 std::string typeMap(char t) {
     return
         t == 'i' ? "int256"
-      : t == 's' ? "string"
+      : t == 's' ? "bytes"
       : t == 'a' ? "int256[]"
       :            "weird";
 }
@@ -25,7 +25,11 @@ std::string typeMap(char t) {
 std::string getSummary(std::string functionName, std::string signature) {
     std::string o = functionName + "(";
     for (unsigned i = 0; i < signature.size(); i++) {
-        o += typeMap(signature[i]);
+        if (signature[i] == 's') {
+            o += "string";
+        } else {
+            o += typeMap(signature[i]);
+        }
         if (i != signature.size() - 1) o += ",";
     }
     o += ")";
@@ -562,7 +566,7 @@ std::string mkFullExtern(Node n) {
         std::string t = outMetadata[i].outType;
         if (t != "void") {
             std::string name, type;
-            if (t == "str") { name = "out"; type = "string"; }
+            if (t == "str") { name = "out"; type = "bytes"; }
             else if (t == "arr") { name = "out"; type = "int256[]"; }
             else if (t == "int") { name = "out"; type = "int256"; }
             else { name = "unknown_out"; type = "int256[]"; }
