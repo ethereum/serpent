@@ -1,5 +1,5 @@
 
-inset('btcChain.se')
+inset('btcChain.py')
 
 
 # btcrelay can relay a transaction to any contract that has a function
@@ -12,7 +12,7 @@ extern relayDestination: [processTransaction:si:i]
 # a Bitcoin block (header) is stored as:
 # - _blockHeader 80 bytes
 # - _height is 1 more than the typical Bitcoin term height/blocknumber [see setPreGensesis()]
-# - _score is 1 more than the cumulative difficulty [see setPreGenesis()]
+# - _score is 1 more than the cumulative difficulty [see setInitialParent()]
 # - _ancestor list for more efficient backtracking (see btcChain)
 data block[2^256](_height, _score, _ancestor[9], _blockHeader[])
 
@@ -33,27 +33,19 @@ def testingonlySetHeaviest(blockHash):
     self.heaviestBlock = blockHash
 
 
-# this has 2 purposes:
-# 1) this can only be called once and is to "store" the block
-# with hash zeroes, so that storing the real genesis
-# block can be done using storeBlockHeader() instead of a special case
+# this can only be called once and allows testing of storing
+# arbitrary headers and verifying/relaying transactions,
+# say from block 300K, instead of Satoshi's genesis block which
+# have 0 transactions until much later on
 #
-# 2) allows testing of storing arbitrary headers and verifying/relaying
-# transactions, say from block 300K, instead
-# of Satoshi's genesis block which have 0 transactions until much later on
+# This should be called using a real block on the Bitcoin blockchain.
 #
-# Since zero is the value that indicates non-existence, block _height
-# and _score have to be set carefully and they have these consequences:
-#
-# - _height is 1 more than the typical Bitcoin
-# term height/blocknumber. ie genesis has height 1 instead of 0
-#
-# - _score is 1 more than the cumulative "Bitcoin standard
-# difficulty". eg the cumulative difficulty at the block after genesis
-# is 2 (it and genesis have difficulty of 1), but this contract assigns
-# a score of 3 for the block after genesis [see testStoringHeaders()]
-def setPreGenesis(blockHash):
-    # reuse highScore as the flag for whether setPreGenesis() has already been called
+# Note: If used to store the imaginary block before Satoshi's
+# genesis, then it should be called as setInitialParent(0, 0, 1) and
+# means that getLastBlockHeight() and getCumulativeDifficulty() will be
+# 1 more than the usual: eg Satoshi's genesis has height 1 instead of 0
+def setInitialParent(blockHash, height, cumulativeDifficulty):
+    # reuse highScore as the flag for whether setInitialParent() has already been called
     if self.highScore != 0:
         return(0)
     else:
@@ -62,14 +54,13 @@ def setPreGenesis(blockHash):
     self.heaviestBlock = blockHash
 
     # _height cannot be set to -1 because inMainChain() assumes that
-    # a block with height0 does NOT exist, thus we cannot allow the
-    # real genesis block to be at height0
-    self.block[blockHash]._height = 0
+    # a block with height0 does NOT exist (thus we cannot allow the
+    # real genesis block to be at height0)
+    self.block[blockHash]._height = height
 
-    # set score to 1, since score0 means block does NOT exist. see check in storeBlockHeader()
-    # this means that the score of a block is 1 more than the
-    # cumulative difficulty to that block
-    self.block[blockHash]._score = 1
+    # do NOT pass cumulativeDifficulty of 0, since score0 means
+    # block does NOT exist. see check in storeBlockHeader()
+    self.block[blockHash]._score = cumulativeDifficulty
 
     ancLen = self.numAncestorDepths
     i = 0
@@ -134,15 +125,23 @@ def verifyTx(txHash, txIndex, sibling:arr, txBlockHash):
         return(0)
 
 
-# returns the value of processTransaction().  callers should explicitly
-# check for a value of 1, since other non-zero values could be error codes
+# relays transaction to target 'contract' processTransaction() method.
+# returns and logs the value of processTransaction().
+#
+# if the transaction does not meet verification, error code -9999
+# is logged on both this contract and target contract
 #
 # TODO txHash can eventually be computed (dbl sha256 then flip32Bytes) when
 # txStr becomes txBinary
 def relayTx(txStr:str, txHash, txIndex, sibling:arr, txBlockHash, contract):
     if self.verifyTx(txHash, txIndex, sibling, txBlockHash) == 1:
         res = contract.processTransaction(txStr, txHash)
+        log(msg.sender, data=[res])
         return(res)
+
+    # log error code -9999 on both this contract and target contract
+    log(msg.sender, data=[-9999])
+    log(contract, data=[-9999])
     return(0)
 
 
@@ -152,11 +151,14 @@ def getBlockchainHead():
     return(self.heaviestBlock)
 
 
+# return the height of the heaviest block aka the Head
+def getLastBlockHeight():
+    return(self.block[self.heaviestBlock]._height)
+
+
 # return the (total) cumulative difficulty of the Head
 def getCumulativeDifficulty():
-    # Because of setPreGenesis(), the score is 1 more than than the
-    # cumulative difficulty
-    cumulDifficulty = self.block[self.heaviestBlock]._score - 1
+    cumulDifficulty = self.block[self.heaviestBlock]._score
     return(cumulDifficulty)
 
 
@@ -169,14 +171,14 @@ def getCumulativeDifficulty():
 def getAverageBlockDifficulty():
     blockHash = self.heaviestBlock
 
-    cumulDifficultyHead = self.block[blockHash]._score - 1
+    cumulDifficultyHead = self.block[blockHash]._score
 
     i = 0
     while i < 10:
         blockHash = getPrevBlock(blockHash)
         i += 1
 
-    cumulDifficulty10Ancestors = self.block[blockHash]._score - 1
+    cumulDifficulty10Ancestors = self.block[blockHash]._score
 
     return(cumulDifficultyHead - cumulDifficulty10Ancestors)
 
