@@ -12,11 +12,11 @@ class TestBtcChain(object):
 
     ETHER = 10 ** 18
 
-    ANC_DEPTHS = [1, 4, 16, 64, 256, 1024, 4096, 16384, 65536]
+    ANC_DEPTHS = [1, 4, 16, 64, 256, 1024, 4096, 16384]
 
 
     def setup_class(cls):
-        tester.gas_limit = 2 * 10**6
+        tester.gas_limit = int(2.2e6)
         cls.s = tester.state()
         cls.c = cls.s.abi_contract(cls.CONTRACT, endowment=2000*cls.ETHER)
         cls.snapshot = cls.s.snapshot()
