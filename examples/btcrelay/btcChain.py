@@ -2,19 +2,9 @@
 # clarity: it has ancestor management and its
 # main method is inMainChain() which is tested by test_btcChain
 
-data numAncestorDepths
-self.numAncestorDepths = 8  # if changing this, need to do so carefully eg look at defn of ancestor_depths and block in btcrelay
-data ancestor_depths[8]
+macro NUM_ANCESTOR_DEPTHS: 8
 
-self.ancestor_depths[0] = 1
-self.ancestor_depths[1] = 4
-self.ancestor_depths[2] = 16
-self.ancestor_depths[3] = 64
-self.ancestor_depths[4] = 256
-self.ancestor_depths[5] = 1024
-self.ancestor_depths[6] = 4096
-self.ancestor_depths[7] = 16384
-
+data ancestorDepths
 
 # list for internal usage only that allows a 32 byte blockHash to be looked up
 # with a 32bit int
@@ -24,6 +14,25 @@ data internalBlock[2^50]
 
 # counter for next available slot in internalBlock
 data ibIndex
+
+
+
+# this should be a function with different name, eg initAncestorDepths,
+# and called by init() in btcrelay, but this is a
+# workaround for issues as https://github.com/ethereum/serpent/issues/77 78 ...
+def init():
+    depthWord = 0
+
+    mstore8(ref(depthWord), 1)
+    m_mwrite16(ref(depthWord) + 1, 5)
+    m_mwrite16(ref(depthWord) + 3, 25)
+    m_mwrite16(ref(depthWord) + 5, 125)
+    m_mwrite16(ref(depthWord) + 7, 625)
+    m_mwrite16(ref(depthWord) + 9, 3125)
+    m_mwrite16(ref(depthWord) + 11, 15625)
+    m_mwrite24(ref(depthWord) + 13, 78125)
+
+    self.ancestorDepths = depthWord
 
 
 # save the ancestors for a block, as well as updating the height
@@ -44,8 +53,8 @@ def saveAncestors(blockHash, hashPrevBlock):
 
     # update ancWord with the remaining indexes
     i = 1
-    while i < self.numAncestorDepths:
-        depth = self.ancestor_depths[i]
+    while i < NUM_ANCESTOR_DEPTHS:
+        depth = m_getAncDepth(i)
 
         if self.block[blockHash]._height % depth == 1:
             m_mwrite32(ref(ancWord) + 4*i, prevIbIndex)
@@ -71,9 +80,9 @@ def inMainChain(txBlockHash):
 
     blockHash = self.heaviestBlock
 
-    anc_index = self.numAncestorDepths - 1
+    anc_index = NUM_ANCESTOR_DEPTHS - 1
     while self.block[blockHash]._height > txBlockHeight:
-        while self.block[blockHash]._height - txBlockHeight < self.ancestor_depths[anc_index] && anc_index > 0:
+        while self.block[blockHash]._height - txBlockHeight < m_getAncDepth(anc_index) && anc_index > 0:
             anc_index -= 1
         blockHash = self.internalBlock[m_getAncestor(blockHash, anc_index)]
 
@@ -91,6 +100,21 @@ macro m_mwrite32($addrLoc, $int32):
             mstore8($addr + 3, byte(28, $fourBytes))
 
 
+macro m_mwrite16($addrLoc, $int16):
+    with $addr = $addrLoc:
+        with $twoBytes = $int16:
+            mstore8($addr, byte(31, $twoBytes))
+            mstore8($addr + 1, byte(30, $twoBytes))
+
+
+macro m_mwrite24($addrLoc, $int24):
+    with $addr = $addrLoc:
+        with $threeBytes = $int24:
+            mstore8($addr, byte(31, $threeBytes))
+            mstore8($addr + 1, byte(30, $threeBytes))
+            mstore8($addr + 2, byte(29, $threeBytes))
+
+
 # a block's _ancestor storage slot contains 8 indexes into internalBlock, so
 # this macro returns the index that can be used to lookup the desired ancestor
 # eg. for combined usage, self.internalBlock[m_getAncestor(someBlock, 2)] will
@@ -104,6 +128,26 @@ macro m_getAncestor($blockHash, $whichAncestor):
         $b3 = byte($startByte + 3, $wordOfAncestorIndexes)
 
     $b0 + $b1*256 + $b2*TWOTO16 + $b3*TWOTO24
+
+
+macro m_getAncDepth($index):
+    ancDepths = self.ancestorDepths
+
+    if $index == 0:
+        byte(0, ancDepths)
+    elif $index == NUM_ANCESTOR_DEPTHS - 1:
+        with $startByte = $index*2 - 1:
+            $b0 = byte($startByte, ancDepths)
+            $b1 = byte($startByte + 1, ancDepths)
+            $b2 = byte($startByte + 2, ancDepths)
+
+        $b0 + $b1*256 + $b2*TWOTO16
+    else:
+        with $startByte = $index*2 - 1:
+            $b0 = byte($startByte, ancDepths)
+            $b1 = byte($startByte + 1, ancDepths)
+
+        $b0 + $b1*256
 
 
 macro m_initialParentSetAncestors($blockHash):
@@ -120,7 +164,7 @@ macro m_initialParentSetAncestors($blockHash):
 
         self.block[$blockHash]._ancestor = $ancWord
 
-        
+
 macro TWOTO16: 65536
 macro TWOTO24: 16777216
 
@@ -130,7 +174,7 @@ macro TWOTO24: 16777216
 #     log(11111)
 #     log(blockHash)
 #     i = 0
-#     while i < self.numAncestorDepths:
+#     while i < NUM_ANCESTOR_DEPTHS:
 #         anc = m_getAncestor(blockHash, i)
 #         # anc = self.block[blockHash]._ancestor[i]
 #         log(anc)
