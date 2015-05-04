@@ -75,17 +75,17 @@ def storeBlockHeader(blockHeaderBinary:str):
 
     assert self.block[hashPrevBlock]._score  # assert prev block exists
 
-    blockHash = self.fastHashBlock(blockHeaderBinary)
+    blockHash = m_hashBlockHeader(blockHeaderBinary)
 
     if self.block[blockHash]._score != 0:  # block already stored/exists
         return(0)
 
-    bits = getBytesLE(blockHeaderBinary, 4, 72)
+    bits = m_bitsFromBlockHeader()
     target = targetFromBits(bits)
 
     # we only check the target and do not do other validation (eg timestamp)
     # to save gas
-    if gt(blockHash, 0) && lt(blockHash, target):
+    if blockHash > 0 && blockHash < target:
         self.saveAncestors(blockHash, hashPrevBlock)
 
         save(self.block[blockHash]._blockHeader[0], blockHeaderBinary, chars=80) # or 160?
@@ -93,7 +93,7 @@ def storeBlockHeader(blockHeaderBinary:str):
         difficulty = 0x00000000FFFF0000000000000000000000000000000000000000000000000000 / target # https://en.bitcoin.it/wiki/Difficulty
         self.block[blockHash]._score = self.block[hashPrevBlock]._score + difficulty
 
-        if gt(self.block[blockHash]._score, self.highScore):
+        if self.block[blockHash]._score > self.highScore:
             self.heaviestBlock = blockHash
             self.highScore = self.block[blockHash]._score
 
@@ -229,12 +229,6 @@ def within6Confirms(txBlockHash):
     return(0)
 
 
-# Bitcoin-way of hashing a block header
-def fastHashBlock(blockHeaderBinary:str):
-    return(flip32Bytes(sha256(sha256(blockHeaderBinary:str))))
-
-
-
 #
 # macros
 #
@@ -270,6 +264,17 @@ macro getBytesLE($inStr, $size, $offset):
     $result
 
 
+# Bitcoin-way of hashing a block header
+macro m_hashBlockHeader($blockHeaderBytes):
+    flip32Bytes(sha256(sha256($blockHeaderBytes:str)))
+
+
+# get the 'bits' field from a Bitcoin blockheader
+macro m_bitsFromBlockHeader():
+    with $w = ~calldataload(36+72):  # 36 (header start) + 72 (offset for 'bits')
+        byte(0, $w) + byte(1, $w)*256 + byte(2, $w)*TWOTO16 + byte(3, $w)*TWOTO24
+
+
 # Bitcoin-way of computing the target from the 'bits' field of a blockheader
 # based on http://www.righto.com/2014/02/bitcoin-mining-hard-way-algorithms.html#ref3
 macro targetFromBits($bits):
@@ -289,7 +294,6 @@ macro concatHash($tx1, $tx2):
 # reverse 32 bytes given by '$b32'
 macro flip32Bytes($b32):
     with $a = $b32:  # important to force $a to only be examined once below
-        $o = 0
         mstore8(ref($o), byte(31, $a))
         mstore8(ref($o) + 1,  byte(30, $a))
         mstore8(ref($o) + 2,  byte(29, $a))
@@ -322,4 +326,4 @@ macro flip32Bytes($b32):
         mstore8(ref($o) + 29, byte(2, $a))
         mstore8(ref($o) + 30, byte(1, $a))
         mstore8(ref($o) + 31, byte(0, $a))
-        $o
+    $o
