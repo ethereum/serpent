@@ -1,3 +1,5 @@
+inset('constants.se')
+
 # btcChain is required by btcrelay and is a separate file to improve
 # clarity: it has ancestor management and its
 # main method is inMainChain() which is tested by test_btcChain
@@ -38,17 +40,16 @@ def init():
 # save the ancestors for a block, as well as updating the height
 def saveAncestors(blockHash, hashPrevBlock):
     self.internalBlock[self.ibIndex] = blockHash
-    self.block[blockHash]._ibIndex = self.ibIndex
+    m_setIbIndex(blockHash, self.ibIndex)
     self.ibIndex += 1
 
-
-    self.block[blockHash]._height = self.block[hashPrevBlock]._height + 1
+    m_setHeight(blockHash, m_getHeight(hashPrevBlock) + 1)
 
     # 8 indexes into internalBlock can be stored inside one ancestor (32 byte) word
     ancWord = 0
 
     # the first ancestor is the index to hashPrevBlock, and write it to ancWord
-    prevIbIndex = self.block[hashPrevBlock]._ibIndex
+    prevIbIndex = m_getIbIndex(hashPrevBlock)
     m_mwrite32(ref(ancWord), prevIbIndex)
 
     # update ancWord with the remaining indexes
@@ -56,7 +57,7 @@ def saveAncestors(blockHash, hashPrevBlock):
     while i < NUM_ANCESTOR_DEPTHS:
         depth = m_getAncDepth(i)
 
-        if self.block[blockHash]._height % depth == 1:
+        if m_getHeight(blockHash) % depth == 1:
             m_mwrite32(ref(ancWord) + 4*i, prevIbIndex)
         else:
             m_mwrite32(ref(ancWord) + 4*i, m_getAncestor(hashPrevBlock, i))
@@ -69,7 +70,7 @@ def saveAncestors(blockHash, hashPrevBlock):
 # returns 1 if 'txBlockHash' is in the main chain, ie not a fork
 # otherwise returns 0
 def inMainChain(txBlockHash):
-    txBlockHeight = self.block[txBlockHash]._height
+    txBlockHeight = m_getHeight(txBlockHash)
 
     # By assuming that a block with height 0 does not exist, we can do
     # this optimization and immediate say that txBlockHash is not in the main chain.
@@ -81,8 +82,8 @@ def inMainChain(txBlockHash):
     blockHash = self.heaviestBlock
 
     anc_index = NUM_ANCESTOR_DEPTHS - 1
-    while self.block[blockHash]._height > txBlockHeight:
-        while self.block[blockHash]._height - txBlockHeight < m_getAncDepth(anc_index) && anc_index > 0:
+    while m_getHeight(blockHash) > txBlockHeight:
+        while m_getHeight(blockHash) - txBlockHeight < m_getAncDepth(anc_index) && anc_index > 0:
             anc_index -= 1
         blockHash = self.internalBlock[m_getAncestor(blockHash, anc_index)]
 
@@ -127,7 +128,7 @@ macro m_getAncestor($blockHash, $whichAncestor):
         $b2 = byte($startByte + 2, $wordOfAncestorIndexes)
         $b3 = byte($startByte + 3, $wordOfAncestorIndexes)
 
-    $b0 + $b1*256 + $b2*TWOTO16 + $b3*TWOTO24
+    $b0 + $b1*BYTES_1 + $b2*BYTES_2 + $b3*BYTES_3
 
 
 macro m_getAncDepth($index):
@@ -141,17 +142,13 @@ macro m_getAncDepth($index):
             $b1 = byte($startByte + 1, ancDepths)
             $b2 = byte($startByte + 2, ancDepths)
 
-        $b0 + $b1*256 + $b2*TWOTO16
+        $b0 + $b1*BYTES_1 + $b2*BYTES_2
     else:
         with $startByte = $index*2 - 1:
             $b0 = byte($startByte, ancDepths)
             $b1 = byte($startByte + 1, ancDepths)
 
-        $b0 + $b1*256
-
-
-macro TWOTO16: 65536
-macro TWOTO24: 16777216
+        $b0 + $b1*BYTES_1
 
 
 # log ancestors

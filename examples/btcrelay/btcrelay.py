@@ -9,11 +9,12 @@ extern relayDestination: [processTransaction:si:i]
 #
 # a Bitcoin block (header) is stored as:
 # - _blockHeader 80 bytes
-# - _height is 1 more than the typical Bitcoin term height/blocknumber [see setPreGensesis()]
-# - _score is 1 more than the cumulative difficulty [see setInitialParent()]
+# - _info who's 32 bytes are comprised of "_height" 8bytes, "_ibIndex" 8bytes, "_score" 16bytes
+# -   "_height" is 1 more than the typical Bitcoin term height/blocknumber [see setPreGensesis()]
+# -   "_ibIndex" is the block's index to internalBlock (see btcChain)
+# -   "_score" is 1 more than the cumulative difficulty [see setInitialParent()]
 # - _ancestor stores 8 32bit ancestor indices for more efficient backtracking (see btcChain)
-# - _ibIndex is the block's index to internalBlock (see btcChain)
-data block[2^256](_height, _score, _ancestor, _blockHeader[], _ibIndex)
+data block[2**256](_info, _ancestor, _blockHeader[])
 
 
 # block with the highest score (aka the Head of the blockchain)
@@ -57,11 +58,12 @@ def setInitialParent(blockHash, height, cumulativeDifficulty):
     # _height cannot be set to -1 because inMainChain() assumes that
     # a block with height0 does NOT exist (thus we cannot allow the
     # real genesis block to be at height0)
-    self.block[blockHash]._height = height
+    # self.block[blockHash]._height = height
+    m_setHeight(blockHash, height)
 
     # do NOT pass cumulativeDifficulty of 0, since score0 means
     # block does NOT exist. see check in storeBlockHeader()
-    self.block[blockHash]._score = cumulativeDifficulty
+    m_setScore(blockHash, cumulativeDifficulty)
 
     # _ancestor can remain zeros because
     # self.internalBlock[0] already points to blockHash
@@ -74,11 +76,12 @@ def setInitialParent(blockHash, height, cumulativeDifficulty):
 def storeBlockHeader(blockHeaderBinary:str):
     hashPrevBlock = flip32Bytes(~calldataload(40))  # 36 (header start) + 4 (offset for hashPrevBlock)
 
-    assert self.block[hashPrevBlock]._score  # assert prev block exists
+    # TODO store in var
+    assert m_getScore(hashPrevBlock)  # assert prev block exists
 
     blockHash = m_hashBlockHeader(blockHeaderBinary)
 
-    if self.block[blockHash]._score != 0:  # block already stored/exists
+    if m_getScore(blockHash) != 0:  # block already stored/exists
         return(0)
 
     bits = m_bitsFromBlockHeader()
@@ -92,13 +95,13 @@ def storeBlockHeader(blockHeaderBinary:str):
         save(self.block[blockHash]._blockHeader[0], blockHeaderBinary, chars=80) # or 160?
 
         difficulty = 0x00000000FFFF0000000000000000000000000000000000000000000000000000 / target # https://en.bitcoin.it/wiki/Difficulty
-        self.block[blockHash]._score = self.block[hashPrevBlock]._score + difficulty
+        m_setScore(blockHash, m_getScore(hashPrevBlock) + difficulty)
 
-        if self.block[blockHash]._score > self.highScore:
+        if m_getScore(blockHash) > self.highScore:
             self.heaviestBlock = blockHash
-            self.highScore = self.block[blockHash]._score
+            self.highScore = m_getScore(blockHash)
 
-        return(self.block[blockHash]._height)
+        return(m_getHeight(blockHash))
 
     return(0)
 
@@ -151,12 +154,12 @@ def getBlockchainHead():
 
 # return the height of the heaviest block aka the Head
 def getLastBlockHeight():
-    return(self.block[self.heaviestBlock]._height)
+    return(m_getHeight(self.heaviestBlock))
 
 
 # return the (total) cumulative difficulty of the Head
 def getCumulativeDifficulty():
-    cumulDifficulty = self.block[self.heaviestBlock]._score
+    cumulDifficulty = m_getScore(self.heaviestBlock)
     return(cumulDifficulty)
 
 
@@ -169,14 +172,14 @@ def getCumulativeDifficulty():
 def getAverageBlockDifficulty():
     blockHash = self.heaviestBlock
 
-    cumulDifficultyHead = self.block[blockHash]._score
+    cumulDifficultyHead = m_getScore(blockHash)
 
     i = 0
     while i < 10:
         blockHash = getPrevBlock(blockHash)
         i += 1
 
-    cumulDifficulty10Ancestors = self.block[blockHash]._score
+    cumulDifficulty10Ancestors = m_getScore(blockHash)
 
     return(cumulDifficultyHead - cumulDifficulty10Ancestors)
 
@@ -236,33 +239,16 @@ def within6Confirms(txBlockHash):
 
 # get the parent of '$blockHash'
 macro getPrevBlock($blockHash):
-    $tmpStr = load(self.block[$blockHash]._blockHeader[0], chars=36)  # don't need all 80bytes
-    getBytesLE($tmpStr, 32, 4)
+    with $addr = ref(self.block[$blockHash]._blockHeader[0]):
+        $tmp = sload($addr) * BYTES_4 + div(sload($addr+1), BYTES_28)  # must use div()
+    flip32Bytes($tmp)
 
 
 # get the merkle root of '$blockHash'
 macro getMerkleRoot($blockHash):
-    $tmpStr = load(self.block[$blockHash]._blockHeader[0], chars=68)  # don't need all 80bytes
-    getBytesLE($tmpStr, 32, 36)
-
-
-# get $size bytes from $inStr with $offset and return in little endian
-macro getBytesLE($inStr, $size, $offset):
-    $endIndex = $offset + $size
-
-    $result = 0
-    $exponent = 0
-    $j = $offset
-    while $j < $endIndex:
-        $char = getch($inStr, $j)
-        # log($char)
-        $result += $char * 256^$exponent
-        # log(result)
-
-        $j += 1
-        $exponent += 1
-
-    $result
+    with $addr = ref(self.block[$blockHash]._blockHeader[0]):
+        $tmp = sload($addr+1) * BYTES_4 + div(sload($addr+2), BYTES_28)  # must use div()
+    flip32Bytes($tmp)
 
 
 # Bitcoin-way of hashing a block header
@@ -273,7 +259,7 @@ macro m_hashBlockHeader($blockHeaderBytes):
 # get the 'bits' field from a Bitcoin blockheader
 macro m_bitsFromBlockHeader():
     with $w = ~calldataload(36+72):  # 36 (header start) + 72 (offset for 'bits')
-        byte(0, $w) + byte(1, $w)*256 + byte(2, $w)*TWOTO16 + byte(3, $w)*TWOTO24
+        byte(0, $w) + byte(1, $w)*BYTES_1 + byte(2, $w)*BYTES_2 + byte(3, $w)*BYTES_3
 
 
 # Bitcoin-way of computing the target from the 'bits' field of a blockheader
@@ -328,3 +314,76 @@ macro flip32Bytes($b32):
         mstore8(ref($o) + 30, byte(1, $a))
         mstore8(ref($o) + 31, byte(0, $a))
     $o
+
+
+# write $int64 to memory at $addrLoc
+# This is useful for writing 64bit ints inside one 32 byte word
+macro m_mwrite64($addrLoc, $int64):
+    with $addr = $addrLoc:
+        with $eightBytes = $int64:
+            mstore8($addr, byte(24, $eightBytes))
+            mstore8($addr + 1, byte(25, $eightBytes))
+            mstore8($addr + 2, byte(26, $eightBytes))
+            mstore8($addr + 3, byte(27, $eightBytes))
+            mstore8($addr + 4, byte(28, $eightBytes))
+            mstore8($addr + 5, byte(29, $eightBytes))
+            mstore8($addr + 6, byte(30, $eightBytes))
+            mstore8($addr + 7, byte(31, $eightBytes))
+
+
+# write $int128 to memory at $addrLoc
+# This is useful for writing 128bit ints inside one 32 byte word
+macro m_mwrite128($addrLoc, $int128):
+    with $addr = $addrLoc:
+        with $bytes16 = $int128:
+            mstore8($addr, byte(16, $bytes16))
+            mstore8($addr + 1, byte(17, $bytes16))
+            mstore8($addr + 2, byte(18, $bytes16))
+            mstore8($addr + 3, byte(19, $bytes16))
+            mstore8($addr + 4, byte(20, $bytes16))
+            mstore8($addr + 5, byte(21, $bytes16))
+            mstore8($addr + 6, byte(22, $bytes16))
+            mstore8($addr + 7, byte(23, $bytes16))
+            mstore8($addr + 8, byte(24, $bytes16))
+            mstore8($addr + 9, byte(25, $bytes16))
+            mstore8($addr + 10, byte(26, $bytes16))
+            mstore8($addr + 11, byte(27, $bytes16))
+            mstore8($addr + 12, byte(28, $bytes16))
+            mstore8($addr + 13, byte(29, $bytes16))
+            mstore8($addr + 14, byte(30, $bytes16))
+            mstore8($addr + 15, byte(31, $bytes16))
+
+
+
+#
+#  macro accessors for a block's _info (height, ibIndex, score)
+#
+
+# block height is the first 8 bytes of _info
+macro m_setHeight($blockHash, $blockHeight):
+    $word = sload(ref(self.block[$blockHash]._info))
+    m_mwrite64(ref($word), $blockHeight)
+    self.block[$blockHash]._info = $word
+
+macro m_getHeight($blockHash):
+    div(sload(ref(self.block[$blockHash]._info)), BYTES_24)
+
+
+# index to self.internalBlock is the second 8 bytes of _info
+macro m_setIbIndex($blockHash, $internalIndex):
+    $word = sload(ref(self.block[$blockHash]._info))
+    m_mwrite64(ref($word) + 8, $internalIndex)
+    self.block[$blockHash]._info = $word
+
+macro m_getIbIndex($blockHash):
+    div(sload(ref(self.block[$blockHash]._info)) * BYTES_8, BYTES_24)
+
+
+# score of the block is the last 16 bytes of _info
+macro m_setScore($blockHash, $blockScore):
+    $word = sload(ref(self.block[$blockHash]._info))
+    m_mwrite128(ref($word) + 16, $blockScore)
+    self.block[$blockHash]._info = $word
+
+macro m_getScore($blockHash):
+    div(sload(ref(self.block[$blockHash]._info)) * BYTES_16, BYTES_16)

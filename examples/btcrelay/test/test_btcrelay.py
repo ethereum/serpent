@@ -1,4 +1,4 @@
-from pyethereum import tester
+from ethereum import tester
 
 import datetime
 import struct
@@ -15,7 +15,7 @@ class TestBtcRelay(object):
     ETHER = 10 ** 18
 
     def setup_class(cls):
-        tester.gas_limit = int(2e6)
+        tester.gas_limit = int(2.35e6)
         cls.s = tester.state()
         cls.c = cls.s.abi_contract(cls.CONTRACT, endowment=2000*cls.ETHER)
         cls.snapshot = cls.s.snapshot()
@@ -246,9 +246,10 @@ class TestBtcRelay(object):
         ]
 
         for i, bh in enumerate(blockHash):
-            res = self.c.within6Confirms(bh)
+            res = self.c.within6Confirms(bh, profiling=True)
+            print('GAS: '+str(res['gas']))
             exp = 0 if i==0 else 1
-            assert res == exp
+            assert res['output'] == exp
 
 
     def storeGenesisBlock(self):
