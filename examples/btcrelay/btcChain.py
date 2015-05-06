@@ -6,8 +6,6 @@ inset('constants.se')
 
 macro NUM_ANCESTOR_DEPTHS: 8
 
-data ancestorDepths
-
 # list for internal usage only that allows a 32 byte blockHash to be looked up
 # with a 32bit int
 # This is not designed to be used for anything else, eg it contains all block
@@ -16,25 +14,6 @@ data internalBlock[2^50]
 
 # counter for next available slot in internalBlock
 data ibIndex
-
-
-
-# this should be a function with different name, eg initAncestorDepths,
-# and called by init() in btcrelay, but this is a
-# workaround for issues as https://github.com/ethereum/serpent/issues/77 78 ...
-def init():
-    depthWord = 0
-
-    mstore8(ref(depthWord), 1)
-    m_mwrite16(ref(depthWord) + 1, 5)
-    m_mwrite16(ref(depthWord) + 3, 25)
-    m_mwrite16(ref(depthWord) + 5, 125)
-    m_mwrite16(ref(depthWord) + 7, 625)
-    m_mwrite16(ref(depthWord) + 9, 3125)
-    m_mwrite16(ref(depthWord) + 11, 15625)
-    m_mwrite24(ref(depthWord) + 13, 78125)
-
-    self.ancestorDepths = depthWord
 
 
 # save the ancestors for a block, as well as updating the height
@@ -90,65 +69,51 @@ def inMainChain(txBlockHash):
     return(blockHash == txBlockHash)
 
 
-# write $int32 to memory at $addrLoc
-# This is useful for writing 32bit ints inside one 32 byte word
-macro m_mwrite32($addrLoc, $int32):
-    with $addr = $addrLoc:
-        with $fourBytes = $int32:
-            mstore8($addr, byte(31, $fourBytes))
-            mstore8($addr + 1, byte(30, $fourBytes))
-            mstore8($addr + 2, byte(29, $fourBytes))
-            mstore8($addr + 3, byte(28, $fourBytes))
-
-
-macro m_mwrite16($addrLoc, $int16):
-    with $addr = $addrLoc:
-        with $twoBytes = $int16:
-            mstore8($addr, byte(31, $twoBytes))
-            mstore8($addr + 1, byte(30, $twoBytes))
-
-
-macro m_mwrite24($addrLoc, $int24):
-    with $addr = $addrLoc:
-        with $threeBytes = $int24:
-            mstore8($addr, byte(31, $threeBytes))
-            mstore8($addr + 1, byte(30, $threeBytes))
-            mstore8($addr + 2, byte(29, $threeBytes))
-
+#
+# macros
+#
 
 # a block's _ancestor storage slot contains 8 indexes into internalBlock, so
 # this macro returns the index that can be used to lookup the desired ancestor
 # eg. for combined usage, self.internalBlock[m_getAncestor(someBlock, 2)] will
 # return the block hash of someBlock's 3rd ancestor
 macro m_getAncestor($blockHash, $whichAncestor):
-    with $startByte = $whichAncestor * 4:
-        $wordOfAncestorIndexes = self.block[$blockHash]._ancestor
-        $b0 = byte($startByte, $wordOfAncestorIndexes)
-        $b1 = byte($startByte + 1, $wordOfAncestorIndexes)
-        $b2 = byte($startByte + 2, $wordOfAncestorIndexes)
-        $b3 = byte($startByte + 3, $wordOfAncestorIndexes)
-
-    $b0 + $b1*BYTES_1 + $b2*BYTES_2 + $b3*BYTES_3
+    div(sload(ref(self.block[$blockHash]._ancestor)) * 2**(32*$whichAncestor), BYTES_28)
 
 
+# index should be 0 to 7, so this returns 1, 5, 25 ... 78125
 macro m_getAncDepth($index):
-    ancDepths = self.ancestorDepths
+    5**$index
 
-    if $index == 0:
-        byte(0, ancDepths)
-    elif $index == NUM_ANCESTOR_DEPTHS - 1:
-        with $startByte = $index*2 - 1:
-            $b0 = byte($startByte, ancDepths)
-            $b1 = byte($startByte + 1, ancDepths)
-            $b2 = byte($startByte + 2, ancDepths)
 
-        $b0 + $b1*BYTES_1 + $b2*BYTES_2
-    else:
-        with $startByte = $index*2 - 1:
-            $b0 = byte($startByte, ancDepths)
-            $b1 = byte($startByte + 1, ancDepths)
+# write $int32 to memory at $addrLoc
+# This is useful for writing 32bit ints inside one 32 byte word
+macro m_mwrite32($addrLoc, $int32):
+    with $addr = $addrLoc:
+        with $fourBytes = $int32:
+            mstore8($addr, byte(28, $fourBytes))
+            mstore8($addr + 1, byte(29, $fourBytes))
+            mstore8($addr + 2, byte(30, $fourBytes))
+            mstore8($addr + 3, byte(31, $fourBytes))
 
-        $b0 + $b1*BYTES_1
+
+# write $int24 to memory at $addrLoc
+# This is useful for writing 24bit ints inside one 32 byte word
+macro m_mwrite24($addrLoc, $int24):
+    with $addr = $addrLoc:
+        with $threeBytes = $int24:
+            mstore8($addr, byte(29, $threeBytes))
+            mstore8($addr + 1, byte(30, $threeBytes))
+            mstore8($addr + 2, byte(31, $threeBytes))
+
+
+# write $int16 to memory at $addrLoc
+# This is useful for writing 16bit ints inside one 32 byte word
+macro m_mwrite16($addrLoc, $int16):
+    with $addr = $addrLoc:
+        with $twoBytes = $int16:
+            mstore8($addr, byte(30, $twoBytes))
+            mstore8($addr + 1, byte(31, $twoBytes))
 
 
 # log ancestors
