@@ -3,7 +3,7 @@ import sys
 import re
 import binascii
 
-VERSION = '1.8.1'
+VERSION = '1.8.2'
 
 def strtobytes(x):
     return x.encode('ascii') if isinstance(x, str) else x

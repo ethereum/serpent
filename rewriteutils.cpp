@@ -237,3 +237,14 @@ Node flattenSeq(Node inp) {
     else return inp;
     return asn(inp.val, o, inp.metadata);
 }
+
+// Insert metadata into an AST built without metadata
+Node insertMetadata(Node inp, Metadata m) {
+    if (inp.metadata.ln == -1) {
+        inp.metadata = m;
+        for (unsigned i = 0; i < inp.args.size(); i++) { 
+            inp.args[i] = insertMetadata(inp.args[i], m);
+        }
+    }
+    return inp;
+}

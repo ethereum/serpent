@@ -352,7 +352,6 @@ preprocessResult preprocessInit(Node inp) {
                                     : (o == "i") ? "int"
                                     :              "";
                 std::vector<uint8_t> functionPrefix = getSigHash(fun, sig);
-                unsigned int prefix4 = getLeading4Bytes(functionPrefix);
                 functionMetadata f 
                     = functionMetadata(functionPrefix, sig, strvec(), outType);
                 if (out.externs.count(fun))
@@ -497,7 +496,8 @@ preprocessResult processTypes (preprocessResult pr) {
 }
 
 preprocessResult preprocess(Node n) {
-    return processTypes(preprocessInit(n));
+    preprocessResult o = processTypes(preprocessInit(n));
+    return o;
 }
 
 // Create the signature from a contract, usable for inclusion 

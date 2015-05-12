@@ -102,6 +102,10 @@ std::string macros[][2] = {
         "(mload (sub $x 32))"
     },
     {
+        "(ceil32 $x)",
+        "(mul 32 (div (add $x 31) 32))"
+    },
+    {
         "(while $cond $do)",
         "(until (iszero $cond) $do)",
     },
@@ -159,15 +163,15 @@ std::string macros[][2] = {
     },
     {
         "(return (: $x arr))",
-        "(with $0 $x (~return (sub $0 32) (add 32 (= items (mload (sub $0 32))))))"
+        "(with $0 $x (seq (mstore (sub $0 64) 32) (~return (sub $0 64) (add 64 (= items (mload (sub $0 32)))))))"
     },
     {
         "(return (: $x str))",
-        "(with $0 $x (~return (sub $0 32) (add 32 (= chars (mload (sub $0 32))))))"
+        "(with $0 $x (seq (mstore (sub $0 64) 32) (~return (sub $0 64) (ceil32 (add 64 (= chars (mload (sub $0 32))))))))"
     },
     {
         "(return $arr (= $type $sz))",
-        "(with _size $sz (seq (mstore (sub $arr 32) _size) (~return (sub $arr 32) (add (= $type $sz) 32))))"
+        "(with _size $sz (seq (mstore (sub $arr 64) 32) (mstore (sub $arr 32) _size) (~return (sub $arr 64) (ceil32 (add (= $type $sz) 64)))))"
     },
     {
         "(return $arr $sz)",
@@ -609,15 +613,15 @@ Node dotTransform(Node node, preprocessAux aux) {
     }
     else if (kwargs.count("outchars")) {
         main = parseLLL(
-            "(with _outchars $outchars (with _out (string _outchars) (seq "
-                "(pop (~"+op+" $gas $to $value _datastart _datasz _out (add 32 _outchars)))"
-                "(add (get _out) 32))))");
+            "(with _outchars $outchars (with _out (alloc (add _outchars 64)) (seq "
+                "(pop (~"+op+" $gas $to $value _datastart _datasz _out (add 64 _outchars)))"
+                "(add (get _out) 64))))");
     }
     else {
         main = parseLLL(
-            "(with _outitems $outitems (with _out (array _outitems) (seq "
-                "(pop (~"+op+" $gas $to $value _datastart _datasz _out (add 32 (mul 32 _outitems))))"
-                "(add (get _out) 32))))");
+            "(with _outitems $outitems (with _out (alloc (add (mul 32 _outitems) 64)) (seq "
+                "(pop (~"+op+" $gas $to $value _datastart _datasz _out (add 64 (mul 32 _outitems))))"
+                "(add (get _out) 64))))");
     }
     // Set up main call
     Node inner = subst(main, kwargs, prefix, m);

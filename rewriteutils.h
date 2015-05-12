@@ -78,4 +78,7 @@ class rewriteRuleSet {
 // Flatten nested sequence into flat sequence
 Node flattenSeq(Node inp);
 
+// Insert metadata into an AST built without metadata
+Node insertMetadata(Node inp, Metadata m);
+
 #endif
