@@ -25,7 +25,11 @@ std::string typeMap(char t) {
 std::string getSummary(std::string functionName, std::string signature) {
     std::string o = functionName + "(";
     for (unsigned i = 0; i < signature.size(); i++) {
-        o += typeMap(signature[i]);
+        if (signature[i] == 's') {
+            o += "string";
+        } else {
+            o += typeMap(signature[i]);
+        }
         if (i != signature.size() - 1) o += ",";
     }
     o += ")";
