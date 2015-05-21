@@ -1,7 +1,7 @@
 from ethereum import tester
 from datetime import datetime, date
 
-from utilRelay import makeMerkleProof
+from utilRelay import makeMerkleProof, dblSha256Flip
 
 import pytest
 slow = pytest.mark.slow
