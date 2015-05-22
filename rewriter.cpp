@@ -171,7 +171,7 @@ std::string macros[][2] = {
     },
     {
         "(return $arr (= $type $sz))",
-        "(with _size $sz (seq (mstore (sub $arr 64) 32) (mstore (sub $arr 32) _size) (~return (sub $arr 64) (ceil32 (add (= $type $sz) 64)))))"
+        "(with _a $arr (with _size $sz (seq (mstore (sub _a 64) 32) (mstore (sub _a 32) _size) (~return (sub _a 64) (ceil32 (add (= $type _size) 64))))))"
     },
     {
         "(return $arr $sz)",
