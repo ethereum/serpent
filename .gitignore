@@ -5,6 +5,8 @@ Session.vim
 .netrwhist
 *~
 *.o
+__pycache__/
+*.py[cod]
 serpent
 libserpent.a
 pyserpent.so
