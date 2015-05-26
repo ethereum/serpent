@@ -1,0 +1,23 @@
+def init():
+    self.storage[msg.sender] = 1000000
+    self.storage[issuer] = "0x82b27dbe07d34fb96309d2306e2729b6c5d155ff"
+
+def balance_query(addr):
+    return(self.storage[addr])
+
+def send(to, value):
+    fromvalue = self.storage[msg.sender]
+    if fromvalue >= value:
+        self.storage[msg.sender] = fromvalue - value
+        self.storage[to] += value
+
+def revoke(acct, value):
+    fromvalue = self.storage[acct]
+    if fromvalue >= value:
+        self.storage[msg.sender] = fromvalue - value
+
+def grant(acct, value):
+    fromvalue = self.storage[acct]
+    from = msg.sender
+    if from == self.storage[issuer]:
+        self.storage[acct] += value
