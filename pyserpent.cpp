@@ -168,7 +168,6 @@ PYMETHOD(ps_parse_lll, FROMSTR, parseLLL, pyifyNode)
 PYMETHOD(ps_mk_signature, FROMSTR, mkSignature, pyifyString)
 PYMETHOD(ps_mk_full_signature, FROMSTR, mkFullSignature, pyifyString)
 PYMETHOD(ps_mk_contract_info_decl, FROMSTR, mkContractInfoDecl, pyifyString)
-PYMETHOD2(ps_get_prefix, FROMSTRSTR, getPrefix, pyifyInteger)
 
 
 static PyMethodDef PyextMethods[] = {
@@ -198,8 +197,6 @@ static PyMethodDef PyextMethods[] = {
         "Make an extern signature for ABI use"},
     {"mk_contract_info_decl",  ps_mk_contract_info_decl, METH_VARARGS,
         "Make an extern contract info declaration"},
-    {"get_prefix",  ps_get_prefix, METH_VARARGS,
-        "Get the prefix from a function and a signature"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

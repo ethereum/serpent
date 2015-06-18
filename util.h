@@ -26,6 +26,10 @@ const int TOKEN = 0,
           COMPOUND = 14,
           TOKEN_SPLITTER = 15;
 
+const int STATIC = 16,
+          ARRAY = 17,
+          BYTES = 18;
+
 // Stores metadata about each token
 class Metadata {
     public:

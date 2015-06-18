@@ -25,15 +25,18 @@ class argPack {
     Node datasz;
 };
 
-// Get a signature from a function
-std::string getSignature(std::vector<Node> args);
+// Get argument types from an old-style signature
+strvec oldSignatureToTypes(std::string sig);
 
 // Get the list of argument names for a function
 std::vector<std::string> getArgNames(std::vector<Node> args);
 
+// Get the list of argument types for a function
+std::vector<std::string> getArgTypes(std::vector<Node> args);
+
 // Convert a list of arguments into a <pre, mstart, msize> node
 // triple, given the signature of a function
-Node packArguments(std::vector<Node> args, std::string sig,
+Node packArguments(std::vector<Node> args, strvec argTypeNames,
                    unsigned functionPrefix, Node inner, Metadata m,
                    bool usePrefix=true);
 

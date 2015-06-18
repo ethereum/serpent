@@ -162,12 +162,24 @@ std::string macros[][2] = {
         "$0"
     },
     {
+        "(return (: $x (access $y)))",
+        "(return (: $x arr))"
+    },
+    {
+        "(return (: $x bytes))",
+        "(return (: $x str))"
+    },
+    {
         "(return (: $x arr))",
         "(with $0 $x (seq (mstore (sub $0 64) 32) (~return (sub $0 64) (add 64 (= items (mload (sub $0 32)))))))"
     },
     {
         "(return (: $x str))",
         "(with $0 $x (seq (mstore (sub $0 64) 32) (~return (sub $0 64) (ceil32 (add 64 (= chars (mload (sub $0 32))))))))"
+    },
+    {
+        "(return (: $x $y))",
+        "(return $x)"
     },
     {
         "(return $arr (= $type $sz))",
@@ -440,12 +452,12 @@ Node logTransform(Node node, preprocessAux aux) {
         functionMetadata fm = aux.events[type];
         std::vector<Node> indexedArgs;
         std::vector<Node> serializedArgs;
-        std::string sig;
+        strvec argTypes;
         for (int i = 0; i < topics.size(); i++) {
             if (fm.indexed[i]) indexedArgs.push_back(topics[i]);
             else {
                 serializedArgs.push_back(topics[i]);
-                sig += fm.sig[i];
+                argTypes.push_back(fm.argTypes[i]);
             }
         }
         Node inner = asn("~log"+utd(indexedArgs.size()+1),
@@ -456,7 +468,7 @@ Node logTransform(Node node, preprocessAux aux) {
         for (unsigned i = 0; i < indexedArgs.size(); i++) {
             inner.args.push_back(indexedArgs[i]);
         }
-        return packArguments(serializedArgs, sig, 0, inner, m, false);
+        return packArguments(serializedArgs, argTypes, 0, inner, m, false);
     }
     // Standard (non-ABI) logging
     if (topics.size() > 4) err("Too many topics!", m);
@@ -566,14 +578,14 @@ Node dotTransform(Node node, preprocessAux aux) {
         }
     }
     int functionPrefix = 0;
-    std::string sig;
+    strvec argTypes;
     std::string outType;
     // Determine the functionPrefix and sig if calling self
     if (callee.val == "self") {
         if (!aux.interns.count(functionName))
             err("Invalid call: "+functionName, m);
         functionPrefix = aux.interns[functionName].id;
-        sig = aux.interns[functionName].sig;
+        argTypes = aux.interns[functionName].argTypes;
         outType = aux.interns[functionName].outType;
     }
     // Determine the funId and sig otherwise
@@ -586,20 +598,25 @@ Node dotTransform(Node node, preprocessAux aux) {
                 "of the function you are using.", m);
         std::string key = unsignedToDecimal(aux.externs[functionName].id);
         functionPrefix = aux.externs[functionName].id;
-        sig = aux.externs[functionName].sig;
+        argTypes = aux.externs[functionName].argTypes;
         outType = aux.externs[functionName].outType;
     }
+    int outTypeVal;
+    if (isArrayType(outType)) outTypeVal = ARRAY;
+    else if (outType == "bytes") outTypeVal = BYTES;
+    else if (outType == "") outTypeVal = 0;
+    else outTypeVal = STATIC;
     // Type checks
-    if (outType == "int" && (kwargs.count("outitems") || kwargs.count("outchars")))
+    if (outTypeVal == STATIC && (kwargs.count("outitems") || kwargs.count("outchars")))
         err("Expecting int/addr/short-string output; "
             "outitems or outchars keywords not valid", m);
-    if (outType == "str" && kwargs.count("outitems"))
+    if (outTypeVal == BYTES && kwargs.count("outitems"))
         err("Expecting string, use outchars instead of outitems", m);
-    if (outType == "str" && !kwargs.count("outchars"))
+    if (outTypeVal == BYTES && !kwargs.count("outchars"))
         err("Please specify maximum string length with outchars", m);
-    if (outType == "arr" && kwargs.count("outchars"))
+    if (outTypeVal == ARRAY && kwargs.count("outchars"))
         err("Expecting array, use outitems instead of outchars", m);
-    if (outType == "arr" && !kwargs.count("outitems"))
+    if (outTypeVal == ARRAY && !kwargs.count("outitems"))
         err("Please specify maximum array length with outitems", m);
     // Pack arguments
     kwargs["to"] = callee;
@@ -625,7 +642,7 @@ Node dotTransform(Node node, preprocessAux aux) {
     }
     // Set up main call
     Node inner = subst(main, kwargs, prefix, m);
-    return packArguments(fnargs, sig, functionPrefix, inner, m);
+    return packArguments(fnargs, argTypes, functionPrefix, inner, m);
 }
 
 // Transform an access of the form self.bob, self.users[5], etc into

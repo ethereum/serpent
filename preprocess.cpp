@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <iostream>
 #include <vector>
 #include <map>
@@ -21,20 +20,28 @@ std::string typeMap(char t) {
       :            "weird";
 }
 
+// Is the type a type of an array?
+bool isArrayType(std::string type) {
+    if (type == "arr")
+        return true;
+    return type.length() >= 2 && type[type.length() - 2] == '['
+                              && type[type.length() - 1] == ']';
+}
+
 // Get the one-line argument summary for a function based on its signature
-std::string getSummary(std::string functionName, std::string signature) {
+std::string getSummary(std::string functionName, strvec argTypes) {
     std::string o = functionName + "(";
-    for (unsigned i = 0; i < signature.size(); i++) {
-        o += typeMap(signature[i]);
-        if (i != signature.size() - 1) o += ",";
+    for (unsigned i = 0; i < argTypes.size(); i++) {
+        o += argTypes[i];
+        if (i != argTypes.size() - 1) o += ",";
     }
     o += ")";
     return o;
 }
 
 // Get the prefix bytes for a function/event based on its signature
-std::vector<uint8_t> getSigHash(std::string functionName, std::string signature) {
-    return sha3(getSummary(functionName, signature));
+std::vector<uint8_t> getSigHash(std::string functionName, strvec argTypes) {
+    return sha3(getSummary(functionName, argTypes));
 }
 
 // Grab the first 4 bytes
@@ -42,8 +49,18 @@ unsigned int getLeading4Bytes(std::vector<uint8_t> p) {
     return (p[0] << 24) + (p[1] << 16) + (p[2] << 8) + p[3];
 }
 
-unsigned int getPrefix(std::string functionName, std::string signature) {
-    return getLeading4Bytes(getSigHash(functionName, signature));
+std::string functionPrefixToHex(unsigned int fprefix) {
+    std::string o = "";
+    std::string alpha = "01235789abcdef";
+    for (unsigned i = 0; i < 8; i++) {
+        o = alpha[fprefix % 16] + o;
+        fprefix /= 16;
+    }
+    return o;
+}
+
+unsigned int getPrefix(std::string functionName, strvec argTypes) {
+    return getLeading4Bytes(getSigHash(functionName, argTypes));
 }
 
 // Convert a function of the form (def (f x y z) (do stuff)) into
@@ -144,23 +161,30 @@ std::string inferType(Node node) {
     std::string cur;
     if (node.val == "return") {
         if (node.args[0].val == ":") {
-            if (node.args[0].args[1].type == ASTNODE)
-                err("Invalid type: "+printSimple(node.args[0].args[1]), m);
+            if (node.args[0].args[1].type == ASTNODE) {
+                if (node.args[0].args[1].val == "access" &&
+                    node.args[0].args[1].args.size() == 1)
+                    cur = node.args[0].args[1].args[0].val;
+                else
+                    err("Invalid type: "+printSimple(node.args[0].args[1]), m);
+            }
             else if (node.args[0].args[1].val == "arr")
-                cur = "arr";
+                cur = "int256[]";
             else if (node.args[0].args[1].val == "str")
-                cur = "str";
-            else
-                err("Invalid type: "+printSimple(node.args[0].args[1]), m);
+                cur = "bytes";
+            else {
+                warn("Non-standard type: "+printSimple(node.args[0].args[1]), m);
+                cur = node.args[0].args[1].val;
+            }
         }
         else if (node.args.size() == 1) {
-            cur = "int";
+            cur = "int256";
         }
         else if (node.args[1].val == "=") {
             if (node.args[1].args[0].val == "items")
-                cur = "arr";
+                cur = "int256[]";
             else if (node.args[1].args[0].val == "chars")
-                cur = "str";
+                cur = "bytes";
             else
                 err("Invalid type: "+printSimple(node.args[1].args[0]), m);
         }
@@ -235,6 +259,8 @@ preprocessResult preprocessInit(Node inp) {
             std::string funReturnType = inferType(body);
             if (funReturnType == "unknown" || funReturnType == "inconsistent")
                 funReturnType = "";
+            if (funReturnType == "void")
+                funReturnType = "_";
             // Init, shared and any are special functions
             if (funName == "init" || funName == "shared" || funName == "any") {
                 if (obj.args[0].args.size())
@@ -245,12 +271,12 @@ preprocessResult preprocessInit(Node inp) {
             else if (funName == "any") any.push_back(body);
             // Other functions
             else {
-                // Calculate signature
-                std::string sig = getSignature(funArgs);
                 // Calculate argument name list
                 strvec argNames = getArgNames(funArgs);
+                // Calculate argument type list
+                strvec argTypes = getArgTypes(funArgs);
                 // Get function prefix and check collisions
-                std::vector<uint8_t> functionPrefix = getSigHash(obj.args[0].val, sig);
+                std::vector<uint8_t> functionPrefix = getSigHash(obj.args[0].val, argTypes);
                 unsigned int prefix4 = getLeading4Bytes(functionPrefix);
                 if (functionPrefixesUsed.count(prefix4)) {
                     err("Hash collision between function prefixes: "
@@ -265,9 +291,9 @@ preprocessResult preprocessInit(Node inp) {
                 // Add function
                 functions.push_back(convFunction(prefix4, funArgs, body));
                 functionMetadata f = 
-                    functionMetadata(functionPrefix, sig, argNames, funReturnType);
+                    functionMetadata(functionPrefix, argTypes, argNames, funReturnType);
                 out.interns[funName] = f;
-                out.interns[funName + "::" + sig] = f;
+                out.interns[funName + "::" + functionPrefixToHex(getLeading4Bytes(functionPrefix))] = f;
                 functionPrefixesUsed[prefix4] = obj.args[0].val;
             }
         }
@@ -282,20 +308,24 @@ preprocessResult preprocessInit(Node inp) {
             for (unsigned i = 0; i < obj.args[0].args.size(); i++) {
                 Node arg = obj.args[0].args[i];
                 if (arg.type == TOKEN) {
-                    eventArgs.push_back(asn(":", arg, tkn("int")));
+                    eventArgs.push_back(asn(":", arg, tkn("int256")));
                     indexed.push_back(false);
                 }
                 else if (arg.args[1].val == "indexed") {
                     if (arg.args[0].type == TOKEN) {
-                        eventArgs.push_back(asn(":", arg.args[0], tkn("int")));
+                        eventArgs.push_back(asn(":", arg.args[0], tkn("int256")));
                     }
                     else eventArgs.push_back(arg.args[0]);
                     indexed.push_back(true);
                     indexedCount += 1;
                     if (indexedCount > 3)
                         err("Too many indexed variables", m);
-                    if (eventArgs.back().args[1].val != "int")
-                        err("Cannot index a "+eventArgs.back().args[1].val, m);
+                    if (eventArgs.back().args[1].val != "int256")
+                        warn("Non-standard indexed data type", m);
+                    if (eventArgs.back().args[1].val == "bytes")
+                        err("Cannot index a string", m);
+                    if (isArrayType(eventArgs.back().args[1].val))
+                        err("Cannot index an array: " + eventArgs.back().args[1].val, m);
                 }
                 else if (arg.args[0].type == TOKEN) {
                     eventArgs.push_back(arg);
@@ -304,11 +334,11 @@ preprocessResult preprocessInit(Node inp) {
 
                 else err("Cannot understand event signature", obj.metadata);
             }
-            std::string sig = getSignature(eventArgs);
             strvec argNames = getArgNames(eventArgs);
-            std::vector<uint8_t> eventPrefix = getSigHash(eventName, sig);
+            strvec argTypes = getArgTypes(eventArgs);
+            std::vector<uint8_t> eventPrefix = getSigHash(eventName, argTypes);
             functionMetadata f =
-                functionMetadata(eventPrefix, sig, argNames, "", indexed);
+                functionMetadata(eventPrefix, argTypes, argNames, "", indexed);
             if (out.events.count(eventName))
                 err("Defining the same event name twice", obj.metadata);
             out.events[eventName] = f;
@@ -317,10 +347,11 @@ preprocessResult preprocessInit(Node inp) {
         else if (obj.val == "extern") {
             std::string externName = obj.args[0].val;
             std::vector<Node> externFuns = obj.args[1].args;
-            std::string fun, sig, outsig;
             // Process each function in each extern declaration
             for (unsigned i = 0; i < externFuns.size(); i++) {
-                std::string fun, sig, o;
+                std::string fun, o;
+                Node sigNode;
+                strvec inTypes;
                 if (externFuns[i].val != ":") {
                     warn("The extern foo: [bar, ...] extern format is "
                          "deprecated. Please regenerate the signature "
@@ -328,7 +359,7 @@ preprocessResult preprocessInit(Node inp) {
                          " `serpent mk_signature <file>` and reinsert "
                          "it at your convenience", m);
                     fun = externFuns[i].val;
-                    sig = "";
+                    sigNode = tkn("");
                     o = "";
                 }
                 else if (externFuns[i].args[0].val != ":") {
@@ -337,28 +368,40 @@ preprocessResult preprocessInit(Node inp) {
                          "signature with `serpent mk_signature <file>` and "
                          "paste the new signature in", m);
                     fun = externFuns[i].args[0].val;
-                    sig = externFuns[i].args[1].val;
+                    sigNode = externFuns[i].args[1];
                     o = "";
                 }
                 else {
                     fun = externFuns[i].args[0].args[0].val;
-                    sig = externFuns[i].args[0].args[1].val;
-                    if (sig == "_") sig = "";
+                    sigNode = externFuns[i].args[0].args[1];
                     o = externFuns[i].args[1].val;
                 }
+                if (sigNode.type == TOKEN)
+                    inTypes = oldSignatureToTypes(sigNode.val);
+                else {
+                    inTypes = strvec();
+                    for (unsigned i = 0; i < sigNode.args.size(); i++) {
+                        if (sigNode.args[i].val == "access" && sigNode.args[i].type == ASTNODE) {
+                            if (sigNode.args[i].args.size() > 1)
+                                err("Fixed-size arrays not supported", sigNode.metadata);
+                            inTypes.push_back(sigNode.args[i].args[0].val + "[]");
+                        }
+                        else inTypes.push_back(sigNode.args[i].val);
+                    }
+                }
 
-                std::string outType = (o == "a") ? "arr"
-                                    : (o == "s") ? "str"
-                                    : (o == "i") ? "int"
-                                    :              "";
-                std::vector<uint8_t> functionPrefix = getSigHash(fun, sig);
+                std::string outType = (o == "a") ? "int256[]"
+                                    : (o == "s") ? "bytes"
+                                    : (o == "i") ? "int256"
+                                    :              o;
+                std::vector<uint8_t> functionPrefix = getSigHash(fun, inTypes);
                 functionMetadata f 
-                    = functionMetadata(functionPrefix, sig, strvec(), outType);
+                    = functionMetadata(functionPrefix, inTypes, strvec(), outType);
                 if (out.externs.count(fun))
                     out.externs[fun].ambiguous = true;
                 else
                     out.externs[fun] = f;
-                out.externs[fun + "::" + sig] = f;
+                out.externs[fun + "::" + functionPrefixToHex(getLeading4Bytes(functionPrefix))] = f;
             }
         }
         // Custom macros
@@ -518,14 +561,13 @@ std::string mkExternLine(Node n) {
     }
     std::string o = "extern " + n.metadata.file + ": [";
     for (unsigned i = 0; i < outNames.size(); i++) {
-        o += outNames[i] + ":"
-           + outMetadata[i].sig
-           + (outMetadata[i].sig.size() ? "" : "_") + ":";
-        o += outMetadata[i].outType == "str" ? "s"
-           : outMetadata[i].outType == "arr" ? "a"
-           : outMetadata[i].outType == "int" ? "i"
-           :                                   "_";
-        
+        o += outNames[i] + ":[";
+        for (unsigned j = 0; j < outMetadata[i].argTypes.size(); j++) {
+            o += outMetadata[i].argTypes[j];
+            if (j < outMetadata[i].argTypes.size() - 1) o += ",";
+        }
+        o += "]:";
+        o += outMetadata[i].outType;
         o += (i < outNames.size() - 1) ? ", " : "]"; 
     }
     return o;
@@ -549,22 +591,20 @@ std::string mkFullExtern(Node n) {
     }
     std::string o = "[";
     for (unsigned i = 0; i < outNames.size(); i++) {
-        std::string summary = getSummary(outNames[i], outMetadata[i].sig);
+        std::string summary = getSummary(outNames[i], outMetadata[i].argTypes);
         o += "{\n    \"name\": \""+summary+"\",\n";
         o += "    \"type\": \"function\",\n";
         o += "    \"inputs\": [";
-        for (unsigned j = 0; j < outMetadata[i].sig.size(); j++) {
+        for (unsigned j = 0; j < outMetadata[i].argTypes.size(); j++) {
             o += "{ \"name\": \""+outMetadata[i].argNames[j]+
-                 "\", \"type\": \""+typeMap(outMetadata[i].sig[j])+"\" }";
-            o += (j < outMetadata[i].sig.size() - 1) ? ", " : ""; 
+                 "\", \"type\": \""+outMetadata[i].argTypes[j]+"\" }";
+            o += (j < outMetadata[i].argTypes.size() - 1) ? ", " : ""; 
         }
         o += "],\n    \"outputs\": [";
         std::string t = outMetadata[i].outType;
-        if (t != "void") {
+        if (t != "_") {
             std::string name, type;
-            if (t == "str") { name = "out"; type = "bytes"; }
-            else if (t == "arr") { name = "out"; type = "int256[]"; }
-            else if (t == "int") { name = "out"; type = "int256"; }
+            if (t != "") { name = "out"; type = t; }
             else { name = "unknown_out"; type = "int256[]"; }
             o += "{ \"name\": \""+name+"\", \"type\": \""+type+"\" }";
         }
@@ -575,16 +615,16 @@ std::string mkFullExtern(Node n) {
             it != pr.second.events.end(); it++) {
         std::string name = (*it).first;
         functionMetadata outMetadata = (*it).second;
-        std::string summary = getSummary(name, outMetadata.sig);
+        std::string summary = getSummary(name, outMetadata.argTypes);
         o += "{\n    \"name\": \""+summary+"\",\n";
         o += "    \"type\": \"event\",\n";
         o += "    \"inputs\": [";
-        for (unsigned j = 0; j < outMetadata.sig.size(); j++) {
+        for (unsigned j = 0; j < outMetadata.argTypes.size(); j++) {
             std::string indexed = outMetadata.indexed[j] ? "true" : "false";
             o += "{ \"name\": \""+outMetadata.argNames[j]+
-                 "\", \"type\": \""+typeMap(outMetadata.sig[j])+
+                 "\", \"type\": \""+outMetadata.argTypes[j]+
                  "\", \"indexed\": "+indexed +" }";
-            o += (j < outMetadata.sig.size() - 1) ? ", " : ""; 
+            o += (j < outMetadata.argTypes.size() - 1) ? ", " : ""; 
         }
         o += "]\n},\n";
     }

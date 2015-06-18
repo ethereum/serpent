@@ -10,19 +10,17 @@
 #include "preprocess.h"
 #include "functions.h"
 
-std::string getSignature(std::vector<Node> args) {
-    std::string o;
-    for (unsigned i = 0; i < args.size(); i++) {
-        if (args[i].val == ":" && args[i].args[1].val == "str")
-            o += "s";
-        else if (args[i].val == ":" && args[i].args[1].val == "arr")
-            o += "a";
-        else if (args[i].val == ":" && args[i].args[1].val == "int")
-            o += "i";
-        else if (args[i].val == ":")
-            err("Invalid datatype! Remember to change s -> str and a -> arr for latest version", args[0].metadata);
+strvec oldSignatureToTypes(std::string sig) {
+    strvec o;
+    for (unsigned i = 0; i < sig.size(); i++) {
+        if (sig[i] == 'i')
+            o.push_back("int256");
+        else if (sig[i] == 's')
+            o.push_back("bytes");
+        else if (sig[i] == 'a')
+            o.push_back("int256[]");
         else
-            o += "i";
+            err("Bad signature: "+sig, Metadata());
     }
     return o;
 }
@@ -38,15 +36,30 @@ std::vector<std::string> getArgNames(std::vector<Node> args) {
     return o;
 }
 
-
-const int STATIC = 0;
-const int ARRAY = 1;
-const int BYTES = 2;
+std::vector<std::string> getArgTypes(std::vector<Node> args) {
+    std::vector<std::string> o;
+    for (unsigned i = 0; i < args.size(); i++) {
+        if (args[i].val == ":" && args[i].args[1].val == "str")
+            o.push_back("bytes");
+        else if (args[i].val == ":" && args[i].args[1].val == "arr")
+            o.push_back("int256[]");
+        else if (args[i].val == ":" && args[i].args[1].val == "int")
+            o.push_back("int256");
+        else if (args[i].val == ":" && (args[i].args[1].val == "s" ||
+                                        args[i].args[1].val == "a"))
+            err("Invalid datatype! Remember to change s -> str and a -> arr for latest version", args[0].metadata);
+        else if (args[i].val == ":")
+            o.push_back(args[i].args[1].val);
+        else
+            o.push_back("int256");
+    }
+    return o;
+}
 
 // Convert a list of arguments into a node wrapping another
 // node that can use _datastart and _datasz
 
-Node packArguments(std::vector<Node> args, std::string sig,
+Node packArguments(std::vector<Node> args, strvec argTypeNames,
                    unsigned functionPrefix, Node inner, Metadata m,
                    bool usePrefix) {
     // Arguments
@@ -63,29 +76,32 @@ Node packArguments(std::vector<Node> args, std::string sig,
         }
         else {
             // Determine the correct argument type
-            char argType;
-            if (argCount >= (signed)sig.size())
+            std::string argType;
+            if (argCount >= (signed)argTypeNames.size())
                 err("Too many args. Note that the signature of the function "
                     "that you are using may no longer be valid. "
                     "If you want to be sure, run "
                     "`serpent mk_signature <file>` on the contract you are "
                     "including to determine the correct signature.", m);
-            argType = sig[argCount];
+            argType = argTypeNames[argCount];
             funArgs.push_back(args[i]);
-            // Integer (also usable for short strings)
-            if (argType == 'i')
-                argTypes.push_back(STATIC);
-            // Long string
-            else if (argType == 's') {
-                argTypes.push_back(BYTES);
-                haveVarg = true;
-            }
             // Array
-            else if (argType == 'a') {
+            if (isArrayType(argType)) {
                 argTypes.push_back(ARRAY);
                 haveVarg = true;
             }
-            else err("Invalid arg type in signature", m);
+            // Long string
+            else if (argType == "bytes") {
+                argTypes.push_back(BYTES);
+                haveVarg = true;
+            }
+            // Integer (also usable for short strings)
+            else if (argType == "int256" or argType == "bytes20" or argType == "address")
+                argTypes.push_back(STATIC);
+            else {
+                warn("Non-standard arg type in signature", m);
+                argTypes.push_back(STATIC);
+            }
             argCount++;
         }
     }
@@ -267,12 +283,14 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
             varNames.push_back(vars[i].args[0].val);
             std::string tag = vars[i].args[1].val;
             haveVarg = true;
-            if (tag == "str")
+            if (tag == "str" || tag == "bytes")
                 varTypes.push_back(BYTES);
-            else if (tag == "arr")
+            else if (isArrayType(tag))
                 varTypes.push_back(ARRAY);
-            else
-                err("Function value can only be string or array. Remember to change s -> str and a -> arr for latest version", m);
+            else {
+                varTypes.push_back(STATIC);
+                warn("Non-standard argument type: "+tag, m);
+            }
         }
         else {
             varNames.push_back(vars[i].val);
