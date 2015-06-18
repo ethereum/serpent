@@ -34,3 +34,5 @@ std::vector<Node> prettyCompile(std::string input);
 std::string mkSignature(std::string input);
 
 std::string mkFullSignature(std::string input);
+
+std::string mkContractInfoDecl(std::string input);

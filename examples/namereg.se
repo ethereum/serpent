@@ -17,8 +17,8 @@ def start_auction(domain):
     # Set the auction expiry and reset the maxbid and maxbidder
     if not self.domains[domain].owner or block.timestamp > self.domains[domain].expiry:
         self.domains[domain].auction_expiry = block.timestamp + DAYS(7)
-        self.maxbid = 0
-        self.maxbidder = 0
+        self.domains[domain].maxbid = 0
+        self.domains[domain].maxbidder = 0
         
 # Bid in the auction. Note that there is no bidder list that is kept track of;
 # hence, if someone else outbids you, you must outbid them anew, note keeping

@@ -90,6 +90,7 @@ serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
 deserialize = lambda x: map(node, pyext.deserialize(strtobytes(x)))
 mk_signature = lambda x: pyext.mk_signature(strtobytes(x))
 mk_full_signature = lambda x: pyext.mk_full_signature(strtobytes(x))
+mk_contract_info_decl = lambda x: pyext.mk_contract_info_decl(strtobytes(x))
 get_prefix = lambda x, y: pyext.get_prefix(strtobytes(x), y) % 2**32
 
 if sys.version_info.major == 2:

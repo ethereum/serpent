@@ -91,6 +91,9 @@ int main(int argv, char** argc) {
     else if (command == "mk_full_signature") {
         std::cout << mkFullSignature(input) << "\n";
     }
+    else if (command == "mk_contract_info_decl") {
+        std::cout << mkContractInfoDecl(input) << "\n";
+    }
     else if (command == "tokenize") {
         std::cout << printTokens(tokenize(input));
     }
