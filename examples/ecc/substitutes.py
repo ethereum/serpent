@@ -4,6 +4,8 @@ import sys
 
 
 def signed(o):
+    if not isinstance(o, list):
+        return o - 2**256 if o >= 2**255 else o
     return map(lambda x: x - 2**256 if x >= 2**255 else x, o)
 
 
@@ -46,7 +48,7 @@ def jacobian_add_substitute(A, B, C, D, E, F, G, H):
 def modexp_substitute(base, exp, mod):
     return {
         "gas": 5150,
-        "output": signed([pow(base, exp, mod) if mod > 0 else 0])
+        "output": signed(pow(base, exp, mod) if mod > 0 else 0)
     }
 
 

@@ -349,9 +349,10 @@ preprocessResult preprocessInit(Node inp) {
             std::vector<Node> externFuns = obj.args[1].args;
             // Process each function in each extern declaration
             for (unsigned i = 0; i < externFuns.size(); i++) {
-                std::string fun, o;
+                std::string fun;
                 Node sigNode;
                 strvec inTypes;
+                Node o;
                 if (externFuns[i].val != ":") {
                     warn("The extern foo: [bar, ...] extern format is "
                          "deprecated. Please regenerate the signature "
@@ -360,7 +361,7 @@ preprocessResult preprocessInit(Node inp) {
                          "it at your convenience", m);
                     fun = externFuns[i].val;
                     sigNode = tkn("");
-                    o = "";
+                    o = tkn("");
                 }
                 else if (externFuns[i].args[0].val != ":") {
                     warn("The foo:i extern format is deprecated. It will "
@@ -369,12 +370,12 @@ preprocessResult preprocessInit(Node inp) {
                          "paste the new signature in", m);
                     fun = externFuns[i].args[0].val;
                     sigNode = externFuns[i].args[1];
-                    o = "";
+                    o = tkn("");
                 }
                 else {
                     fun = externFuns[i].args[0].args[0].val;
                     sigNode = externFuns[i].args[0].args[1];
-                    o = externFuns[i].args[1].val;
+                    o = externFuns[i].args[1];
                 }
                 if (sigNode.type == TOKEN)
                     inTypes = oldSignatureToTypes(sigNode.val);
@@ -389,11 +390,16 @@ preprocessResult preprocessInit(Node inp) {
                         else inTypes.push_back(sigNode.args[i].val);
                     }
                 }
-
-                std::string outType = (o == "a") ? "int256[]"
-                                    : (o == "s") ? "bytes"
-                                    : (o == "i") ? "int256"
-                                    :              o;
+                std::string outType;
+                if (o.type == ASTNODE && o.val == "access" && o.args.size() == 1)
+                    outType = o.args[0].val + "[]";
+                else if (o.type == TOKEN) {
+                    outType = (o.val == "a") ? "int256[]"
+                            : (o.val == "s") ? "bytes"
+                            : (o.val == "i") ? "int256"
+                            :              o.val;
+                }
+                else err ("Invalid out type: "+printSimple(o), m);
                 std::vector<uint8_t> functionPrefix = getSigHash(fun, inTypes);
                 functionMetadata f 
                     = functionMetadata(functionPrefix, inTypes, strvec(), outType);

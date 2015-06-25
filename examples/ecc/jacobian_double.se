@@ -1,7 +1,7 @@
 inset('modint.type')
 def call(m_axn, m_axd, m_ayn, m_ayd):
     if !m_axn and !m_ayn:
-        return([0, 1, 0, 1], 4)
+        return([0, 1, 0, 1]:arr)
     with P_______P = -4294968273:
         # No need to add (A, 1) because A = 0 for bitcoin
         with m_mn = m_axn * m_axn * m(3) * m_ayd:
@@ -14,4 +14,4 @@ def call(m_axn, m_axd, m_ayn, m_ayd):
                                     with m_mamxd = m_axd * m_xd * m_md:
                                         with m_yn = m_mamxn * m_ayd - m_mamxd * m_ayn:
                                             with m_yd = m_mamxd * m_ayd:
-                                                return([m_xn, m_xd, m_yn, m_yd], 4)
+                                                return([m_xn, m_xd, m_yn, m_yd]:arr)

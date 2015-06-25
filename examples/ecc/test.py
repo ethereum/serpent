@@ -2,17 +2,16 @@ import bitcoin as b
 import random
 import sys
 import math
-from pyethereum import tester as t
+from ethereum import tester as t
 import substitutes
 import time
 
 vals = [random.randrange(2**256) for i in range(12)]
 
-test_points = [list(p[0]) + list(p[1]) for p in
-               [b.jordan_multiply(((b.Gx, 1), (b.Gy, 1)), r) for r in vals]]
+test_points = [b.jacobian_multiply((b.Gx, b.Gy, 1), r) for r in vals]
 
-G = [b.Gx, 1, b.Gy, 1]
-Z = [0, 1, 0, 1]
+G = [b.Gx, b.Gy, 1]
+Z = [0, 0, 1]
 
 
 def neg_point(p):
@@ -28,12 +27,12 @@ if '--log' in tests:
     t.set_logging_level(int((tests+[1])[tests.index('--log') + 1]))
 
 if '--modexp' in tests or not len(tests):
-    c = s.contract('modexp.se')
+    c = s.abi_contract('modexp.se')
     print "Starting modexp tests"
 
     for i in range(0, len(vals) - 2, 3):
         o1 = substitutes.modexp_substitute(vals[i], vals[i+1], vals[i+2])
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=vals[i:i+3])
+        o2 = c.call(vals[i], vals[i+1], vals[i+2], profiling=1)
         # assert o1["gas"] == o2["gas"], (o1, o2)
         assert o1["output"] == o2["output"], (o1, o2)
 
