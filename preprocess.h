@@ -44,6 +44,22 @@ class functionMetadata {
         bool ambiguous;
 };
 
+class typeMetadata {
+    public:
+        typeMetadata(std::string _name, strvec _inTypes, std::string _outType) {
+            name = _name;
+            inTypes = _inTypes;
+            outType = _outType;
+        }
+        std::string name;
+        strvec inTypes;
+        std::string outType;
+};
+
+
+// Get the function name and input and output types from a signature
+typeMetadata getTypes(Node typeNode);
+
 
 // Preprocessing result storing object
 class preprocessAux {
@@ -79,5 +95,8 @@ std::string mkFullExtern(Node n);
 
 // Get the storage data mapping for a file
 std::vector<Node> getDataNodes(Node n);
+
+// Get the prefix int associated with a function name and set of argument types
+unsigned int getPrefix(std::string functionName, strvec argTypes);
 
 #endif

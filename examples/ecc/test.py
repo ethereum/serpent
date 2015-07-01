@@ -15,7 +15,7 @@ Z = [0, 0, 1]
 
 
 def neg_point(p):
-    return [p[0], b.P - p[1], p[2], b.P - p[3]]
+    return [p[0], b.P - p[1], p[2]]
 
 s = t.state()
 s.block.gas_limit = 10000000
@@ -35,70 +35,6 @@ if '--modexp' in tests or not len(tests):
         o2 = c.call(vals[i], vals[i+1], vals[i+2], profiling=1)
         # assert o1["gas"] == o2["gas"], (o1, o2)
         assert o1["output"] == o2["output"], (o1, o2)
-
-if '--add' in tests or not len(tests):
-    c = s.contract('jacobian_add.se')
-    print "Starting addition tests"
-    for i in range(2):
-        P = test_points[i * 2]
-        Q = test_points[i * 2 + 1]
-        NP = neg_point(P)
-
-        o1 = substitutes.jacobian_add_substitute(*(P + Q))
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=P + Q)
-        # assert o1["gas"] == o2["gas"], (o1, o2)
-        assert o1["output"] == o2["output"], (o1, o2)
-
-        o1 = substitutes.jacobian_add_substitute(*(P + NP))
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=P + NP)
-        # assert o1["gas"] == o2["gas"], (o1, o2)
-        assert o1["output"] == o2["output"], (o1, o2)
-
-        o1 = substitutes.jacobian_add_substitute(*(P + P))
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=P + P)
-        # assert o1["gas"] == o2["gas"], (o1, o2)
-        assert o1["output"] == o2["output"], (o1, o2)
-
-        o1 = substitutes.jacobian_add_substitute(*(P + Z))
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=P + Z)
-        # assert o1["gas"] == o2["gas"], (o1, o2)
-        assert o1["output"] == o2["output"], (o1, o2)
-
-        o1 = substitutes.jacobian_add_substitute(*(Z + P))
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=Z + P)
-        # assert o1["gas"] == o2["gas"], (o1, o2)
-        assert o1["output"] == o2["output"], (o1, o2)
-
-
-if '--mul' in tests or not len(tests):
-    c = s.contract('jacobian_mul.se')
-    print "Starting multiplication tests"
-
-    mul_tests = [
-        Z + [0],
-        Z + [vals[0]],
-        test_points[0] + [0],
-        test_points[1] + [b.N],
-        test_points[2] + [1],
-        test_points[2] + [2],
-        test_points[2] + [3],
-        test_points[2] + [4],
-        test_points[3] + [5],
-        test_points[3] + [6],
-        test_points[4] + [7],
-        test_points[4] + [2**254],
-        test_points[4] + [vals[1]],
-        test_points[4] + [vals[2]],
-        test_points[4] + [vals[3]],
-        test_points[5] + [2**256 - 1],
-    ]
-
-    for i, test in enumerate(mul_tests):
-        print 'trying mul_test %i' % i, test
-        o1 = substitutes.jacobian_mul_substitute(*test)
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=test)
-        # assert o1["gas"] == o2["gas"], (o1, o2, test)
-        assert o1["output"] == o2["output"], (o1, o2, test)
 
 if '--ecrecover' in tests or not len(tests):
     c = s.contract('ecrecover.se')

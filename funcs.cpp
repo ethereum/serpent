@@ -58,3 +58,12 @@ std::string mkContractInfoDecl(std::string input) {
            "    \"userDoc\": {}\n" 
            "}";
 }
+
+unsigned int getPrefix(Node signature) {
+    typeMetadata t = getTypes(signature);
+    return getPrefix(t.name, t.inTypes);
+}
+
+unsigned int getPrefix(std::string signature) {
+    return getPrefix(parseSerpent(signature));
+}

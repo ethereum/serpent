@@ -20,7 +20,7 @@ def init():
 def call(axn, axd, ayn, ayd, n):
     n = mod(n, -432420386565659656852420866394968145599)
     if !axn * !ayn + !n: # Constant-gas version of !axn and !ayn or !n
-        return([0, 1, 0, 1], 4)
+        return([0, 1, 0, 1]:arr)
     with o = [0, 0, 1, 0, 1, 0, 0, 0, 0]:
         with b = 2 ^ 255:
             while gt(b, 0):
@@ -34,4 +34,4 @@ def call(axn, axd, ayn, ayd, n):
                 else:
                     ~call(20000, self.DOUBLE, 0, o + 31, 129, o + 32, 128)
                 b = div(b, 2)
-            return(o + 32, 4)
+            return(o + 32, items=4)

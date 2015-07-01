@@ -5,7 +5,7 @@ data DOUBLE
 def init():
     self.DOUBLE = create('jacobian_double.se')
 
-def call(m_axn, m_axd, m_ayn, m_ayd, m_bxn, m_bxd, m_byn, m_byd):
+def add(m_axn, m_axd, m_ayn, m_ayd, m_bxn, m_bxd, m_byn, m_byd):
     if !m_axn and !m_ayn:
         o = [m_bxn, m_bxd, m_byn, m_byd]
     if !m_bxn and !m_byn:
@@ -15,7 +15,7 @@ def call(m_axn, m_axd, m_ayn, m_ayd, m_bxn, m_bxd, m_byn, m_byd):
     with P_______P = -4294968273:
         if m_axn * m_bxd - m_axd * m_bxn == m(0):
             if m_ayn * m_byd - m_ayd * m_byn == m(0):
-                return(self.DOUBLE.call(m_axn, m_axd, m_ayn, m_ayd, outitems=4):arr)
+                return(self.DOUBLE.double(m_axn, m_axd, m_ayn, m_ayd, outitems=4):arr)
             else:
                 return([0, 1, 0, 1]:arr)
         with m_mn = (m_byn * m_ayd - m_ayn * m_byd) * m_axd * m_bxd:

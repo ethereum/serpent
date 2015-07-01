@@ -94,6 +94,9 @@ int main(int argv, char** argc) {
     else if (command == "mk_contract_info_decl") {
         std::cout << mkContractInfoDecl(input) << "\n";
     }
+    else if (command == "get_prefix") {
+        std::cout << getPrefix(input) << "\n";
+    }
     else if (command == "tokenize") {
         std::cout << printTokens(tokenize(input));
     }

@@ -3,7 +3,7 @@
 # that I created. It may possible to achieve a further 20-50% savings by applying 
 # that version.
 
-extern all: [call]
+extern all: [exp:[uint256,uint256,uint256]:uint256]
 
 data JORDANMUL
 data JORDANADD
@@ -30,11 +30,11 @@ def call(h, v, r, s):
     y_is_positive = mod(v, 2) xor mod(beta, 2)
     y = beta * y_is_positive + (P - beta) * (1 - y_is_positive)
     
-    GZ = self.JORDANMUL.call(Gx, 1, Gy, 1, N - h, outsz=4)
-    XY = self.JORDANMUL.call(x, 1, y, 1, s, outsz=4)
-    COMB = self.JORDANADD.call(GZ[0], GZ[1], GZ[2], GZ[3], XY[0], XY[1], XY[2], XY[3], 1, outsz=4)
-    invr = self.EXP.call(r, N - 2, N)
-    Q = self.JORDANMUL.call(COMB[0], COMB[1], COMB[2], COMB[3], invr, outsz=4)
-    ox = mulmod(Q[0], self.EXP.call(Q[1], P - 2, P), P)
-    oy = mulmod(Q[2], self.EXP.call(Q[3], P - 2, P), P)
-    return([ox, oy], 2)
+    GZ = self.JORDANMUL.mul(Gx, 1, Gy, 1, N - h, outsz=4)
+    XY = self.JORDANMUL.mul(x, 1, y, 1, s, outsz=4)
+    COMB = self.JORDANADD.add(GZ[0], GZ[1], GZ[2], GZ[3], XY[0], XY[1], XY[2], XY[3], 1, outsz=4)
+    invr = self.EXP.exp(r, N - 2, N)
+    Q = self.JORDANMUL.mul(COMB[0], COMB[1], COMB[2], COMB[3], invr, outsz=4)
+    ox = mulmod(Q[0], self.EXP.exp(Q[1], P - 2, P), P)
+    oy = mulmod(Q[2], self.EXP.exp(Q[3], P - 2, P), P)
+    return([ox, oy]:arr)

@@ -209,6 +209,62 @@ std::string inferType(Node node) {
     return cur;
 }
 
+typeMetadata getTypes(Node typeNode) {
+    std::string fun;
+    Node sigNode;
+    strvec inTypes;
+    Node o;
+    Metadata m = typeNode.metadata;
+    if (typeNode.val != ":") {
+        warn("The extern foo: [bar, ...] extern format is "
+             "deprecated. Please regenerate the signature "
+             "for the contract you are including with "
+             " `serpent mk_signature <file>` and reinsert "
+             "it at your convenience", m);
+        fun = typeNode.val;
+        sigNode = tkn("");
+        o = tkn("");
+    }
+    else if (typeNode.args[0].val != ":") {
+        warn("The foo:i extern format is deprecated. It will "
+             "still work for now but better regenerate the "
+             "signature with `serpent mk_signature <file>` and "
+             "paste the new signature in", m);
+        fun = typeNode.args[0].val;
+        sigNode = typeNode.args[1];
+        o = tkn("");
+    }
+    else {
+        fun = typeNode.args[0].args[0].val;
+        sigNode = typeNode.args[0].args[1];
+        o = typeNode.args[1];
+    }
+    if (sigNode.type == TOKEN)
+        inTypes = oldSignatureToTypes(sigNode.val);
+    else {
+        inTypes = strvec();
+        for (unsigned i = 0; i < sigNode.args.size(); i++) {
+            if (sigNode.args[i].val == "access" && sigNode.args[i].type == ASTNODE) {
+                if (sigNode.args[i].args.size() > 1)
+                    err("Fixed-size arrays not supported", sigNode.metadata);
+                inTypes.push_back(sigNode.args[i].args[0].val + "[]");
+            }
+            else inTypes.push_back(sigNode.args[i].val);
+        }
+    }
+    std::string outType;
+    if (o.type == ASTNODE && o.val == "access" && o.args.size() == 1)
+        outType = o.args[0].val + "[]";
+    else if (o.type == TOKEN) {
+        outType = (o.val == "a") ? "int256[]"
+                : (o.val == "s") ? "bytes"
+                : (o.val == "i") ? "int256"
+                :              o.val;
+    }
+    else err ("Invalid out type: "+printSimple(o), m);
+    return typeMetadata(fun, inTypes, outType);
+}
+
 // Preprocess input containing functions
 //
 // localExterns is a map of the form, eg,
@@ -349,57 +405,10 @@ preprocessResult preprocessInit(Node inp) {
             std::vector<Node> externFuns = obj.args[1].args;
             // Process each function in each extern declaration
             for (unsigned i = 0; i < externFuns.size(); i++) {
-                std::string fun;
-                Node sigNode;
-                strvec inTypes;
-                Node o;
-                if (externFuns[i].val != ":") {
-                    warn("The extern foo: [bar, ...] extern format is "
-                         "deprecated. Please regenerate the signature "
-                         "for the contract you are including with "
-                         " `serpent mk_signature <file>` and reinsert "
-                         "it at your convenience", m);
-                    fun = externFuns[i].val;
-                    sigNode = tkn("");
-                    o = tkn("");
-                }
-                else if (externFuns[i].args[0].val != ":") {
-                    warn("The foo:i extern format is deprecated. It will "
-                         "still work for now but better regenerate the "
-                         "signature with `serpent mk_signature <file>` and "
-                         "paste the new signature in", m);
-                    fun = externFuns[i].args[0].val;
-                    sigNode = externFuns[i].args[1];
-                    o = tkn("");
-                }
-                else {
-                    fun = externFuns[i].args[0].args[0].val;
-                    sigNode = externFuns[i].args[0].args[1];
-                    o = externFuns[i].args[1];
-                }
-                if (sigNode.type == TOKEN)
-                    inTypes = oldSignatureToTypes(sigNode.val);
-                else {
-                    inTypes = strvec();
-                    for (unsigned i = 0; i < sigNode.args.size(); i++) {
-                        if (sigNode.args[i].val == "access" && sigNode.args[i].type == ASTNODE) {
-                            if (sigNode.args[i].args.size() > 1)
-                                err("Fixed-size arrays not supported", sigNode.metadata);
-                            inTypes.push_back(sigNode.args[i].args[0].val + "[]");
-                        }
-                        else inTypes.push_back(sigNode.args[i].val);
-                    }
-                }
-                std::string outType;
-                if (o.type == ASTNODE && o.val == "access" && o.args.size() == 1)
-                    outType = o.args[0].val + "[]";
-                else if (o.type == TOKEN) {
-                    outType = (o.val == "a") ? "int256[]"
-                            : (o.val == "s") ? "bytes"
-                            : (o.val == "i") ? "int256"
-                            :              o.val;
-                }
-                else err ("Invalid out type: "+printSimple(o), m);
+                typeMetadata types = getTypes(externFuns[i]);
+                strvec inTypes = types.inTypes;
+                std::string outType = types.outType;
+                std::string fun = types.name;
                 std::vector<uint8_t> functionPrefix = getSigHash(fun, inTypes);
                 functionMetadata f 
                     = functionMetadata(functionPrefix, inTypes, strvec(), outType);
