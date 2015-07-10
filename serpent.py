@@ -3,7 +3,7 @@ import sys
 import re
 import binascii
 
-VERSION = '1.8.2'
+VERSION = '2.0.0'
 
 def strtobytes(x):
     return x.encode('ascii') if isinstance(x, str) else x
@@ -202,7 +202,7 @@ def main():
         o = globals()[cmd](*args, **kwargs)
         if isinstance(o, (Token, Astnode, list)):
             print(repr(o))
-        elif cmd in ['mk_signature', 'mk_full_signature', 'get_prefix']:
+        elif cmd in ['mk_signature', 'mk_full_signature', 'get_prefix', 'mk_contract_info_decl']:
             print(o)
         else:
             print(binascii.b2a_hex(o).decode('ascii'))
