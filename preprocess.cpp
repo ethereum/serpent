@@ -374,14 +374,12 @@ preprocessResult preprocessInit(Node inp) {
                     else eventArgs.push_back(arg.args[0]);
                     indexed.push_back(true);
                     indexedCount += 1;
-                    if (indexedCount > 3)
-                        err("Too many indexed variables", m);
                     if (eventArgs.back().args[1].val != "int256")
                         warn("Non-standard indexed data type", m);
-                    if (eventArgs.back().args[1].val == "bytes")
-                        err("Cannot index a string", m);
                     if (isArrayType(eventArgs.back().args[1].val))
                         err("Cannot index an array: " + eventArgs.back().args[1].val, m);
+                    if (indexedCount > 3)
+                        err("Too many indexed variables", m);
                 }
                 else if (arg.args[0].type == TOKEN) {
                     eventArgs.push_back(arg);
@@ -392,7 +390,15 @@ preprocessResult preprocessInit(Node inp) {
             }
             strvec argNames = getArgNames(eventArgs);
             strvec argTypes = getArgTypes(eventArgs);
-            std::vector<uint8_t> eventPrefix = getSigHash(eventName, argTypes);
+            strvec argTypesForPrefixing = strvec();
+            for (unsigned i = 0; i < argTypes.size(); i++) {
+                if ((argTypes[i] == "bytes" || argTypes[i] == "string") && indexed[i]) {
+                    argTypesForPrefixing.push_back(argTypes[i]);
+                    argTypesForPrefixing.push_back("bytes32");
+                }
+                else argTypesForPrefixing.push_back(argTypes[i]);
+            }
+            std::vector<uint8_t> eventPrefix = getSigHash(eventName, argTypesForPrefixing);
             functionMetadata f =
                 functionMetadata(eventPrefix, argTypes, argNames, "", indexed);
             if (out.events.count(eventName))
@@ -635,11 +641,24 @@ std::string mkFullExtern(Node n) {
         o += "    \"type\": \"event\",\n";
         o += "    \"inputs\": [";
         for (unsigned j = 0; j < outMetadata.argTypes.size(); j++) {
-            std::string indexed = outMetadata.indexed[j] ? "true" : "false";
-            o += "{ \"name\": \""+outMetadata.argNames[j]+
-                 "\", \"type\": \""+outMetadata.argTypes[j]+
-                 "\", \"indexed\": "+indexed +" }";
-            o += (j < outMetadata.argTypes.size() - 1) ? ", " : ""; 
+            // Special handling for indexed bytes/string
+            if (outMetadata.indexed[j] && (outMetadata.argTypes[j] == "bytes" ||
+                                           outMetadata.argTypes[j] == "string")) {
+                o += "{ \"name\": \""+outMetadata.argNames[j]+
+                     "\", \"type\": \""+outMetadata.argTypes[j]+
+                     "\", \"indexed\": false }, ";
+                o += "{ \"name\": \"__hash_"+outMetadata.argNames[j]+
+                     "\", \"type\": \"bytes32" +
+                     "\", \"indexed\": true }";
+                o += (j < outMetadata.argTypes.size() - 1) ? ", " : ""; 
+            }
+            else {
+                std::string indexed = outMetadata.indexed[j] ? "true" : "false";
+                o += "{ \"name\": \""+outMetadata.argNames[j]+
+                     "\", \"type\": \""+outMetadata.argTypes[j]+
+                     "\", \"indexed\": "+indexed +" }";
+                o += (j < outMetadata.argTypes.size() - 1) ? ", " : ""; 
+            }
         }
         o += "]\n},\n";
     }

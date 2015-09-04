@@ -454,7 +454,17 @@ Node logTransform(Node node, preprocessAux aux) {
         std::vector<Node> serializedArgs;
         strvec argTypes;
         for (int i = 0; i < topics.size(); i++) {
-            if (fm.indexed[i]) indexedArgs.push_back(topics[i]);
+            if (fm.indexed[i]) {
+                if (fm.argTypes[i] == "string" || fm.argTypes[i] == "bytes") {
+                    std::string varName = "__temp"+mkUniqueToken();
+                    serializedArgs.push_back(asn("seq",
+                                                 asn("set", tkn(varName), topics[i]),
+                                                 asn("get", tkn(varName))));
+                    indexedArgs.push_back(asn("sha3", asn(":", asn("get", tkn(varName)), tkn("str"))));
+                    argTypes.push_back(fm.argTypes[i]);
+                }
+                else indexedArgs.push_back(topics[i]);
+            }
             else {
                 serializedArgs.push_back(topics[i]);
                 argTypes.push_back(fm.argTypes[i]);

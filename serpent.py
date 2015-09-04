@@ -2,6 +2,7 @@ import serpent_pyext as pyext
 import sys
 import re
 import binascii
+import json
 
 VERSION = '2.0.0'
 
@@ -89,8 +90,8 @@ pretty_compile_lll = lambda x: map(node, pyext.pretty_compile_lll(take(strtobyte
 serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
 deserialize = lambda x: map(node, pyext.deserialize(strtobytes(x)))
 mk_signature = lambda x: pyext.mk_signature(strtobytes(x))
-mk_full_signature = lambda x: pyext.mk_full_signature(strtobytes(x))
-mk_contract_info_decl = lambda x: pyext.mk_contract_info_decl(strtobytes(x))
+mk_full_signature = lambda x: json.loads(pyext.mk_full_signature(strtobytes(x)))
+mk_contract_info_decl = lambda x: json.loads(pyext.mk_contract_info_decl(strtobytes(x)))
 get_prefix = lambda x: pyext.get_prefix(strtobytes(x)) % 2**32
 
 if sys.version_info.major == 2:
@@ -200,9 +201,11 @@ def main():
         if cmd in ['encode_abi']:
             kwargs['source'] = 'cmdline'
         o = globals()[cmd](*args, **kwargs)
-        if isinstance(o, (Token, Astnode, list)):
+        if isinstance(o, (Token, Astnode, dict, list)):
             print(repr(o))
-        elif cmd in ['mk_signature', 'mk_full_signature', 'get_prefix', 'mk_contract_info_decl']:
+        elif cmd in ['mk_full_signature', 'get_prefix']:
+            print(json.dumps(json.loads(o)))
+        elif cmd in ['mk_signature', 'get_prefix']:
             print(o)
         else:
             print(binascii.b2a_hex(o).decode('ascii'))
