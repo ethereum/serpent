@@ -91,7 +91,7 @@ Node packArguments(std::vector<Node> args, strvec argTypeNames,
                 haveVarg = true;
             }
             // Long string
-            else if (argType == "bytes") {
+            else if (argType == "bytes" || argType == "string") {
                 argTypes.push_back(BYTES);
                 haveVarg = true;
             }
@@ -283,7 +283,7 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
             varNames.push_back(vars[i].args[0].val);
             std::string tag = vars[i].args[1].val;
             haveVarg = true;
-            if (tag == "str" || tag == "bytes")
+            if (tag == "str" || tag == "bytes" || tag == "string")
                 varTypes.push_back(BYTES);
             else if (isArrayType(tag))
                 varTypes.push_back(ARRAY);

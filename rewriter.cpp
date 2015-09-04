@@ -613,7 +613,7 @@ Node dotTransform(Node node, preprocessAux aux) {
     }
     int outTypeVal;
     if (isArrayType(outType)) outTypeVal = ARRAY;
-    else if (outType == "bytes") outTypeVal = BYTES;
+    else if (outType == "bytes" || outType == "string") outTypeVal = BYTES;
     else if (outType == "") outTypeVal = 0;
     else outTypeVal = STATIC;
     // Type checks

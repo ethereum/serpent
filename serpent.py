@@ -76,22 +76,36 @@ def take(x):
 def takelist(x):
     return map(take, parse(x).args if is_string(x) else x)
 
-compile = lambda x: pyext.compile(strtobytes(x))
-compile_chunk = lambda x: pyext.compile_chunk(strtobytes(x))
-compile_to_lll = lambda x: node(pyext.compile_to_lll(strtobytes(x)))
-compile_chunk_to_lll = lambda x: node(pyext.compile_chunk_to_lll(strtobytes(x)))
+
+def pre_transform(code, params):
+    try:
+        code = open(code).read()
+    except:
+        pass
+    code2 = ''
+    for k, v in params.items():
+        if isinstance(v, (str, bytes, unicode)):
+            v = '"' + v + '"'
+        code2 += 'macro $%s:\n    %s\n' % (k, v)
+    print code2 + code
+    return code2 + code
+
+compile = lambda code, **kwargs: pyext.compile(strtobytes(pre_transform(code, kwargs)))
+compile_chunk = lambda code, **kwargs: pyext.compile_chunk(strtobytes(pre_transform(code, kwargs)))
+compile_to_lll = lambda code, **kwargs: node(pyext.compile_to_lll(strtobytes(pre_transform(code, kwargs))))
+compile_chunk_to_lll = lambda code, **kwargs: node(pyext.compile_chunk_to_lll(strtobytes(pre_transform(code, kwargs))))
 compile_lll = lambda x: pyext.compile_lll(take(strtobytes(x)))
-parse = lambda x: node(pyext.parse(strtobytes(x)))
+parse = lambda code, **kwargs: node(pyext.parse(strtobytes(pre_transform(code, kwargs))))
 rewrite = lambda x: node(pyext.rewrite(take(strtobytes(x))))
 rewrite_chunk = lambda x: node(pyext.rewrite_chunk(take(strtobytes(x))))
-pretty_compile = lambda x: map(node, pyext.pretty_compile(strtobytes(x)))
-pretty_compile_chunk = lambda x: map(node, pyext.pretty_compile_chunk(strtobytes(x)))
-pretty_compile_lll = lambda x: map(node, pyext.pretty_compile_lll(take(strtobytes(x))))
+pretty_compile = lambda code, **kwargs: map(node, pyext.pretty_compile(strtobytes(pre_transform(code, kwargs))))
+pretty_compile_chunk = lambda code, **kwargs: map(node, pyext.pretty_compile_chunk(strtobytes(pre_transform(code, kwargs))))
+pretty_compile_lll = lambda code, **kwargs: map(node, pyext.pretty_compile_lll(take(strtobytes(pre_transform(code, kwargs)))))
 serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
 deserialize = lambda x: map(node, pyext.deserialize(strtobytes(x)))
-mk_signature = lambda x: pyext.mk_signature(strtobytes(x))
-mk_full_signature = lambda x: json.loads(pyext.mk_full_signature(strtobytes(x)))
-mk_contract_info_decl = lambda x: json.loads(pyext.mk_contract_info_decl(strtobytes(x)))
+mk_signature = lambda code, **kwargs: pyext.mk_signature(strtobytes(pre_transform(code, kwargs)))
+mk_full_signature = lambda code, **kwargs: json.loads(pyext.mk_full_signature(strtobytes(pre_transform(code, kwargs))))
+mk_contract_info_decl = lambda code, **kwargs: json.loads(pyext.mk_contract_info_decl(strtobytes(pre_transform(code, kwargs))))
 get_prefix = lambda x: pyext.get_prefix(strtobytes(x)) % 2**32
 
 if sys.version_info.major == 2:
