@@ -85,9 +85,8 @@ def pre_transform(code, params):
     code2 = ''
     for k, v in params.items():
         if isinstance(v, (str, bytes, unicode)):
-            v = '"' + v + '"'
+            v = '"' + str(v) + '"'
         code2 += 'macro $%s:\n    %s\n' % (k, v)
-    print code2 + code
     return code2 + code
 
 compile = lambda code, **kwargs: pyext.compile(strtobytes(pre_transform(code, kwargs)))
@@ -202,18 +201,27 @@ def main():
     else:
         cmd = sys.argv[2] if sys.argv[1] == '-s' else sys.argv[1]
         if sys.argv[1] == '-s':
-            args = [sys.stdin.read()] + sys.argv[3:]
+            argz = [sys.stdin.read()] + sys.argv[3:]
         elif sys.argv[1] == '-v':
             print(VERSION)
             sys.exit()
         else:
             cmd = sys.argv[1]
-            args = sys.argv[2:]
-        kwargs = {}
+            argz = sys.argv[2:]
+        args, kwargs = [], {}
+        i = 0
+        while i < len(argz):
+            if argz[i][:2] == '--':
+                kwargs[argz[i][2:]] = argz[i+1]
+                i += 2
+            else:
+                args.append(argz[i])
+                i += 1
         if cmd in ['deserialize', 'decode_datalist', 'decode_abi']:
             args[0] = args[0].strip().decode('hex')
         if cmd in ['encode_abi']:
             kwargs['source'] = 'cmdline'
+        print cmd, args, kwargs
         o = globals()[cmd](*args, **kwargs)
         if isinstance(o, (Token, Astnode, dict, list)):
             print(repr(o))

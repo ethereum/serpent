@@ -418,7 +418,7 @@ preprocessResult preprocessInit(Node inp) {
                 std::vector<uint8_t> functionPrefix = getSigHash(fun, inTypes);
                 functionMetadata f 
                     = functionMetadata(functionPrefix, inTypes, strvec(), outType);
-                if (out.externs.count(fun))
+                if (out.externs.count(fun) and out.externs[fun].prefix != functionPrefix)
                     out.externs[fun].ambiguous = true;
                 else
                     out.externs[fun] = f;
