@@ -43,6 +43,8 @@ std::vector<std::string> getArgTypes(std::vector<Node> args) {
             o.push_back("bytes");
         else if (args[i].val == ":" && args[i].args[1].val == "arr")
             o.push_back("int256[]");
+        else if (args[i].val == ":" && args[i].args[1].val == "access")
+            o.push_back(args[i].args[1].args[0].val + "[]");
         else if (args[i].val == ":" && args[i].args[1].val == "int")
             o.push_back("int256");
         else if (args[i].val == ":" && (args[i].args[1].val == "s" ||
@@ -285,6 +287,8 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
             haveVarg = true;
             if (tag == "str" || tag == "bytes" || tag == "string")
                 varTypes.push_back(BYTES);
+            else if (tag == "access")
+                varTypes.push_back(ARRAY);
             else if (isArrayType(tag))
                 varTypes.push_back(ARRAY);
             else {
