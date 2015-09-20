@@ -25,7 +25,8 @@ class functionMetadata {
         functionMetadata(std::vector<uint8_t> _prefix=zeroes(32),
                          strvec _argTypes=strvec(), strvec _argNames=strvec(),
                          std::string _ot="int256",
-                         std::vector<bool> _indexed=falses(0)) {
+                         std::vector<bool> _indexed=falses(0),
+                         bool _constant=false) {
             prefix = _prefix;
             id = getLeading4Bytes(prefix);
             argTypes = _argTypes;
@@ -34,6 +35,7 @@ class functionMetadata {
             indexed = _indexed;
             if (!indexed.size()) indexed = falses(argNames.size());
             ambiguous = false;
+            constant = _constant;
         }
         int id;
         std::vector<uint8_t> prefix;
@@ -42,6 +44,7 @@ class functionMetadata {
         std::vector<bool> indexed;
         std::string outType;
         bool ambiguous;
+        bool constant;
 };
 
 class typeMetadata {

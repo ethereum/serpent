@@ -308,6 +308,15 @@ preprocessResult preprocessInit(Node inp) {
         if (obj.val == "def") {
             if (obj.args.size() == 0)
                 err("Empty def", m);
+            // Check if method is constant
+            bool isConstant = false;
+            if (obj.args[0].val == "const") {
+                std::vector<Node> nargs;
+                for (unsigned i = 1; i < obj.args.size(); i++)
+                    nargs.push_back(obj.args[i]);
+                obj.args = nargs;
+                isConstant = true;
+            }
             // Determine name, arguments, return type, body
             std::string funName = obj.args[0].val;
             std::vector<Node> funArgs = obj.args[0].args;
@@ -348,6 +357,7 @@ preprocessResult preprocessInit(Node inp) {
                 functions.push_back(convFunction(prefix4, funArgs, body));
                 functionMetadata f = 
                     functionMetadata(functionPrefix, argTypes, argNames, funReturnType);
+                f.constant = isConstant;
                 out.interns[funName] = f;
                 out.interns[funName + "::" + functionPrefixToHex(getLeading4Bytes(functionPrefix))] = f;
                 functionPrefixesUsed[prefix4] = obj.args[0].val;
@@ -613,8 +623,10 @@ std::string mkFullExtern(Node n) {
     std::string o = "[";
     for (unsigned i = 0; i < outNames.size(); i++) {
         std::string summary = getSummary(outNames[i], outMetadata[i].argTypes);
+        std::string constant = outMetadata[i].constant ? "true" : "false";
         o += "{\n    \"name\": \""+summary+"\",\n";
         o += "    \"type\": \"function\",\n";
+        o += "    \"constant\": " + constant + ",\n";
         o += "    \"inputs\": [";
         for (unsigned j = 0; j < outMetadata[i].argTypes.size(); j++) {
             o += "{ \"name\": \""+outMetadata[i].argNames[j]+
