@@ -4,7 +4,7 @@ import re
 import binascii
 import json
 
-VERSION = '2.0.0'
+VERSION = '2.0.1'
 
 def strtobytes(x):
     return x.encode('ascii') if isinstance(x, str) else x
@@ -101,7 +101,7 @@ pretty_compile = lambda code, **kwargs: map(node, pyext.pretty_compile(strtobyte
 pretty_compile_chunk = lambda code, **kwargs: map(node, pyext.pretty_compile_chunk(strtobytes(pre_transform(code, kwargs))))
 pretty_compile_lll = lambda code, **kwargs: map(node, pyext.pretty_compile_lll(take(strtobytes(pre_transform(code, kwargs)))))
 serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
-deserialize = lambda x: map(node, pyext.deserialize(strtobytes(x)))
+deserialize = lambda x: map(node, pyext.deserialize(x))
 mk_signature = lambda code, **kwargs: pyext.mk_signature(strtobytes(pre_transform(code, kwargs)))
 mk_full_signature = lambda code, **kwargs: json.loads(pyext.mk_full_signature(strtobytes(pre_transform(code, kwargs))))
 mk_contract_info_decl = lambda code, **kwargs: json.loads(pyext.mk_contract_info_decl(strtobytes(pre_transform(code, kwargs))))
@@ -221,7 +221,6 @@ def main():
             args[0] = args[0].strip().decode('hex')
         if cmd in ['encode_abi']:
             kwargs['source'] = 'cmdline'
-        print cmd, args, kwargs
         o = globals()[cmd](*args, **kwargs)
         if cmd in ['mk_full_signature', 'mk_contract_info_decl']:
             print json.dumps(o)
