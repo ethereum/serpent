@@ -55,19 +55,19 @@ std::string macros[][2] = {
     },
     {
         "(min $a $b)",
-        "(with $1 $a (with $2 $b (if (lt $1 $2) $1 $2)))"
-    },
-    {
-        "(max $a $b)",
-        "(with $1 $a (with $2 $b (if (lt $1 $2) $2 $1)))"
-    },
-    {
-        "(smin $a $b)",
         "(with $1 $a (with $2 $b (if (slt $1 $2) $1 $2)))"
     },
     {
-        "(smax $a $b)",
+        "(max $a $b)",
         "(with $1 $a (with $2 $b (if (slt $1 $2) $2 $1)))"
+    },
+    {
+        "(unsigned_min $a $b)",
+        "(with $1 $a (with $2 $b (if (lt $1 $2) $1 $2)))"
+    },
+    {
+        "(unsigned_max $a $b)",
+        "(with $1 $a (with $2 $b (if (lt $1 $2) $2 $1)))"
     },
     {
         "(if $cond $do (else $else))",

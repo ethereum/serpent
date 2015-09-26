@@ -164,7 +164,7 @@ std::string inferType(Node node) {
             if (node.args[0].args[1].type == ASTNODE) {
                 if (node.args[0].args[1].val == "access" &&
                     node.args[0].args[1].args.size() == 1)
-                    cur = node.args[0].args[1].args[0].val;
+                    cur = node.args[0].args[1].args[0].val + "[]";
                 else
                     err("Invalid type: "+printSimple(node.args[0].args[1]), m);
             }
