@@ -3,6 +3,7 @@ import sys
 import re
 import binascii
 import json
+import os
 
 VERSION = '2.0.1'
 
@@ -78,15 +79,13 @@ def takelist(x):
 
 
 def pre_transform(code, params):
-    try:
-        code = open(code).read()
-    except:
-        pass
     code2 = ''
     for k, v in params.items():
         if isinstance(v, (str, bytes, unicode)):
             v = '"' + str(v) + '"'
         code2 += 'macro $%s:\n    %s\n' % (k, v)
+    if os.path.exists(code):
+        return code2 + "inset('" + code + "')"
     return code2 + code
 
 compile = lambda code, **kwargs: pyext.compile(strtobytes(pre_transform(code, kwargs)))
