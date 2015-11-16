@@ -1,5 +1,5 @@
 P_______P = -4294968273
-type modint: [m_ax, m_ay, m_azr m_bx, m_by, m_bz, m_ysq, m_s, m_m, m_nx, m_ny, m_nz]
+type modint: m_
 
 macro modint($x) + modint($y):
     modint(addmod($x, $y, P_______P))

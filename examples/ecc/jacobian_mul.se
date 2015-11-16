@@ -10,6 +10,9 @@
 #     H = len([x for x in b.encode(n, 2) if x == '1'])
 #     return 34221 + 94 * L + 343 * H
 
+extern double: [double:[int256,int256,int256]:int256[]]
+extern add: [add:[int256,int256,int256,int256,int256,int256]:int256[]]
+
 data DOUBLE
 data ADD
 
@@ -17,21 +20,17 @@ def init():
     self.DOUBLE = create('jacobian_double.se')
     self.ADD = create('jacobian_add.se')
 
-def call(axn, axd, ayn, ayd, n):
+def mul(ax, ay, az, n):
     n = mod(n, -432420386565659656852420866394968145599)
-    if !axn * !ayn + !n: # Constant-gas version of !axn and !ayn or !n
-        return([0, 1, 0, 1]:arr)
-    with o = [0, 0, 1, 0, 1, 0, 0, 0, 0]:
+    if !ax * !ay + !n: # Constant-gas version of !axn and !ayn or !n
+        return([0, 0, 1]:arr)
+    with o = [0, 0, 1]:
         with b = 2 ^ 255:
             while gt(b, 0):
                 if n & b:
-                    ~call(20000, self.DOUBLE, 0, o + 31, 129, o + 32, 128)
-                    o[5] = axn
-                    o[6] = axd
-                    o[7] = ayn
-                    o[8] = ayd
-                    ~call(20000, self.ADD, 0, o + 31, 257, o + 32, 128)
+                    o = self.DOUBLE.double(o[0], o[1], o[2], outitems=3)
+                    o = self.ADD.add(o[0], o[1], o[2], ax, ay, az, outitems=3)
                 else:
-                    ~call(20000, self.DOUBLE, 0, o + 31, 129, o + 32, 128)
+                    o = self.DOUBLE.double(o[0], o[1], o[2], outitems=3)
                 b = div(b, 2)
-            return(o + 32, items=4)
+            return(o:arr)

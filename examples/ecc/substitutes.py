@@ -19,7 +19,7 @@ def binary_length(n):
 
 def jacobian_mul_substitute(A, B, C, N):
     output = b.jacobian_multiply((A, B, C), N)
-    return signed(list(output[0]) + list(output[1]))
+    return signed(output)
 
 
 def jacobian_add_substitute(A, B, C, D, E, F):
@@ -43,7 +43,7 @@ def ecrecover_substitute(z, v, r, s):
     y = beta if v % 2 ^ beta % 2 else (P - beta)
     Gz = b.jacobian_multiply((Gx, Gy, 1), (N - z) % N)
     XY = b.jacobian_multiply((x, y, 1), s)
-    Qr = b.jordan_add(Gz, XY)
-    Q = b.jordan_multiply(Qr, pow(r, N - 2, N))
-    Q = b.from_jordan(Q)
+    Qr = b.jacobian_add(Gz, XY)
+    Q = b.jacobian_multiply(Qr, pow(r, N - 2, N))
+    Q = b.from_jacobian(Q)
     return signed(Q)

@@ -1,33 +1,53 @@
 inset('modint.type')
-extern all: [double:[int256,int256,int256,int256]:int256[]]
-data DOUBLE
 
-def init():
-    self.DOUBLE = create('jacobian_double.se')
+def mul(ax, ay, az, n):
+    n = mod(n, -432420386565659656852420866394968145599)
+    if !ax * !ay + !n: # Constant-gas version of !axn and !ayn or !n
+        return([0, 0, 1]:arr)
+    with o = [0, 0, 1]:
+        with b = 2 ^ 255:
+            while gt(b, 0):
+                if n & b:
+                    o = self.DOUBLE.double(o[0], o[1], o[2], outitems=3)
+                    o = self.ADD.add(o[0], o[1], o[2], ax, ay, az, outitems=3)
+                else:
+                    o = self.DOUBLE.double(o[0], o[1], o[2], outitems=3)
+                b = div(b, 2)
+            return(o:arr)
 
-def add(m_axn, m_axd, m_ayn, m_ayd, m_bxn, m_bxd, m_byn, m_byd):
-    if !m_axn and !m_ayn:
-        o = [m_bxn, m_bxd, m_byn, m_byd]
-    if !m_bxn and !m_byn:
-        o = [m_axn, m_axd, m_ayn, m_ayd]
-    if o:
-        return(o:arr)
-    with P_______P = -4294968273:
-        if m_axn * m_bxd - m_axd * m_bxn == m(0):
-            if m_ayn * m_byd - m_ayd * m_byn == m(0):
-                return(self.DOUBLE.double(m_axn, m_axd, m_ayn, m_ayd, outitems=4):arr)
-            else:
-                return([0, 1, 0, 1]:arr)
-        with m_mn = (m_byn * m_ayd - m_ayn * m_byd) * m_axd * m_bxd:
-            with m_md = m_byd * m_ayd * (m_bxn * m_axd - m_axn * m_bxd):
-                with m_msqn = m_mn * m_mn:
-                    with m_msqd = m_md * m_md:
-                        with m_msqman = m_msqn * m_axd - m_msqd * m_axn:
-                            with m_msqmad = m_msqd * m_axd:
-                                with m_xn = m_msqman * m_bxd - m_msqmad * m_bxn:
-                                    with m_xd = m_msqmad * m_bxd:
-                                        with m_mamxn = m_mn * (m_axn * m_xd - m_xn * m_axd):
-                                            with m_mamxd = m_md * m_axd * m_xd:
-                                                with m_yn = m_mamxn * m_ayd - m_mamxd * m_ayn:
-                                                    with m_yd = m_mamxd * m_ayd:
-                                                        return([m_xn, m_xd, m_yn, m_yd]:arr)
+def add(m_ax, m_ay, m_az, m_bx, m_by, m_bz):
+    if !m_ay:
+        return([m_bx, m_by, m_bz]:arr)
+    if !m_by:
+        return([m_ax, m_ay, m_az]:arr)
+    with P = -4294968273:
+        with m_u1 = m_ax * m_bz * m_bz:
+            with m_u2 = m_bx * m_az * m_az:
+                with m_s1 = m_ay * m_bz * m_bz * m_bz:
+                    with m_s2 = m_by * m_az * m_az * m_az:
+                        if m_u1 == m_u2:
+                            if m_s1 != m_s2:
+                                return([0, 0, 1]:arr)
+                            else:
+                                return(self.DOUBLE.double(m_ax, m_ay, m_az, outitems=3):arr)
+                        with m_h = m_u2 - m_u1:
+                            with m_r = m_s2 - m_s1:
+                                with m_h2 = m_h * m_h:
+                                    with m_h3 = m_h * m_h2:
+                                        with m_u1h2 = m_u1 * m_h2:
+                                            with m_nx = m_r * m_r - m_h3 - m(2) * m_u1h2:
+                                                with m_ny = m_r * (m_u1h2 - m_nx) - m_s1 * m_h3:
+                                                    with m_nz = m_h * m_az * m_bz:
+                                                        return([m_nx, m_ny, m_nz]:arr)
+
+def double(m_ax, m_ay, m_az):
+    if !m_ay:
+        return([0, 0, 0]:arr)
+    with P = -4294968273:
+        with m_ysq = m_ay * m_ay:
+            with m_s = m(4) * m_ax * m_ysq:
+                with m_m = m(3) * m_ax * m_ax:
+                    with m_nx = m_m * m_m - m(2) * m_s:
+                        with m_ny = m_m * (m_s - m_nx) - m(8) * m_ysq * m_ysq:
+                            with m_nz = m(2) * m_ay * m_az:
+                                return([m_nx, m_ny, m_nz]:arr)

@@ -18,8 +18,8 @@ def neg_point(p):
     return [p[0], b.P - p[1], p[2]]
 
 s = t.state()
-s.block.gas_limit = 10000000
-t.gas_limit = 1000000
+s.block.gas_limit = 100000000
+t.gas_limit = 3000000
 
 tests = sys.argv[1:]
 
@@ -37,7 +37,7 @@ if '--modexp' in tests or not len(tests):
 
 if '--double' in tests or not len(tests):
     print "Starting doubling tests"
-    c = s.abi_contract('jacobian_double.se')
+    c = s.abi_contract('jacobian_arith.se')
     for i in range(5):
         print 'trying doubling test', vals[i]
         P = b.to_jacobian(b.privtopub(vals[i]))
@@ -47,13 +47,24 @@ if '--double' in tests or not len(tests):
 
 if '--add' in tests or not len(tests):
     print "Starting addition tests"
-    c = s.abi_contract('jacobian_add.se')
+    c = s.abi_contract('jacobian_arith.se')
     for i in range(5):
         print 'trying addition test', vals[i * 2], vals[i * 2 + 1]
         P = b.to_jacobian(b.privtopub(vals[i * 2]))
         Q = b.to_jacobian(b.privtopub(vals[i * 2 + 1]))
         o1 = substitutes.jacobian_add_substitute(*(list(P) + list(Q)))
         o2 = c.add(*(list(P) + list(Q)))
+        assert o1 == o2, (o1, o2)
+
+if '--mul' in tests or not len(tests):
+    print "Starting multiplication tests"
+    c = s.abi_contract('jacobian_arith.se')
+    for i in range(5):
+        print 'trying multiplication test', vals[i * 2], vals[i * 2 + 1]
+        P = b.to_jacobian(b.privtopub(vals[i * 2]))
+        q = vals[i * 2 + 1]
+        o1 = substitutes.jacobian_mul_substitute(*(list(P) + [q]))
+        o2 = c.mul(*(list(P) + [q]))
         assert o1 == o2, (o1, o2)
         
 
@@ -70,10 +81,9 @@ if '--ecrecover' in tests or not len(tests):
         o1 = substitutes.ecrecover_substitute(h, V, R, S)
         print 'sub', time.time() - aa
         a = time.time()
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=[h, V, R, S])
-        print time.time() - a
-        # assert o1["gas"] == o2["gas"], (o1, o2, h, V, R, S)
-        assert o1["output"] == o2["output"], (o1, o2, h, V, R, S)
+        o2 = c.ecrecover(h, V, R, S)
+        print 'time', time.time() - a, 'gas', s.block.get_receipts()[-1].gas_used - s.block.get_receipts()[-2].gas_used
+        assert o1 == o2, (o1, o2)
 
     # Explicit tests
 
@@ -86,6 +96,5 @@ if '--ecrecover' in tests or not len(tests):
 
     for datum in data:
         o1 = substitutes.ecrecover_substitute(*datum)
-        o2 = s.profile(t.k0, c, 0, funid=0, abi=datum)
-        # assert o1["gas"] == o2["gas"], (o1, o2, datum)
-        assert o1["output"] == o2["output"], (o1, o2, datum)
+        o2 = c.ecrecover(*datum)
+        assert o1 == o2, (o1, o2)
