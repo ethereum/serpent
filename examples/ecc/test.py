@@ -32,12 +32,33 @@ if '--modexp' in tests or not len(tests):
 
     for i in range(0, len(vals) - 2, 3):
         o1 = substitutes.modexp_substitute(vals[i], vals[i+1], vals[i+2])
-        o2 = c.call(vals[i], vals[i+1], vals[i+2], profiling=1)
-        # assert o1["gas"] == o2["gas"], (o1, o2)
-        assert o1["output"] == o2["output"], (o1, o2)
+        o2 = c.exp(vals[i], vals[i+1], vals[i+2])
+        assert o1 == o2, (o1, o2)
+
+if '--double' in tests or not len(tests):
+    print "Starting doubling tests"
+    c = s.abi_contract('jacobian_double.se')
+    for i in range(5):
+        print 'trying doubling test', vals[i]
+        P = b.to_jacobian(b.privtopub(vals[i]))
+        o1 = substitutes.jacobian_double_substitute(*list(P))
+        o2 = c.double(*(list(P)))
+        assert o1 == o2, (o1, o2)
+
+if '--add' in tests or not len(tests):
+    print "Starting addition tests"
+    c = s.abi_contract('jacobian_add.se')
+    for i in range(5):
+        print 'trying addition test', vals[i * 2], vals[i * 2 + 1]
+        P = b.to_jacobian(b.privtopub(vals[i * 2]))
+        Q = b.to_jacobian(b.privtopub(vals[i * 2 + 1]))
+        o1 = substitutes.jacobian_add_substitute(*(list(P) + list(Q)))
+        o2 = c.add(*(list(P) + list(Q)))
+        assert o1 == o2, (o1, o2)
+        
 
 if '--ecrecover' in tests or not len(tests):
-    c = s.contract('ecrecover.se')
+    c = s.abi_contract('ecrecover.se')
     print "Starting ecrecover tests"
 
     for i in range(5):

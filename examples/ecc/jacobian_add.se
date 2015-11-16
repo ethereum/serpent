@@ -1,5 +1,5 @@
 inset('modint.type')
-extern all: [call:[int256,int256,int256,int256]:int256[]]
+extern all: [double:[int256,int256,int256,int256]:int256[]]
 data DOUBLE
 
 def init():

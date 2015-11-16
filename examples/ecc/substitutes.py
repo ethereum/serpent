@@ -19,25 +19,21 @@ def binary_length(n):
 
 def jacobian_mul_substitute(A, B, C, N):
     output = b.jacobian_multiply((A, B, C), N)
-    return {
-        "gas": 35262 + 95 * binary_length(N % b.N) + 355 * hamming_weight(N % b.N),
-        "output": signed(list(output[0]) + list(output[1]))
-    }
+    return signed(list(output[0]) + list(output[1]))
 
 
 def jacobian_add_substitute(A, B, C, D, E, F):
     output = b.jacobian_add((A, B, C), (D, E, F))
-    return {
-        "gas": 0,
-        "output": signed(output)
-    }
+    return signed(output)
+
+
+def jacobian_double_substitute(A, B, C):
+    output = b.jacobian_double((A, B, C))
+    return signed(output)
 
 
 def modexp_substitute(base, exp, mod):
-    return {
-        "gas": 5150,
-        "output": signed(pow(base, exp, mod) if mod > 0 else 0)
-    }
+    return signed(pow(base, exp, mod) if mod > 0 else 0)
 
 
 def ecrecover_substitute(z, v, r, s):
@@ -50,7 +46,4 @@ def ecrecover_substitute(z, v, r, s):
     Qr = b.jordan_add(Gz, XY)
     Q = b.jordan_multiply(Qr, pow(r, N - 2, N))
     Q = b.from_jordan(Q)
-    return {
-        "gas": 0,
-        "output": signed(Q)
-    }
+    return signed(Q)

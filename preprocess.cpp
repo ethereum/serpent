@@ -498,10 +498,15 @@ preprocessResult preprocessInit(Node inp) {
         }
         // Variable types
         else if (obj.val == "type") {
-            std::string typeName = obj.args[0].val;
-            std::vector<Node> vars = obj.args[1].args;
-            for (unsigned i = 0; i < vars.size(); i++)
-                out.types[vars[i].val] = typeName;
+            if (obj.args[1].type == TOKEN) {
+                out.types["_prefix:"+obj.args[1].val] = obj.args[0].val;
+            }
+            else {
+                std::string typeName = obj.args[0].val;
+                std::vector<Node> vars = obj.args[1].args;
+                for (unsigned i = 0; i < vars.size(); i++)
+                    out.types[vars[i].val] = typeName;
+            }
         }
         // Storage variables/structures
         else if (obj.val == "data") {
@@ -554,9 +559,20 @@ preprocessResult preprocessInit(Node inp) {
 preprocessResult processTypes (preprocessResult pr) {
     preprocessAux aux = pr.second;
     Node node = pr.first;
-    if (node.type == TOKEN && aux.types.count(node.val))
-        node = asn(aux.types[node.val], node, node.metadata);
-    else if (node.val == "untyped")
+    if (node.type == TOKEN && aux.types.size()) {
+        if (aux.types.count(node.val)) {
+            node = asn(aux.types[node.val], node, node.metadata);
+            return preprocessResult(node, aux);
+        }
+        for (int i = node.val.size() - 1; i >= 1; i--) {
+            std::string prefix = "_prefix:"+node.val.substr(0, i);
+            if (aux.types.count(prefix)) {
+                node = asn(aux.types[prefix], node, node.metadata);
+                return preprocessResult(node, aux);
+            }
+        }
+    }
+    if (node.val == "untyped")
         return preprocessResult(node.args[0], aux);
     else if (node.val == "outer")
         return preprocessResult(node, aux);
