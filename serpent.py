@@ -5,7 +5,7 @@ import binascii
 import json
 import os
 
-VERSION = '2.0.1'
+VERSION = '2.0.2'
 
 def strtobytes(x):
     return x.encode('ascii') if isinstance(x, str) else x

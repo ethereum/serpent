@@ -64,7 +64,9 @@ if '--mul' in tests or not len(tests):
         P = b.to_jacobian(b.privtopub(vals[i * 2]))
         q = vals[i * 2 + 1]
         o1 = substitutes.jacobian_mul_substitute(*(list(P) + [q]))
+        a = time.time()
         o2 = c.mul(*(list(P) + [q]))
+        print 'time', time.time() - a, 'gas', s.block.get_receipts()[-1].gas_used - s.block.get_receipts()[-2].gas_used
         assert o1 == o2, (o1, o2)
         
 

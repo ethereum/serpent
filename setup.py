@@ -13,7 +13,7 @@ setup(
     name="ethereum-serpent",
 
     # Package version
-    version='2.0.1',
+    version='2.0.2',
 
     description='Serpent compiler',
     maintainer='Vitalik Buterin',
