@@ -3,37 +3,32 @@
 # that I created. It may possible to achieve a further 20-50% savings by applying 
 # that version.
 
-extern jacobian_arith.se: [add:[int256,int256,int256,int256,int256,int256]:int256[], double:[int256,int256,int256]:int256[], mul:[int256,int256,int256,int256]:int256[]]
+extern modint.type: [add:[int256,int256,int256,int256,int256,int256]:int256[], double:[int256,int256,int256]:int256[], exp:[int256,int256,int256]:int256, mul:[int256,int256,int256,int256]:int256[], recover_y:[int256,int256]:_]
 extern modexp.se: [exp:[int256,int256,int256]:int256]
 
 data JACOBIAN_ARITH
 data EXP
 
+N = -432420386565659656852420866394968145599
+P = -4294968273
+
 def init():
     self.JACOBIAN_ARITH = create('jacobian_arith.se')
-    self.EXP = create('modexp.se')
 
 def ecrecover(h, v, r, s):
-    N = -432420386565659656852420866394968145599
-    P = -4294968273
     h = mod(h, N)
     r = mod(r, P)
     s = mod(s, N)
     Gx = 55066263022277343669578718895168534326250603453777594175500187360389116729240
     Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
     x = r
-    xcubed = mulmod(mulmod(x, x, P), x, P)
-    beta = self.EXP.exp(addmod(xcubed, 7, P), div(P + 1, 4), P)
-    
-    # Static-gascost ghetto conditional
-    y_is_positive = mod(v, 2) xor mod(beta, 2)
-    y = beta * y_is_positive + (P - beta) * (1 - y_is_positive)
+    y = self.JACOBIAN_ARITH.recover_y(x, mod(v, 2))
     
     GZ = self.JACOBIAN_ARITH.mul(Gx, Gy, 1, N - h, outitems=3)
     XY = self.JACOBIAN_ARITH.mul(x, y, 1, s, outitems=3)
     COMB = self.JACOBIAN_ARITH.add(GZ[0], GZ[1], GZ[2], XY[0], XY[1], XY[2], outsz=3)
-    invr = self.EXP.exp(r, N - 2, N)
+    invr = self.JACOBIAN_ARITH.exp(r, N - 2, N)
     Q = self.JACOBIAN_ARITH.mul(COMB[0], COMB[1], COMB[2], invr, outsz=3)
-    ox = mulmod(Q[0], self.EXP.exp(Q[2], P - 3, P), P)
-    oy = mulmod(Q[1], self.EXP.exp(Q[2], P - 4, P), P)
+    ox = mulmod(Q[0], self.JACOBIAN_ARITH.exp(Q[2], P - 3, P), P)
+    oy = mulmod(Q[1], self.JACOBIAN_ARITH.exp(Q[2], P - 4, P), P)
     return([ox, oy]:arr)

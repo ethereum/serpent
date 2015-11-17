@@ -27,7 +27,7 @@ if '--log' in tests:
     t.set_logging_level(int((tests+[1])[tests.index('--log') + 1]))
 
 if '--modexp' in tests or not len(tests):
-    c = s.abi_contract('modexp.se')
+    c = s.abi_contract('jacobian_arith.se')
     print "Starting modexp tests"
 
     for i in range(0, len(vals) - 2, 3):
@@ -42,8 +42,9 @@ if '--double' in tests or not len(tests):
         print 'trying doubling test', vals[i]
         P = b.to_jacobian(b.privtopub(vals[i]))
         o1 = substitutes.jacobian_double_substitute(*list(P))
-        o2 = c.double(*(list(P)))
-        assert o1 == o2, (o1, o2)
+        o2 = c.double(*(list(P)), profiling=2)
+        print "gas", o2["gas"], "time", o2["time"], "ops", o2["ops"]
+        assert o1 == o2["output"], (o1, o2)
 
 if '--add' in tests or not len(tests):
     print "Starting addition tests"
@@ -53,8 +54,9 @@ if '--add' in tests or not len(tests):
         P = b.to_jacobian(b.privtopub(vals[i * 2]))
         Q = b.to_jacobian(b.privtopub(vals[i * 2 + 1]))
         o1 = substitutes.jacobian_add_substitute(*(list(P) + list(Q)))
-        o2 = c.add(*(list(P) + list(Q)))
-        assert o1 == o2, (o1, o2)
+        o2 = c.add(*(list(P) + list(Q)), profiling=2)
+        print "gas", o2["gas"], "time", o2["time"], "ops", o2["ops"]
+        assert o1 == o2["output"], (o1, o2)
 
 if '--mul' in tests or not len(tests):
     print "Starting multiplication tests"
@@ -65,9 +67,9 @@ if '--mul' in tests or not len(tests):
         q = vals[i * 2 + 1]
         o1 = substitutes.jacobian_mul_substitute(*(list(P) + [q]))
         a = time.time()
-        o2 = c.mul(*(list(P) + [q]))
-        print 'time', time.time() - a, 'gas', s.block.get_receipts()[-1].gas_used - s.block.get_receipts()[-2].gas_used
-        assert o1 == o2, (o1, o2)
+        o2 = c.mul(*(list(P) + [q]), profiling=1)
+        print "gas", o2["gas"], "time", o2["time"]
+        assert o1 == o2["output"], (o1, o2)
         
 
 if '--ecrecover' in tests or not len(tests):
