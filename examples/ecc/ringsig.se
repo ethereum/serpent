@@ -1,0 +1,48 @@
+# TOTALLY NOT TESTED AND LIKELY BROKEN AT THIS POINT; AWAITING A TEST SUITE
+
+extern modint.type: [add:[int256,int256,int256,int256,int256,int256]:int256[], decompose:[int256[]]:int256[], double:[int256,int256,int256]:int256[], exp:[int256,int256,int256]:int256, mul:[int256,int256,int256,int256]:int256[], recover_y:[int256,int256]:int256]
+Gx = 55066263022277343669578718895168534326250603453777594175500187360389116729240
+Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
+
+macro ecmul($x, $y, $z, $n):
+    self.JACOBIAN_ARITH.mul($x, $y, $z, $n, outitems=3)
+
+macro ecadd($x1, $y1, $z1, $x2, $y2, $z2):
+    self.JACOBIAN_ARITH.add($x1, $y1, $z1, $x2, $y2, $z2, outitems=3)
+
+macro ecsubtract($a, $b):
+    self.JACOBIAN_ARITH.add($a[0], $a[1], $a[2], $b[0], P_______P - $b[1], $b[2], outitems=3)
+
+macro decompose($x):
+    self.JACOBIAN_ARITH.decompose($x, outitems=2)
+
+macro bit($data, $bit):
+    (mload($data - 31) / 2**($bit % 8)) % 2
+
+macro recover_y($x, $y):
+    self.JACOBIAN_ARITH.recover_y($x, $y)
+
+data JACOBIAN_ARITH
+
+def init():
+    self.JACOBIAN_ARITH = create('jacobian_arith.se')
+
+def verify(msgHash:bytes32, sigHash:bytes32, s:bytes32[], Ix:bytes32, Iy:bool, pub_xs:bytes32[], pub_ys:bytes):
+    n = len(pub_xs)
+    e = array(n + 1)
+    e[0] = [sigHash, sha3(sigHash)]
+    i = 1
+    while i < n + 1:
+        prev_i = i - 1
+        prev_i = (i - 1) % n
+        k1 = ecmul(Gx, Gy, 1, s[prev_i])
+        k2 = ecmul(pub_xs[i], recover_y(pub_xs[i], bit(pub_ys, i)), 1, e[prev_i][1])
+        k_left = decompose(ecsubtract(k1, k2))
+        k3x = sha3(pub_xs[i])
+        k3 = ecmul(k3x, recover_y(k3x, bit(pub_ys, i)), 1, s[prev_i])
+        k4 = ecmul(Ix, recover_y(Ix, Iy), 1, e[prev_i][1])
+        k_right = decompose(ecsubtract(k2, k4))
+        left = sha3([msgHash, k_left[0], k_left[1], k_right[0], k_right[1]]:arr)
+        right = sha3(left)
+        e[i] = [left, right]
+    return(e[n][0] == e[0][0] and e[n][1] == e[0][1]:bool)

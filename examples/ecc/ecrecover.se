@@ -3,7 +3,7 @@
 # that I created. It may possible to achieve a further 20-50% savings by applying 
 # that version.
 
-extern modint.type: [add:[int256,int256,int256,int256,int256,int256]:int256[], double:[int256,int256,int256]:int256[], exp:[int256,int256,int256]:int256, mul:[int256,int256,int256,int256]:int256[], recover_y:[int256,int256]:_]
+extern modint.type: [add:[int256,int256,int256,int256,int256,int256]:int256[], decompose:[int256[]]:int256[], double:[int256,int256,int256]:int256[], exp:[int256,int256,int256]:int256, mul:[int256,int256,int256,int256]:int256[], recover_y:[int256,int256]:int256]
 extern modexp.se: [exp:[int256,int256,int256]:int256]
 
 data JACOBIAN_ARITH
@@ -28,6 +28,4 @@ def ecrecover(h, v, r, s):
     COMB = self.JACOBIAN_ARITH.add(GZ[0], GZ[1], GZ[2], XY[0], XY[1], XY[2], outsz=3)
     invr = self.JACOBIAN_ARITH.exp(r, N - 2, N)
     Q = self.JACOBIAN_ARITH.mul(COMB[0], COMB[1], COMB[2], invr, outsz=3)
-    ox = mulmod(Q[0], self.JACOBIAN_ARITH.exp(Q[2], P - 3, P), P)
-    oy = mulmod(Q[1], self.JACOBIAN_ARITH.exp(Q[2], P - 4, P), P)
-    return([ox, oy]:arr)
+    return(self.JACOBIAN_ARITH.decompose(Q, outitems=2):arr)

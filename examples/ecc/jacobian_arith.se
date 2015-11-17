@@ -122,3 +122,10 @@ def exp(b, e, m):
             return(o)
     y_is_positive = y_bit xor mod(beta, 2)
     return(beta * y_is_positive + (P - beta) * (1 - y_is_positive))
+
+
+def decompose(Q:arr):
+    P = -4294968273
+    ox = mulmod(Q[0], self.exp(Q[2], P - 3, P), P)
+    oy = mulmod(Q[1], self.exp(Q[2], P - 4, P), P)
+    return([ox, oy]:arr)
