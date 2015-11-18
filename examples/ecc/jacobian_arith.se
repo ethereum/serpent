@@ -105,7 +105,7 @@ def recover_y(x, y_bit):
     P = -4294968273
     xcubed = mulmod(mulmod(x, x, P), x, P)
     beta = self.exp(addmod(xcubed, 7, P), div(P + 1, 4), P)
-    y_is_positive = y_bit xor mod(beta, 2)
+    y_is_positive = y_bit xor mod(beta, 2) xor 1
     return(beta * y_is_positive + (P - beta) * (1 - y_is_positive))
 
 

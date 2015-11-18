@@ -3,6 +3,7 @@ import random
 import sys
 import math
 from ethereum import tester as t
+from ethereum import utils
 import substitutes
 import time
 
@@ -102,3 +103,31 @@ if '--ecrecover' in tests or not len(tests):
         o1 = substitutes.ecrecover_substitute(*datum)
         o2 = c.ecrecover(*datum)
         assert o1 == o2, (o1, o2)
+
+if '--ringsig' in tests or not len(tests):
+    print "Starting ringsig tests"
+    c = s.abi_contract('ringsig.se')
+    for L in range(2, 6):
+        privs = vals[:L]
+        my_priv = vals[1]
+        pubs = map(b.privtopub, privs)
+        for pub in pubs:
+            assert map(substitutes.signed, list(substitutes.hash_to_pubkey(list(pub)))) == \
+                c.hash_pubkey_to_pubkey(list(pub))
+        pub_xs = [x[0] for x in pubs]
+        pub_ys = []
+        for i, p in enumerate(pubs):
+            if (i % 8) == 0:
+                pub_ys.append(0)
+            pub_ys[-1] += (p[1] % 2) * 2**(i % 8)
+        pub_ys = ''.join(map(chr, pub_ys))
+        msghash = utils.sha3('cow')
+        x0, s_vals, Ix, Iy = substitutes.ringsig_sign_substitute(msghash, my_priv, pub_xs, pub_ys)
+        assert substitutes.ringsig_verify_substitute(msghash, x0, s_vals, Ix, Iy, pub_xs, pub_ys)
+        ogl = t.gas_limit
+        t.gas_limit = 10000000
+        o = c.verify(msghash, x0, s_vals, Ix, Iy, pub_xs, pub_ys, profiling=1)
+        assert o["output"]
+        print 'number of pubkeys', L, 'gas', o["gas"], 'time', o["time"], \
+            'totalgas', s.block.get_receipts()[-1].gas_used - s.block.get_receipts()[-2].gas_used
+        t.gas_limit = ogl

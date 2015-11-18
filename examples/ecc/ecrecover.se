@@ -15,6 +15,8 @@ P = -4294968273
 def init():
     self.JACOBIAN_ARITH = create('jacobian_arith.se')
 
+event PubkeyTripleLogEvent(x:uint256, y:uint256, z:uint256)
+
 def ecrecover(h, v, r, s):
     h = mod(h, N)
     r = mod(r, P)
@@ -22,10 +24,13 @@ def ecrecover(h, v, r, s):
     Gx = 55066263022277343669578718895168534326250603453777594175500187360389116729240
     Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
     x = r
-    y = self.JACOBIAN_ARITH.recover_y(x, mod(v, 2))
+    y = self.JACOBIAN_ARITH.recover_y(x, mod(v, 2) xor 1)
     GZ = self.JACOBIAN_ARITH.mul(Gx, Gy, 1, N - h, outitems=3)
+    log(type=PubkeyTripleLogEvent, GZ[0], GZ[1], GZ[2])
     XY = self.JACOBIAN_ARITH.mul(x, y, 1, s, outitems=3)
+    log(type=PubkeyTripleLogEvent, XY[0], XY[1], XY[2])
     COMB = self.JACOBIAN_ARITH.add(GZ[0], GZ[1], GZ[2], XY[0], XY[1], XY[2], outsz=3)
+    log(type=PubkeyTripleLogEvent, COMB[0], COMB[1], COMB[2])
     invr = self.JACOBIAN_ARITH.exp(r, N - 2, N)
     Q = self.JACOBIAN_ARITH.mul(COMB[0], COMB[1], COMB[2], invr, outsz=3)
     return(self.JACOBIAN_ARITH.decompose(Q, outitems=2):arr)
