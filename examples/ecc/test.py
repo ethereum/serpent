@@ -68,6 +68,7 @@ if '--mul' in tests or not len(tests):
         q = vals[i * 2 + 1]
         o1 = substitutes.jacobian_mul_substitute(*(list(P) + [q]))
         a = time.time()
+        print list(P) + [q]
         o2 = c.mul(*(list(P) + [q]), profiling=1)
         print "gas", o2["gas"], "time", o2["time"]
         assert o1 == o2["output"], (o1, o2)
