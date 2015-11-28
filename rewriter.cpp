@@ -349,6 +349,10 @@ std::string macros[][2] = {
         "(waste $n)",
         "(call $n (create (lll (invalid))) 0 0 0 0 0)"
     },
+    {
+        "(selfdestruct $a)",
+        "(suicide $a)"
+    },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
     { "(. msg gas)", "(gas)" },
