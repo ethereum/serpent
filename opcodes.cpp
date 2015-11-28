@@ -74,7 +74,7 @@ Mapping mapping[] = {
     Mapping("SLOADBYTES", 0xf8, 3, 0),
     Mapping("SSTOREBYTES", 0xf9, 3, 0),
     Mapping("SSIZE", 0xfa, 1, 0),
-    Mapping("STATEROOT", 0xfb, 1, 0),
+    Mapping("STATEROOT", 0xfb, 1, 1),
     Mapping("INVALID", 0xfe, 0, 0), //Not an opcode; use to cause an exception
     Mapping("SUICIDE", 0xff, 1, 0),
     Mapping("---END---", 0x00, 0, 0),
