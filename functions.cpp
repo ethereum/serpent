@@ -101,7 +101,6 @@ Node packArguments(std::vector<Node> args, strvec argTypeNames,
             else if (argType == "int256" or argType == "bytes20" or argType == "address")
                 argTypes.push_back(STATIC);
             else {
-                warn("Non-standard arg type in signature", m);
                 argTypes.push_back(STATIC);
             }
             argCount++;
@@ -293,7 +292,6 @@ Node unpackArguments(std::vector<Node> vars, Metadata m) {
                 varTypes.push_back(ARRAY);
             else {
                 varTypes.push_back(STATIC);
-                warn("Non-standard argument type: "+tag, m);
             }
         }
         else {
