@@ -33,8 +33,9 @@ if '--modexp' in tests or not len(tests):
 
     for i in range(0, len(vals) - 2, 3):
         o1 = substitutes.modexp_substitute(vals[i], vals[i+1], vals[i+2])
-        o2 = c.exp(vals[i], vals[i+1], vals[i+2])
-        assert o1 == o2, (o1, o2)
+        o2 = c.exp(vals[i], vals[i+1], vals[i+2], profiling=1)
+        print "gas", o2["gas"], "time", o2["time"]
+        assert o1 == o2["output"], (o1, o2)
 
 if '--double' in tests or not len(tests):
     print "Starting doubling tests"
