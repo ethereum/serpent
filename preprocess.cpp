@@ -173,7 +173,7 @@ std::string inferType(Node node) {
             else if (node.args[0].args[1].val == "str")
                 cur = "bytes";
             else {
-                warn("Non-standard type: "+printSimple(node.args[0].args[1]), m);
+                // warn("Non-standard type: "+printSimple(node.args[0].args[1]), m);
                 cur = node.args[0].args[1].val;
             }
         }
@@ -384,8 +384,9 @@ preprocessResult preprocessInit(Node inp) {
                     else eventArgs.push_back(arg.args[0]);
                     indexed.push_back(true);
                     indexedCount += 1;
-                    if (eventArgs.back().args[1].val != "int256")
-                        warn("Non-standard indexed data type", m);
+                    if (eventArgs.back().args[1].val != "int256") {
+                        // warn("Non-standard indexed data type", m);
+                    }
                     if (isArrayType(eventArgs.back().args[1].val))
                         err("Cannot index an array: " + eventArgs.back().args[1].val, m);
                     if (indexedCount > 3)
