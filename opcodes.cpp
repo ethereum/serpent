@@ -77,7 +77,7 @@ Mapping mapping[] = {
     Mapping("SSIZE", 0xfa, 1, 1),
     Mapping("STATEROOT", 0xfb, 1, 1),
     Mapping("TXEXECGAS", 0xfc, 0, 1),
-    Mapping("CALLSTATIC", 0xfd, 6, 1),
+    Mapping("CALLSTATIC", 0xfd, 7, 1),
     Mapping("INVALID", 0xfe, 0, 0), //Not an opcode; use to cause an exception
     Mapping("SUICIDE", 0xff, 1, 0),
     Mapping("---END---", 0x00, 0, 0),
