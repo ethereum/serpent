@@ -1,9 +1,11 @@
 #ifndef ETHSERP_BIGNUM
 #define ETHSERP_BIGNUM
 
+#include <string>
+
 const std::string nums = "0123456789";
 
-const std::string tt256 = 
+const std::string tt256 =
 "115792089237316195423570985008687907853269984665640564039457584007913129639936"
 ;
 
