@@ -1,12 +1,13 @@
 from setuptools import setup, Extension
 
 import os
-from distutils.sysconfig import get_config_vars
+from distutils.sysconfig import get_config_var
 
-(opt,) = get_config_vars('OPT')
-os.environ['OPT'] = " ".join(
-    flag for flag in opt.split() if flag != '-Wstrict-prototypes'
-)
+opt = get_config_var('OPT')
+if opt:
+    os.environ['OPT'] = " ".join(
+        flag for flag in opt.split() if flag != '-Wstrict-prototypes'
+    )
 
 setup(
     # Name of this package
@@ -44,4 +45,4 @@ setup(
             'serpent = serpent:main',
         ],
     }
-    ),
+)
