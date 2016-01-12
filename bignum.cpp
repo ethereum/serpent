@@ -1,5 +1,3 @@
-#include <stdio.h>
-#include <iostream>
 #include <vector>
 #include <map>
 #include "bignum.h"
@@ -66,7 +64,7 @@ bool decimalGt(const std::string &a, const std::string &b, bool eqAllowed) {
 //Remove leading zeros if needed
 static std::string removeRedundantLeadingZeros(const std::string &s) {
     int n_zeros = 0;
-    for (int i = 0; i < s.size() - 1 && s[i] == '0'; ++i)
+    for (size_t i = 0; i < s.size() - 1 && s[i] == '0'; ++i)
         n_zeros++;
     return s.substr(n_zeros);
 
@@ -109,6 +107,6 @@ std::string decimalMod(const std::string &a, const std::string &b) {
 //String to int conversion
 unsigned decimalToUnsigned(const std::string &a) {
     if (a.size() == 0) return 0;
-    else return (a[a.size() - 1] - '0') 
+    else return (a[a.size() - 1] - '0')
         + decimalToUnsigned(a.substr(0,a.size()-1)) * 10;
 }
