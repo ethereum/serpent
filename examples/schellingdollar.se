@@ -130,7 +130,7 @@ code:
         if msg.data[1] >= 0 and msg.data[1] < ethbal:
             usdplus = msg.data[1] / usdval * 999 / 1000
             ethminus = msg.data[1]
-            if (usdbal + usdplus) * 10 + (ethbal - ethminus) * usdval * 9 >= 0:
+            if (usdbal + usdplus) * usdval * 10 + (ethbal - ethminus) * 9 >= 0:
                 contract.storage[my_acct] = ethbal - ethminus
                 contract.storage[my_acct + 1] = usdbal + usdplus
                 contract.storage[ETH_EXPOSURE] -= ethminus
