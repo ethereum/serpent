@@ -540,6 +540,47 @@ Node string_transform(Node node) {
 
 Node apply_rules(preprocessResult pr);
 
+// Process objects of the form "prefix(self.foo)", outputting
+// the four prefix bytes
+Node prefixTransform(Node node, preprocessAux aux) {
+    Metadata m = node.metadata;
+    Node callee = node.args[0].args[0];
+    Node funNode = node.args[0].args[1];
+    std::string functionName;
+    if (funNode.val == "::") {
+        if (funNode.args[0].type == ASTNODE
+                || funNode.args[1].type == ASTNODE)
+            err("Function name must be a token: "+printSimple(funNode), m);
+        functionName = funNode.args[0].val + "::" + funNode.args[1].val;
+    }
+    else {
+        if (funNode.type == ASTNODE)
+            err("Function name must be a token: "+printSimple(funNode), m);
+        functionName = funNode.val;
+    }
+    // Determine the functionPrefix and sig if calling self
+    if (callee.val == "self") {
+        if (!aux.interns.count(functionName))
+            err("Invalid call: "+functionName, m);
+        return asn("mul",
+                   asn("exp", tkn("2", m), tkn("224", m), m),
+                   tkn(unsignedToDecimal(aux.interns[functionName].id), m));
+    }
+    // Determine the funId and sig otherwise
+    else {
+        if (!aux.externs.count(functionName))
+            err("Invalid call: "+functionName, m);
+        if (aux.externs[functionName].ambiguous)
+            err("Ambiguous call: "+functionName+". Please use the "
+                "functionName::sig(...) syntax to specify the signature "
+                "of the function you are using.", m);
+        return asn("mul",
+                   asn("exp", tkn("2", m), tkn("224", m), m),
+                   tkn(unsignedToDecimal(aux.externs[functionName].id), m));
+    }
+    err("Cannot get prefix", m);
+}
+
 // Transform "<variable>.<fun>(args...)" into
 // a call
 Node dotTransform(Node node, preprocessAux aux) {
@@ -902,6 +943,10 @@ std::pair<Node, bool> mainTransform(preprocessResult pr) {
     }
     if (node.val == "fun" && node.args[0].val == ".") {
         node = dotTransform(node, pr.second);
+        changed = true;
+    }
+    if (node.val == "prefix" && node.type == ASTNODE) {
+        node = prefixTransform(node, pr.second);
         changed = true;
     }
     if (node.val == "text") {

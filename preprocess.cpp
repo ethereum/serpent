@@ -298,6 +298,7 @@ preprocessResult preprocessInit(Node inp) {
     Node init = astnode("seq", empty, m);
     Node shared = astnode("seq", empty, m);
     std::vector<Node> any;
+    std::vector<Node> finally;
     std::vector<Node> functions;
     preprocessAux out = preprocessAux();
     std::map<int, std::string> functionPrefixesUsed;
@@ -327,13 +328,14 @@ preprocessResult preprocessInit(Node inp) {
             if (funReturnType == "void")
                 funReturnType = "_";
             // Init, shared and any are special functions
-            if (funName == "init" || funName == "shared" || funName == "any") {
+            if (funName == "init" || funName == "shared" || funName == "any" || funName == "finally") {
                 if (obj.args[0].args.size())
                     err(funName+" cannot have arguments", m);
             }
             if (funName == "init") init = body;
             else if (funName == "shared") shared = body;
             else if (funName == "any") any.push_back(body);
+            else if (funName == "finally") finally.push_back(body);
             // Other functions
             else {
                 // Calculate argument name list
@@ -530,6 +532,8 @@ preprocessResult preprocessInit(Node inp) {
         code.push_back(any[i]);
     for (unsigned i = 0; i < functions.size(); i++)
         code.push_back(functions[i]);
+    for (unsigned i = 0; i < finally.size(); i++)
+        code.push_back(finally[i]);
     Node codeNode;
     if (functions.size() > 0) {
         codeNode = astnode("with",

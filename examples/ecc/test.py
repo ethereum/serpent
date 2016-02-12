@@ -86,7 +86,7 @@ if '--ecrecover' in tests or not len(tests):
         V, R, S = b.ecdsa_raw_sign(b.encode(h, 256, 32), k)
         aa = time.time()
         o1 = substitutes.ecrecover_substitute(h, V, R, S)
-        print 'sub', time.time() - aa
+        print 'Native execution time:', time.time() - aa
         a = time.time()
         o2 = c.ecrecover(h, V, R, S)
         print 'time', time.time() - a, 'gas', s.block.get_receipts()[-1].gas_used - s.block.get_receipts()[-2].gas_used
@@ -125,7 +125,9 @@ if '--ringsig' in tests or not len(tests):
         pub_ys = ''.join(map(chr, pub_ys))
         msghash = utils.sha3('cow')
         x0, s_vals, Ix, Iy = substitutes.ringsig_sign_substitute(msghash, my_priv, pub_xs, pub_ys)
+        t1 = time.time()
         assert substitutes.ringsig_verify_substitute(msghash, x0, s_vals, Ix, Iy, pub_xs, pub_ys)
+        print 'Native execution time: ', time.time() - t1
         ogl = t.gas_limit
         t.gas_limit = 10000000
         o = c.verify(msghash, x0, s_vals, Ix, Iy, pub_xs, pub_ys, profiling=1)
