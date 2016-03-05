@@ -76,7 +76,7 @@ Mapping mapping[] = {
     Mapping("CALL", 0xf1, 7, 1),
     Mapping("CALLCODE", 0xf2, 7, 1),
     Mapping("RETURN", 0xf3, 2, 0),
-    Mapping("DELEGATECALL", 0xf4, 2, 0),
+    Mapping("DELEGATECALL", 0xf4, 6, 1),
     Mapping("BREAKPOINT", 0xf5, 0, 0),
     Mapping("RNGSEED", 0xf6, 1, 1),
     Mapping("SSIZEEXT", 0xf7, 2, 1),
