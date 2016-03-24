@@ -222,7 +222,7 @@ def main():
             kwargs['source'] = 'cmdline'
         o = globals()[cmd](*args, **kwargs)
         if cmd in ['mk_full_signature', 'mk_contract_info_decl']:
-            print json.dumps(o)
+            print(json.dumps(o))
         elif isinstance(o, (Token, Astnode, dict, list)):
             print(repr(o))
         elif cmd in ['mk_full_signature', 'get_prefix']:
