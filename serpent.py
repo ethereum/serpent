@@ -102,8 +102,8 @@ pretty_compile_lll = lambda code, **kwargs: map(node, pyext.pretty_compile_lll(t
 serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
 deserialize = lambda x: map(node, pyext.deserialize(x))
 mk_signature = lambda code, **kwargs: pyext.mk_signature(strtobytes(pre_transform(code, kwargs)))
-mk_full_signature = lambda code, **kwargs: json.loads(pyext.mk_full_signature(strtobytes(pre_transform(code, kwargs))))
-mk_contract_info_decl = lambda code, **kwargs: json.loads(pyext.mk_contract_info_decl(strtobytes(pre_transform(code, kwargs))))
+mk_full_signature = lambda code, **kwargs: json.loads(bytestostr(pyext.mk_full_signature(strtobytes(pre_transform(code, kwargs)))))
+mk_contract_info_decl = lambda code, **kwargs: json.loads(bytestostr(pyext.mk_contract_info_decl(strtobytes(pre_transform(code, kwargs)))))
 get_prefix = lambda x: pyext.get_prefix(strtobytes(x)) % 2**32
 
 if sys.version_info.major == 2:
