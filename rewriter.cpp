@@ -353,6 +353,10 @@ std::string macros[][2] = {
         "(selfdestruct $a)",
         "(suicide $a)"
     },
+    {
+        "(~delegatecall $a $b $value $c $d $e $f)",
+        "(~delegatecall $a $b $c $d $e $f)",
+    },
     { "(. msg sender)", "(caller)" },
     { "(. msg value)", "(callvalue)" },
     { "(. msg gas)", "(gas)" },
@@ -620,6 +624,8 @@ Node dotTransform(Node node, preprocessAux aux) {
                     "definitions, use the foo::sig syntax instead", m);
             if (arg.args[0].val == "call" && arg.args[1].val == "code")
                 op = "callcode";
+            if (arg.args[0].val == "call" && arg.args[1].val == "delegate")
+                op = "delegatecall";
             if (arg.args[0].val == "gas")
                 kwargs["gas"] = arg.args[1];
             if (arg.args[0].val == "value") {
