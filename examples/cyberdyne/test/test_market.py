@@ -9,8 +9,8 @@ def decode_buy_order(order):
     return (buyprice, buyfcvalue, buyer)
 
 def decode_sell_order(order):
-    sellprice = order / 2**208
-    sellscvalue = (order / 2**160) % 2**48
+    sellprice = order // 2**208
+    sellscvalue = (order // 2**160) % 2**48
     seller = order % 2**160
     return (sellprice, sellscvalue, seller)
 
