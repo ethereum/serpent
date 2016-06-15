@@ -7,6 +7,12 @@ import os
 
 VERSION = '2.0.2'
 
+if sys.version_info.major == 2:
+    str_types = (bytes, str, unicode)
+else:
+    str_types = (bytes, str)
+
+
 def strtobytes(x):
     return x.encode('ascii') if isinstance(x, str) else x
 
@@ -81,7 +87,7 @@ def takelist(x):
 def pre_transform(code, params):
     code2 = ''
     for k, v in params.items():
-        if isinstance(v, (str, bytes, unicode)):
+        if isinstance(v, str_types):
             v = '"' + str(v) + '"'
         code2 += 'macro $%s:\n    %s\n' % (k, v)
     if os.path.exists(code):
@@ -102,8 +108,8 @@ pretty_compile_lll = lambda code, **kwargs: map(node, pyext.pretty_compile_lll(t
 serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
 deserialize = lambda x: map(node, pyext.deserialize(x))
 mk_signature = lambda code, **kwargs: pyext.mk_signature(strtobytes(pre_transform(code, kwargs)))
-mk_full_signature = lambda code, **kwargs: json.loads(pyext.mk_full_signature(strtobytes(pre_transform(code, kwargs))))
-mk_contract_info_decl = lambda code, **kwargs: json.loads(pyext.mk_contract_info_decl(strtobytes(pre_transform(code, kwargs))))
+mk_full_signature = lambda code, **kwargs: json.loads(bytestostr(pyext.mk_full_signature(strtobytes(pre_transform(code, kwargs)))))
+mk_contract_info_decl = lambda code, **kwargs: json.loads(bytestostr(pyext.mk_contract_info_decl(strtobytes(pre_transform(code, kwargs)))))
 get_prefix = lambda x: pyext.get_prefix(strtobytes(x)) % 2**32
 
 if sys.version_info.major == 2:
