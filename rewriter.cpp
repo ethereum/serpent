@@ -151,7 +151,7 @@ std::string macros[][2] = {
     },
     {
         "(send $to $value)",
-        "(~call 5000 $to $value 0 0 0 0)"
+        "(~call 0 $to $value 0 0 0 0)"
     },
     {
         "(send $gas $to $value)",
