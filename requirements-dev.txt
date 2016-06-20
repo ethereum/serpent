@@ -1,2 +1,3 @@
 pytest==2.9.2
 ethereum==1.3.6
+https://github.com/pipermerriam/serpent/tarball/piper/python-3-support-with-serpant-py3
