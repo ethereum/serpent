@@ -81,7 +81,7 @@ def takelist(x):
 def pre_transform(code, params):
     code2 = ''
     for k, v in params.items():
-        if isinstance(v, (str, bytes, unicode)):
+        if is_string(v):
             v = '"' + str(v) + '"'
         code2 += 'macro $%s:\n    %s\n' % (k, v)
     if os.path.exists(code):
