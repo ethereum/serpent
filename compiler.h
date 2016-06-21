@@ -1,8 +1,6 @@
 #ifndef ETHSERP_COMPILER
 #define ETHSERP_COMPILER
 
-#include <stdio.h>
-#include <iostream>
 #include <vector>
 #include <map>
 #include "util.h"

@@ -1,8 +1,7 @@
-#include <stdio.h>
-#include <iostream>
 #include <vector>
 #include <map>
 #include "util.h"
+#include "tokenize.h"
 
 // These appear as independent tokens even if inside a stream of symbols
 const std::string atoms[] = { "#", "//", "(", ")", "[", "]", "{", "}" };
@@ -100,5 +99,3 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata, bool lispMode) {
     }
     return out;
 }
-
-

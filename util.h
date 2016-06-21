@@ -1,8 +1,6 @@
 #ifndef ETHSERP_UTIL
 #define ETHSERP_UTIL
 
-#include <stdio.h>
-#include <iostream>
 #include <vector>
 #include <map>
 #include <fstream>
