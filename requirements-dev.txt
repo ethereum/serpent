@@ -1,0 +1,2 @@
+pytest==2.9.2
+https://github.com/pipermerriam/pyethereum/tarball/piper/python-3-support-with-serpant-py3
