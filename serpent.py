@@ -235,5 +235,7 @@ def main():
             print(json.dumps(json.loads(o)))
         elif cmd in ['mk_signature', 'get_prefix']:
             print(o)
+        elif cmd in ['pretty_compile']:
+            print(list(o))
         else:
             print(binascii.b2a_hex(o).decode('ascii'))
