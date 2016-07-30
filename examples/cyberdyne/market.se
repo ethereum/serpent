@@ -13,8 +13,8 @@ data current_epoch
 data price
 data volume
 
-extern heap: [pop:_:i, push:i:_, size:_:i, top:_:i]
-extern subcurrency: [balance:i:i, change_ownership:i:_, issue:ii:_, last_tx:_:a, send:ii:i]
+extern heap: [pop:[]:int256, push:[int256]:_, set_owner:[int256]:_, size:[]:int256, top:[]:int256]
+extern subcurrency: [balance:[int256]:int256, change_ownership:[int256]:_, issue:[int256,int256]:_, last_tx:[]:int256[], send:[int256,int256]:int256]
 
 # Initialize with [ buy_heap, sell_heap, first_subcurrency, second_subcurrency ]
 def init_market(buy_heap, sell_heap, first_subcurrency, second_subcurrency):

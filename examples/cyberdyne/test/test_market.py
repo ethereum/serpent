@@ -3,14 +3,14 @@ import os
 from serpent import mk_full_signature
 
 def decode_buy_order(order):
-    buyprice = -(order / 2**208)
-    buyfcvalue = (order / 2**160) % 2**48
+    buyprice = -(order // 2**208)
+    buyfcvalue = (order // 2**160) % 2**48
     buyer = order % 2**160
     return (buyprice, buyfcvalue, buyer)
 
 def decode_sell_order(order):
-    sellprice = order / 2**208
-    sellscvalue = (order / 2**160) % 2**48
+    sellprice = order // 2**208
+    sellscvalue = (order // 2**160) % 2**48
     seller = order % 2**160
     return (sellprice, sellscvalue, seller)
 
