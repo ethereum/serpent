@@ -8,6 +8,7 @@
 #include "compiler.h"
 #include "rewriter.h"
 #include "tokenize.h"
+#include "preprocess.h"
 
 // Function listing:
 //
@@ -24,12 +25,16 @@
 
 Node compileToLLL(std::string input);
 
-Node compileChunkToLLL(std::string input);
-
 std::string compile(std::string input);
 
 std::vector<Node> prettyCompile(std::string input);
 
-std::string compileChunk(std::string input);
+std::vector<Node> prettyCompile(std::string input);
 
-std::vector<Node> prettyCompileChunk(std::string input);
+std::string mkSignature(std::string input);
+
+std::string mkFullSignature(std::string input);
+
+std::string mkContractInfoDecl(std::string input);
+
+unsigned int getPrefix(std::string signature);

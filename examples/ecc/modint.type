@@ -1,0 +1,29 @@
+P_______P = -4294968273
+type modint: m_
+
+macro modint($x) + modint($y):
+    modint(addmod($x, $y, P_______P))
+
+macro modint($x) * modint($y):
+    modint(mulmod($x, $y, P_______P))
+
+macro modint($x) - modint($y):
+    modint(addmod($x, P_______P-$y, P_______P))
+
+macro m($x):
+    modint(mod($x, P_______P))
+
+macro(10) modint($x):
+    $x
+
+macro modint($x) = modint($y):
+    $x = $y
+
+macro modint($x) == modint($y):
+    $x == $y
+
+macro u4([modint($a), modint($b), modint($c), modint($d)]):
+    [$a, $b, $c, $d]
+
+macro with(modint($x) = modint($y), $z):
+    with($x, $y, $z)

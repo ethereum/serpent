@@ -1,0 +1,84 @@
+# TOTALLY NOT TESTED AND LIKELY BROKEN AT THIS POINT; AWAITING A TEST SUITE
+
+extern modint.type: [add:[int256,int256,int256,int256,int256,int256]:int256[], decompose:[int256[]]:int256[], double:[int256,int256,int256]:int256[], exp:[int256,int256,int256]:int256, mul:[int256,int256,int256,int256]:int256[], recover_y:[int256,int256]:int256]
+Gx = 55066263022277343669578718895168534326250603453777594175500187360389116729240
+Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
+P = -4294968273
+
+macro ecmul($x, $y, $z, $n):
+    self.JACOBIAN_ARITH.mul($x, $y, $z, $n, outitems=3)
+
+macro ecadd($a, $b):
+    self.JACOBIAN_ARITH.add($a[0], $a[1], $a[2], $b[0], $b[1], $b[2], outitems=3)
+
+macro ecsubtract($a, $b):
+    self.JACOBIAN_ARITH.add($a[0], $a[1], $a[2], $b[0], P - $b[1], $b[2], outitems=3)
+
+macro decompose($Q):
+    with e = self.JACOBIAN_ARITH.exp($Q[2], P - 4, P):
+        ox = mulmod($Q[0], mulmod(e, $Q[2], P), P)
+        oy = mulmod($Q[1], e, P)
+        [ox, oy]
+
+macro bit($data, $bit):
+    (mload($data - 31) / 2**($bit % 8)) % 2
+
+macro recover_y($x, $y):
+    self.JACOBIAN_ARITH.recover_y($x, $y)
+
+data JACOBIAN_ARITH
+
+def init():
+    self.JACOBIAN_ARITH = create('jacobian_arith.se')
+
+event ValueLogEvent(i:uint256)
+
+event PubkeyLogEvent(x:uint256, y:uint256)
+
+event PubkeyTripleLogEvent(x:uint256, y:uint256, z:uint256)
+
+def hash_pubkey_to_pubkey(pub:arr):
+    x = sha3(pub:arr)
+    while 1:
+        xcubed = mulmod(mulmod(x, x, P), x, P)
+        beta = self.JACOBIAN_ARITH.exp(addmod(xcubed, 7, P), div(P + 1, 4), P)
+        y = beta * mod(beta, 2) + (P - beta) * (1 - mod(beta, 2))
+        if addmod(xcubed, 7, P) == mulmod(y, y, P):
+            return([x, y]:arr)
+        x = mod(x + 1, P)
+
+def verify(msgHash:bytes32, x0:uint256, s:uint256[], Ix:uint256, Iy:uint256, pub_xs:uint256[], pub_ys:bytes):
+    # Number of pubkeys
+    n = len(pub_xs)
+    # Decompress the provided I value
+    Iy = recover_y(Ix, Iy)
+    # Store the list of intermediate values in the "ring"
+    e = array(n + 1)
+    # Set the first value in the ring to that provided in the signature
+    e[0] = [x0, sha3(x0)]
+    i = 1
+    while i < n + 1:
+        prev_i = (i - 1) % n
+        # Decompress the public key
+        pub_yi = recover_y(pub_xs[i % n], bit(pub_ys, i % n))
+        # Create the next values in the ring based on the provided s value
+        k1 = ecmul(Gx, Gy, 1, s[prev_i])
+        k2 = ecmul(pub_xs[i % n], pub_yi, 1, e[prev_i][1])
+        pub1 = decompose(ecsubtract(k1, k2))
+        k3 = self.hash_pubkey_to_pubkey([pub_xs[i % n], pub_yi], outitems=2)
+        k4 = ecmul(k3[0], k3[1], 1, s[prev_i])
+        k5 = ecmul(Ix, Iy, 1, e[prev_i][1])
+        pub2 = decompose(ecsubtract(k4, k5))
+        left = sha3([msgHash, pub1[0], pub1[1], pub2[0], pub2[1]]:arr)
+        right = sha3(left)
+        # FOR DEBUGGING
+        # if i >= 1:
+        #     log(type=PubkeyLogEvent, pub_xs[i], pub_yi)
+        #     log(type=PubkeyLogEvent, pub1[0], pub1[1])
+        #     log(type=PubkeyLogEvent, pub2[0], pub2[1])
+        #     log(type=ValueLogEvent, left)
+        #     log(type=ValueLogEvent, right)
+        e[i] = [left, right]
+        i += 1
+    # Check that the ring is consistent
+    return((e[n][0] == e[0][0] and e[n][1] == e[0][1]):bool)

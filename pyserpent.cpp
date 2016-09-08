@@ -1,6 +1,5 @@
 #include <Python.h>
 #include "structmember.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <iostream>
@@ -24,12 +23,34 @@
         } \
     }
 
+#define PYMETHOD2(name, FROM, method, TO) \
+    static PyObject * name(PyObject *, PyObject *args) { \
+        try { \
+        FROM(med) \
+        return TO(method(a1med, a2med)); \
+        } \
+        catch (std::string e) { \
+           PyErr_SetString(PyExc_Exception, e.c_str()); \
+           return NULL; \
+        } \
+    }
+
 #define FROMSTR(v) \
     const char *command; \
     int len; \
     if (!PyArg_ParseTuple(args, PY_STRING_FORMAT, &command, &len)) \
         return NULL; \
     std::string v = std::string(command, len); \
+
+#define FROMSTRSTR(v) \
+    const char *command1; \
+    int len1; \
+    const char *command2; \
+    int len2; \
+    if (!PyArg_ParseTuple(args, "s#s#", &command1, &len1, &command2, &len2)) \
+        return NULL; \
+    std::string a1##v = std::string(command1, len1); \
+    std::string a2##v = std::string(command2, len2); \
 
 #define FROMNODE(v) \
     PyObject *node; \
@@ -67,6 +88,11 @@ PyObject* pyifyNode(Node n) {
 // Convert string into python wrapper form
 PyObject* pyifyString(std::string s) {
     return Py_BuildValue(PY_STRING_FORMAT, s.c_str(), s.length());
+}
+
+// Convert integer into python wrapper form
+PyObject* pyifyInteger(unsigned int i) {
+    return Py_BuildValue("i", i);
 }
 
 // Convert list of nodes into python wrapper form
@@ -130,42 +156,34 @@ std::vector<Node> cppifyNodeList(PyObject* o) {
 }
 
 PYMETHOD(ps_compile, FROMSTR, compile, pyifyString)
-PYMETHOD(ps_compile_chunk, FROMSTR, compileChunk, pyifyString)
 PYMETHOD(ps_compile_to_lll, FROMSTR, compileToLLL, pyifyNode)
-PYMETHOD(ps_compile_chunk_to_lll, FROMSTR, compileChunkToLLL, pyifyNode)
 PYMETHOD(ps_compile_lll, FROMNODE, compileLLL, pyifyString)
 PYMETHOD(ps_parse, FROMSTR, parseSerpent, pyifyNode)
 PYMETHOD(ps_rewrite, FROMNODE, rewrite, pyifyNode)
-PYMETHOD(ps_rewrite_chunk, FROMNODE, rewriteChunk, pyifyNode)
 PYMETHOD(ps_pretty_compile, FROMSTR, prettyCompile, pyifyNodeList)
-PYMETHOD(ps_pretty_compile_chunk, FROMSTR, prettyCompileChunk, pyifyNodeList)
 PYMETHOD(ps_pretty_compile_lll, FROMNODE, prettyCompileLLL, pyifyNodeList)
 PYMETHOD(ps_serialize, FROMLIST, serialize, pyifyString)
 PYMETHOD(ps_deserialize, FROMSTR, deserialize, pyifyNodeList)
 PYMETHOD(ps_parse_lll, FROMSTR, parseLLL, pyifyNode)
+PYMETHOD(ps_mk_signature, FROMSTR, mkSignature, pyifyString)
+PYMETHOD(ps_mk_full_signature, FROMSTR, mkFullSignature, pyifyString)
+PYMETHOD(ps_mk_contract_info_decl, FROMSTR, mkContractInfoDecl, pyifyString)
+PYMETHOD(ps_get_prefix, FROMSTR, getPrefix, pyifyInteger)
 
 
 static PyMethodDef PyextMethods[] = {
     {"compile",  ps_compile, METH_VARARGS,
         "Compile code."},
-    {"compile_chunk",  ps_compile_chunk, METH_VARARGS,
-        "Compile code chunk (no wrappers)."},
     {"compile_to_lll",  ps_compile_to_lll, METH_VARARGS,
         "Compile code to LLL."},
-    {"compile_chunk_to_lll",  ps_compile_chunk_to_lll, METH_VARARGS,
-        "Compile code chunk to LLL (no wrappers)."},
     {"compile_lll",  ps_compile_lll, METH_VARARGS,
         "Compile LLL to EVM."},
     {"parse",  ps_parse, METH_VARARGS,
         "Parse serpent"},
     {"rewrite",  ps_rewrite, METH_VARARGS,
         "Rewrite parsed serpent to LLL"},
-    {"rewrite_chunk",  ps_rewrite_chunk, METH_VARARGS,
-        "Rewrite parsed serpent to LLL (no wrappers)"},
     {"pretty_compile",  ps_pretty_compile, METH_VARARGS,
         "Compile to EVM opcodes"},
-    {"pretty_compile_chunk",  ps_pretty_compile_chunk, METH_VARARGS,
-        "Compile chunk to EVM opcodes (no wrappers)"},
     {"pretty_compile_lll",  ps_pretty_compile_lll, METH_VARARGS,
         "Compile LLL to EVM opcodes"},
     {"serialize",  ps_serialize, METH_VARARGS,
@@ -174,6 +192,14 @@ static PyMethodDef PyextMethods[] = {
         "Convert EVM bin to opcodes"},
     {"parse_lll",  ps_parse_lll, METH_VARARGS,
         "Parse LLL"},
+    {"mk_signature",  ps_mk_signature, METH_VARARGS,
+        "Make an extern signature for a file"},
+    {"mk_full_signature",  ps_mk_full_signature, METH_VARARGS,
+        "Make an extern signature for ABI use"},
+    {"mk_contract_info_decl",  ps_mk_contract_info_decl, METH_VARARGS,
+        "Make an extern contract info declaration"},
+    {"get_prefix",  ps_get_prefix, METH_VARARGS,
+        "Get the prefix for a signature declaration (eg. \"foo:[int256]:int256\")"},
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 

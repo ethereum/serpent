@@ -26,6 +26,43 @@ Node astnode(std::string val, std::vector<Node> args, Metadata met) {
     return o;
 }
 
+//AST node constructors for a specific number of children
+Node astnode(std::string val, Metadata met) {
+    std::vector<Node> args;
+    return astnode(val, args, met);
+}
+
+Node astnode(std::string val, Node a, Metadata met) {
+    std::vector<Node> args;
+    args.push_back(a);
+    return astnode(val, args, met);
+}
+
+Node astnode(std::string val, Node a, Node b, Metadata met) {
+    std::vector<Node> args;
+    args.push_back(a);
+    args.push_back(b);
+    return astnode(val, args, met);
+}
+
+Node astnode(std::string val, Node a, Node b, Node c, Metadata met) {
+    std::vector<Node> args;
+    args.push_back(a);
+    args.push_back(b);
+    args.push_back(c);
+    return astnode(val, args, met);
+}
+
+Node astnode(std::string val, Node a, Node b, Node c, Node d, Metadata met) {
+    std::vector<Node> args;
+    args.push_back(a);
+    args.push_back(b);
+    args.push_back(c);
+    args.push_back(d);
+    return astnode(val, args, met);
+}
+
+
 // Print token list
 std::string printTokens(std::vector<Node> tokens) {
     std::string s = "";
@@ -123,17 +160,64 @@ std::string indentLines(std::string inp) {
     return joinLines(lines);
 }
 
+// Binary to hexadecimal
+std::string binToNumeric(std::string inp) {
+    std::string o = "0";
+	for (unsigned i = 0; i < inp.length(); i++) {
+        o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal((unsigned char)inp[i]));
+    }
+    return o;
+}
+
+std::string hexalpha = "0123456789abcdef";
+
+// Converts string to list of bytes
+std::vector<uint8_t> strToBytes(std::string inp) {
+    std::vector<uint8_t> o;
+    for (unsigned i = 0; i < inp.length();) {
+        uint8_t ch = 0;
+        if (inp[i] == '\\') {
+            if (inp.substr(i, 2) == "\\x") {
+                if ( i + 3 < inp.length()) {
+                    ch = (hexalpha.find(inp[i+2]) * 16
+                          + hexalpha.find(inp[i+3]));
+                    i += 4;
+                }
+                else return std::vector<uint8_t>();
+            }
+            else if (inp.substr(i, 2) == "\\n") {
+                ch = 10;
+                i += 2;
+            }
+            else if (i + 1 < inp.length()) {
+                ch += inp[i + 1];
+                i += 2;
+            }
+        }
+        else {
+            ch = inp[i];
+            i += 1;
+        }
+        o.push_back(ch);
+    }
+    return o;
+}
+
 // Converts string to simple numeric format
-std::string strToNumeric(std::string inp) {
+std::string strToNumeric(std::string inp, int strpad=32) {
     std::string o = "0";
     if (inp == "") {
         o = "";
     }
     else if ((inp[0] == '"' && inp[inp.length()-1] == '"')
             || (inp[0] == '\'' && inp[inp.length()-1] == '\'')) {
-		for (unsigned i = 1; i < inp.length() - 1; i++) {
-            o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal((unsigned char)inp[i]));
-        }
+            std::vector<uint8_t> bytes = strToBytes(inp.substr(1, inp.size() - 2));
+            for (unsigned i = 0; i < bytes.size(); i++) {
+                o = decimalAdd(decimalMul(o,"256"), unsignedToDecimal(bytes[i]));
+            }
+        int pad = strpad - bytes.size();
+        if (pad < 0) return "";
+        return decimalMul(o, decimalExp("256", unsignedToDecimal(pad)));
     }
     else if (inp.substr(0,2) == "0x") {
 		for (unsigned i = 2; i < inp.length(); i++) {
@@ -156,6 +240,14 @@ std::string strToNumeric(std::string inp) {
 bool isNumberLike(Node node) {
     if (node.type == ASTNODE) return false;
     return strToNumeric(node.val) != "";
+}
+
+// Is the number decimal?
+bool isDecimal(std::string inp) {
+    for (unsigned i = 0; i < inp.length(); i++) {
+        if (inp[i] < '0' || inp[i] > '9') return false;
+    }
+    return true;
 }
 
 //Normalizes number representations
@@ -181,6 +273,15 @@ std::vector<Node> toByteArr(std::string val, Metadata metadata, int minLen) {
     std::vector<Node> o2;
     for (int i = o.size() - 1; i >= 0; i--) o2.push_back(o[i]);
     return o2;
+}
+
+//Converts a byte array into a value
+std::string bytesToDecimal(std::vector<uint8_t> b) {
+    std::string o = "0";
+    for (int i = 0; i < b.size(); i++) {
+        o = decimalAdd(decimalMul(o, "256"), unsignedToDecimal(b[i]));
+    }
+    return o;
 }
 
 int counter = 0;
@@ -223,6 +324,14 @@ void err(std::string errtext, Metadata met) {
     throw(err);
 }
 
+//Report warning
+void warn(std::string errtext, Metadata met) {
+    std::string err = "Warning (file \"" + met.file + "\", line " +
+        unsignedToDecimal(met.ln + 1) + ", char " + unsignedToDecimal(met.ch) +
+        "): " + errtext;
+    std::cerr << err << "\n";
+}
+
 //Bin to hex
 std::string binToHex(std::string inp) {
     std::string o = "";
@@ -257,7 +366,29 @@ std::string upperCase(std::string inp) {
 
 //Three-int vector
 std::vector<int> triple(int a, int b, int c) {
-    std::vector<int> o;
-    o.push_back(a); o.push_back(b); o.push_back(c);
+    std::vector<int> v;
+    v.push_back(a);
+    v.push_back(b);
+    v.push_back(c);
+    return v;
+}
+
+//Empty hash
+std::vector<uint8_t> zeroes(int n) {
+    std::vector<uint8_t> o;
+    for (unsigned i = 0; i < n; i++) o.push_back(0);
     return o;
+}
+
+//Empty boolean vector
+std::vector<bool> falses(int n) {
+    std::vector<bool> o;
+    for (unsigned i = 0; i < n; i++) o.push_back(false);
+    return o;
+}
+
+//Extend node vector
+std::vector<Node> extend(std::vector<Node> a, std::vector<Node> b) {
+    for (unsigned i = 0; i < b.size(); i++) a.push_back(b[i]);
+    return a;
 }

@@ -1,2 +1,3 @@
-if not contract.storage[msg.data[0]]:
-    contract.storage[msg.data[0]] = msg.data[1]
+def register(k, v):
+    if !self.storage[k]:
+        self.storage[k] = v

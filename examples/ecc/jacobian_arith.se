@@ -1,0 +1,131 @@
+inset('modint.type')
+
+def double(m_ax, m_ay, m_az):
+    if !m_ay:
+        return([0, 0, 0]:arr)
+    with P_______P = -4294968273:
+        with m_ax = m_ax:
+            with m_ay = m_ay:
+                with m_ysq = m_ay * m_ay:
+                    with m_s = m(4) * m_ax * m_ysq:
+                        with m_m = m(3) * m_ax * m_ax:
+                            with m_nx = m_m * m_m - m(2) * m_s:
+                                with m_ny = m_m * (m_s - m_nx) - m(8) * m_ysq * m_ysq:
+                                    with m_nz = m(2) * m_ay * m_az:
+                                        ~mstore(~msize(), 3)
+                                        ~mstore(~msize(), m_nx)
+                                        ~mstore(~msize(), m_ny)
+                                        ~mstore(~msize(), m_nz)
+                                        return((~msize() - 96):arr)
+
+def add(m_ax, m_ay, m_az, m_bx, m_by, m_bz):
+    if !m_ay:
+        return([m_bx, m_by, m_bz]:arr)
+    if !m_by:
+        return([m_ax, m_ay, m_az]:arr)
+    with P_______P = -4294968273:
+        with m_u1 = m_ax * m_bz * m_bz:
+            with m_u2 = m_bx * m_az * m_az:
+                with m_s1 = m_ay * m_bz * m_bz * m_bz:
+                    with m_s2 = m_by * m_az * m_az * m_az:
+                        if m_u1 == m_u2:
+                            if m_s1 != m_s2:
+                                return([0, 0, 1]:arr)
+                            else:
+                                return(self.double(m_ax, m_ay, m_az, outitems=3):arr)
+                        with m_h = m_u2 - m_u1:
+                            with m_r = m_s2 - m_s1:
+                                with m_h2 = m_h * m_h:
+                                    with m_h3 = m_h * m_h2:
+                                        with m_u1h2 = m_u1 * m_h2:
+                                            with m_nx = m_r * m_r - m_h3 - m(2) * m_u1h2:
+                                                with m_ny = m_r * (m_u1h2 - m_nx) - m_s1 * m_h3:
+                                                    with m_nz = m_h * m_az * m_bz:
+                                                        ~mstore(~msize(), 3)
+                                                        ~mstore(~msize(), m_nx)
+                                                        ~mstore(~msize(), m_ny)
+                                                        ~mstore(~msize(), m_nz)
+                                                        return((~msize() - 96):arr)
+
+
+def mul(m_bx, m_by, m_bz, n):
+    n = mod(n, -432420386565659656852420866394968145599)
+    if !m_bx * !m_by + !n: # Constant-gas version of !axn and !ayn or !n
+        return([0, 0, 1]:arr)
+    with o = [0, 0, 1]:
+        with b = 2 ^ 255:
+            while gt(b, 0):
+                # EC double inset
+                with m_ax = o[0]:
+                    with m_ay = o[1]:
+                        with m_az = o[2]:
+                          with P_______P = -4294968273:
+                            with m_ysq = m_ay * m_ay:
+                                with m_s = m(4) * m_ax * m_ysq:
+                                    with m_m = m(3) * m_ax * m_ax:
+                                        with m_nx = m_m * m_m - m(2) * m_s:
+                                            o[1] = m_m * (m_s - m_nx) - m(8) * m_ysq * m_ysq
+                                            o[2] = m(2) * m_ay * m_az
+                                            o[0] = m_nx
+                if n & b:
+                    # EC addition inset
+                    with m_ax = o[0]:
+                        with m_ay = o[1]:
+                            with m_az = o[2]:
+                                if !m_ay:
+                                    o = [m_bx, m_by, m_bz]
+                                elif !m_by:
+                                    o = [m_ax, m_ay, m_az]
+                                else:
+                                    with P_______P = -4294968273:
+                                        with m_u1 = m_ax * m_bz * m_bz:
+                                            with m_u2 = m_bx * m_az * m_az:
+                                                with m_s1 = m_ay * m_bz * m_bz * m_bz:
+                                                    with m_s2 = m_by * m_az * m_az * m_az:
+                                                        if m_u1 == m_u2:
+                                                            if m_s1 != m_s2:
+                                                                o = [0, 0, 1]
+                                                            else:
+                                                                o = self.double(m_ax, m_ay, m_az, outitems=3)
+                                                        with m_h = m_u2 - m_u1:
+                                                            with m_r = m_s2 - m_s1:
+                                                                with m_h2 = m_h * m_h:
+                                                                    with m_h3 = m_h * m_h2:
+                                                                        m_u1h2 = m_u1 * m_h2
+                                                                        m_nx = m_r * m_r - m_h3 - m(2) * m_u1h2
+                                                                        o[1] = m_r * (m_u1h2 - m_nx) - m_s1 * m_h3
+                                                                        o[2] = m_h * m_az * m_bz
+                                                                        o[0] = m_nx
+                b = div(b, 2)
+            return(o:arr)
+
+
+def recover_y(x, y_bit):
+    N = -432420386565659656852420866394968145599
+    P = -4294968273
+    xcubed = mulmod(mulmod(x, x, P), x, P)
+    beta = self.exp(addmod(xcubed, 7, P), div(P + 1, 4), P)
+    y_is_positive = y_bit xor mod(beta, 2) xor 1
+    return(beta * y_is_positive + (P - beta) * (1 - y_is_positive))
+
+
+def exp(b, e, m):
+    with o = 1:
+        with bit = 2 ^ 255:
+            while gt(bit, 0):
+                # A touch of loop unrolling for 20% efficiency gain
+                o = mulmod(mulmod(o, o, m), b ^ !(!(e & bit)), m)
+                o = mulmod(mulmod(o, o, m), b ^ !(!(e & div(bit, 2))), m)
+                o = mulmod(mulmod(o, o, m), b ^ !(!(e & div(bit, 4))), m)
+                o = mulmod(mulmod(o, o, m), b ^ !(!(e & div(bit, 8))), m)
+                bit = div(bit, 16)
+            return(o)
+    y_is_positive = y_bit xor mod(beta, 2)
+    return(beta * y_is_positive + (P - beta) * (1 - y_is_positive))
+
+
+def decompose(Q:arr):
+    P = -4294968273
+    ox = mulmod(Q[0], self.exp(Q[2], P - 3, P), P)
+    oy = mulmod(Q[1], self.exp(Q[2], P - 4, P), P)
+    return([ox, oy]:arr)

@@ -45,12 +45,6 @@ int main(int argv, char** argc) {
     else if (command == "compile_to_lll") {
         std::cout << printAST(compileToLLL(input), haveSec) << "\n";
     }
-    else if (command == "rewrite_chunk") {
-        std::cout << printAST(rewriteChunk(parseLLL(input, true)), haveSec) << "\n";
-    }
-    else if (command == "compile_chunk_to_lll") {
-        std::cout << printAST(compileChunkToLLL(input), haveSec) << "\n";
-    }
     else if (command == "build_fragtree") {
         std::cout << printAST(buildFragmentTree(parseLLL(input, true))) << "\n";
     }
@@ -58,7 +52,7 @@ int main(int argv, char** argc) {
         std::cout << binToHex(compileLLL(parseLLL(input, true))) << "\n";
     }
     else if (command == "dereference") {
-        std::cout << printAST(dereference(parseLLL(input, true)), haveSec) <<"\n";
+        std::cout << printTokens(dereference(parseLLL(input, true))) <<"\n";
     }
     else if (command == "pretty_assemble") {
         std::cout << printTokens(prettyAssemble(parseLLL(input, true))) <<"\n";
@@ -69,17 +63,11 @@ int main(int argv, char** argc) {
     else if (command == "pretty_compile") {
         std::cout << printTokens(prettyCompile(input)) << "\n";
     }
-    else if (command == "pretty_compile_chunk") {
-        std::cout << printTokens(prettyCompileChunk(input)) << "\n";
-    }
     else if (command == "assemble") {
         std::cout << assemble(parseLLL(input, true)) << "\n";
     }
     else if (command == "serialize") {
         std::cout << binToHex(serialize(tokenize(input, Metadata(), false))) << "\n";
-    }
-    else if (command == "flatten") {
-        std::cout << printTokens(flatten(parseLLL(input, true))) << "\n";
     }
     else if (command == "deserialize") {
         std::cout << printTokens(deserialize(hexToBin(input))) << "\n";
@@ -87,23 +75,17 @@ int main(int argv, char** argc) {
     else if (command == "compile") {
         std::cout << binToHex(compile(input)) << "\n";
     }
-    else if (command == "compile_chunk") {
-        std::cout << binToHex(compileChunk(input)) << "\n";
+    else if (command == "mk_signature") {
+        std::cout << mkSignature(input) << "\n";
     }
-    else if (command == "encode_datalist") {
-        std::vector<Node> tokens = tokenize(input);
-        std::vector<std::string> o;
-        for (int i = 0; i < (int)tokens.size(); i++) {
-            o.push_back(tokens[i].val);
-        }
-        std::cout << binToHex(encodeDatalist(o)) << "\n";
+    else if (command == "mk_full_signature") {
+        std::cout << mkFullSignature(input) << "\n";
     }
-    else if (command == "decode_datalist") {
-        std::vector<std::string> o = decodeDatalist(hexToBin(input));
-        std::vector<Node> tokens;
-        for (int i = 0; i < (int)o.size(); i++)
-            tokens.push_back(token(o[i]));
-        std::cout << printTokens(tokens) << "\n";
+    else if (command == "mk_contract_info_decl") {
+        std::cout << mkContractInfoDecl(input) << "\n";
+    }
+    else if (command == "get_prefix") {
+        std::cout << getPrefix(input) << "\n";
     }
     else if (command == "tokenize") {
         std::cout << printTokens(tokenize(input));

@@ -1,0 +1,61 @@
+macro DAYS($n):
+    $n * 86400
+
+macro HOURS($n):
+    $n * 3600
+
+data domains[](owner, expiry, auction_expiry, maxbid, maxbidder, data)
+
+# Used to start a new auction for an unclaimed domain, or renew a claimed
+# domain. When you renew a claimed domain, you start an auction for it
+# but giving yourself a 100x bidding advantage
+
+def start_auction(domain):
+    # If the domain is expired, then there is no bidding advantage
+    if block.timestamp > self.domains[domain].expiry:
+        self.domains[domain].owner = 0
+    # Set the auction expiry and reset the maxbid and maxbidder
+    if not self.domains[domain].owner or block.timestamp > self.domains[domain].expiry:
+        self.domains[domain].auction_expiry = block.timestamp + DAYS(7)
+        self.domains[domain].maxbid = 0
+        self.domains[domain].maxbidder = 0
+        
+# Bid in the auction. Note that there is no bidder list that is kept track of;
+# hence, if someone else outbids you, you must outbid them anew, note keeping
+# your older bid into account. This is similar, though not quite exactly 
+# equivalent, to a 2x minimum increment.
+
+def bid(domain):
+    if block.timestamp < self.domains[domain].auction_expiry:
+        v = msg.value
+        if msg.sender == self.domains[domain].owner:
+            v *= 100
+        if v > self.domains[domain].maxbid:
+            self.domains[domain].maxbid = v
+            self.domains[domain].maxbidder = msg.sender
+            self.domains[domain].expiry = block.timestamp + DAYS(365)
+            if self.domains[domain].auction_expiry < HOURS(3):
+                self.domains[domain].auction_expiry = HOURS(3)
+
+
+def claim(domain):
+    if block.timestamp > self.domains[domain].auction_expiry:
+        self.domains[domain].owner = self.domains[domain].maxbidder
+
+
+def set_data(domain, data):
+    if msg.sender == self.domains[domain].owner:
+        self.domains[domain].data = data
+
+
+def set_owner(domain, owner):
+    if msg.sender == self.domains[domain].owner:
+        self.domains[domain].owner = owner
+
+
+def get_owner(domain):
+    return(self.domains[domain].owner)
+
+
+def get_data(domain):
+    return(self.domains[domain].data)

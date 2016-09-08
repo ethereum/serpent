@@ -1,2 +1,4 @@
+extern mul2: [double:i]
+  
 x = create("mul2.se")
-return(call(x, 5))
+return(x.double(5, call=delegate))

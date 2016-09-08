@@ -1,0 +1,3 @@
+pytest==2.9.2
+#ethereum==1.3.6
+https://github.com/ethereum/pyethereum/tarball/develop

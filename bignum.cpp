@@ -57,6 +57,46 @@ std::string decimalMul(const std::string &a, const std::string &b) {
     return o;
 }
 
+//Modexp
+std::string decimalModExp(std::string b, std::string e, std::string m) {
+    if (e == "0") return "1";
+    else if (e == "1") return b;
+    else if (decimalMod(e, "2") == "0") {
+        std::string o = decimalModExp(b, decimalDiv(e, "2"), m);
+        return decimalMod(decimalMul(o, o), m);
+    }
+    else {
+        std::string o = decimalModExp(b, decimalDiv(e, "2"), m);
+        return decimalMod(decimalMul(decimalMul(o, o), b), m);
+    }
+}
+
+// Helper function for exponentiation
+std::string _decimalExp(std::string b, std::string e) {
+    if (e == "0") return "1";
+    else if (e == "1") return b;
+    else if (decimalMod(e, "2") == "0") {
+        std::string o = _decimalExp(b, decimalDiv(e, "2"));
+        return decimalMul(o, o);
+    }
+    else {
+        std::string o = _decimalExp(b, decimalDiv(e, "2"));
+        return decimalMul(decimalMul(o, o), b);
+    }
+}
+
+// Safety wrapper for exponentiation
+std::string decimalExp(std::string b, std::string e) {
+    if (b != "0" && b != "1" && 
+            (e.size() > 5 || b.size() * decimalToUnsigned(e) > 33333)) {
+        throw("Exponent way too large: "+e);
+    }
+    std::string o = _decimalExp(b, e);
+    if (o.size() > 10000)
+        throw("Out of bounds (maximum 10000 digits)");
+    return o;
+}
+
 //Is a greater than b? Flag allows equality
 bool decimalGt(const std::string &a, const std::string &b, bool eqAllowed) {
     if (a == b) return eqAllowed;

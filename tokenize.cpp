@@ -13,8 +13,8 @@ int chartype(char c) {
     if (c >= '0' && c <= '9') return ALPHANUM;
     else if (c >= 'a' && c <= 'z') return ALPHANUM;
     else if (c >= 'A' && c <= 'Z') return ALPHANUM;
-	else if (std::string("~._$").find(c) != std::string::npos) return ALPHANUM;
-    else if (c == '\t' || c == ' ' || c == '\n') return SPACE;
+	else if (std::string("~_$@").find(c) != std::string::npos) return ALPHANUM;
+    else if (c == '\t' || c == ' ' || c == '\n' || c == '\r') return SPACE;
 	else if (std::string("()[]{}").find(c) != std::string::npos) return BRACK;
     else if (c == '"') return DQUOTE;
     else if (c == '\'') return SQUOTE;
@@ -47,23 +47,12 @@ std::vector<Node> tokenize(std::string inp, Metadata metadata, bool lispMode) {
                 curtype = SPACE;
                 pos += 1;
             }
-            // eg. \xc3
-            else if (inp.length() >= pos + 4 && inp.substr(pos, 2) == "\\x") {
-                cur += (std::string("0123456789abcdef").find(inp[pos+2]) * 16
-                        + std::string("0123456789abcdef").find(inp[pos+3]));
-                pos += 4;
-            }
-            // Newline
-            else if (inp.substr(pos, 2) == "\\n") {
-                cur += '\n';
-                pos += 2;
-            }
             // Backslash escape
             else if (inp.length() >= pos + 2 && inp[pos] == '\\') {
+                cur += inp[pos];
                 cur += inp[pos + 1];
                 pos += 2;
             }
-            // Normal character
             else {
                 cur += inp[pos];
                 pos += 1;
