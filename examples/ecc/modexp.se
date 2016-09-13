@@ -1,4 +1,4 @@
-def exp(b, e, m):
+def exp(b:uint256, e:uint256, m:uint256):
     with o = 1:
         with bit = 2 ^ 255:
             while gt(bit, 0):
