@@ -413,7 +413,7 @@ void substDict(Node program, programAux aux, int labelLength, std::vector<Node> 
 
 // Compiled fragtree -> compiled fragtree without labels
 std::vector<Node> dereference(Node program) {
-    int sz = treeSize(program) * 4;
+    int sz = treeSize(program) * 33;
     int labelLength = 1;
     while (sz >= 256) { labelLength += 1; sz /= 256; }
     programAux aux = Aux();
