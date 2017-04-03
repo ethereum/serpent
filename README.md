@@ -1,3 +1,7 @@
+## Serpent
+
+Serpent is a language for writing smart contracts on Ethereum.
+
 # Installation:
 
 `make && sudo make install`
