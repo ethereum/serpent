@@ -259,7 +259,7 @@ std::string macros[][2] = {
     },
     {
         "(_sha256 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 72 $0) 2 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (with $gas (add 72 $0) (seq (pop (~call $gas 2 0 $arr $0 (get $1) 32)) (mload (get $1))))))"
     },
     {
         "(sha256 $arr $sz)",
@@ -283,7 +283,7 @@ std::string macros[][2] = {
     },
     {
         "(_ripemd160 $arr $sz)",
-        "(with $0 $sz (with $1 (alloc 32) (seq (pop (~call (add 720 (mul 4 $0)) 3 0 $arr $0 (get $1) 32)) (mload (get $1)))))"
+        "(with $0 $sz (with $1 (alloc 32) (with $gas (add 720 (mul 4 $0)) (seq (pop (~call $gas 3 0 $arr $0 (get $1) 32)) (mload (get $1))))))"
     },
     {
         "(ripemd160 $arr $sz)",
@@ -343,7 +343,7 @@ std::string macros[][2] = {
     },
     {
         "(mcopy $to $from $sz)",
-        "(with _sz $sz (safe_call (+ 18 (/ _sz 10)) 4 0 $from _sz $to _sz))"
+        "(with _sz $sz (with $gas (+ 18 (/ _sz 10)) (safe_call $gas 4 0 $from _sz $to _sz)))"
     },
     {
         "(waste $n)",
