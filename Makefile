@@ -11,7 +11,7 @@ PYTHON_VERSION = 2.7
 
 serpent : serpentc lib
 
-lib:
+lib: $(COMMON_OBJS)
 	ar rvs libserpent.a $(COMMON_OBJS) 
 	g++ $(CXXFLAGS) -shared $(COMMON_OBJS) -o libserpent.so
 
