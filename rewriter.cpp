@@ -51,7 +51,7 @@ std::string macros[][2] = {
     },
     {
         "(assert $x)",
-        "(unless $x (stop))"
+        "(jumpi (pc) (iszero $x))"
     },
     {
         "(min $a $b)",
