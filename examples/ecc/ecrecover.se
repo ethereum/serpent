@@ -3,8 +3,8 @@
 # that I created. It may possible to achieve a further 20-50% savings by applying 
 # that version.
 
-extern modint.type: [add:[int256,int256,int256,int256,int256,int256]:int256[], decompose:[int256[]]:int256[], double:[int256,int256,int256]:int256[], exp:[int256,int256,int256]:int256, mul:[int256,int256,int256,int256]:int256[], recover_y:[int256,int256]:int256]
-extern modexp.se: [exp:[int256,int256,int256]:int256]
+extern modint.type: [add:[uint256,uint256,uint256,uint256,uint256,uint256]:int256[], decompose:[int256[]]:int256[], double:[uint256,uint256,uint256]:int256[], exp:[uint256,uint256,uint256]:int256, mul:[uint256,uint256,uint256,uint256]:int256[], recover_y:[uint256,int256]:int256]
+extern modexp.se: [exp:[uint256,uint256,uint256]:int256]
 
 data JACOBIAN_ARITH
 data EXP
@@ -17,7 +17,7 @@ def init():
 
 event PubkeyTripleLogEvent(x:uint256, y:uint256, z:uint256)
 
-def ecrecover(h, v, r, s):
+def ecrecover(h: uint256, v: uint256, r: uint256, s: uint256):
     h = mod(h, N)
     r = mod(r, P)
     s = mod(s, N)

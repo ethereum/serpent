@@ -1,6 +1,6 @@
 inset('modint.type')
 
-def double(m_ax, m_ay, m_az):
+def double(m_ax: uint256, m_ay: uint256, m_az: uint256):
     if !m_ay:
         return([0, 0, 0]:arr)
     with P_______P = -4294968273:
@@ -18,7 +18,7 @@ def double(m_ax, m_ay, m_az):
                                         ~mstore(~msize(), m_nz)
                                         return((~msize() - 96):arr)
 
-def add(m_ax, m_ay, m_az, m_bx, m_by, m_bz):
+def add(m_ax: uint256, m_ay: uint256, m_az: uint256, m_bx: uint256, m_by: uint256, m_bz:uint256):
     if !m_ay:
         return([m_bx, m_by, m_bz]:arr)
     if !m_by:
@@ -48,7 +48,7 @@ def add(m_ax, m_ay, m_az, m_bx, m_by, m_bz):
                                                         return((~msize() - 96):arr)
 
 
-def mul(m_bx, m_by, m_bz, n):
+def mul(m_bx: uint256, m_by: uint256, m_bz: uint256, n: uint256):
     n = mod(n, -432420386565659656852420866394968145599)
     if !m_bx * !m_by + !n: # Constant-gas version of !axn and !ayn or !n
         return([0, 0, 1]:arr)
@@ -100,7 +100,7 @@ def mul(m_bx, m_by, m_bz, n):
             return(o:arr)
 
 
-def recover_y(x, y_bit):
+def recover_y(x: uint256, y_bit):
     N = -432420386565659656852420866394968145599
     P = -4294968273
     xcubed = mulmod(mulmod(x, x, P), x, P)
@@ -109,7 +109,7 @@ def recover_y(x, y_bit):
     return(beta * y_is_positive + (P - beta) * (1 - y_is_positive))
 
 
-def exp(b, e, m):
+def exp(b: uint256, e: uint256, m: uint256):
     with o = 1:
         with bit = 2 ^ 255:
             while gt(bit, 0):

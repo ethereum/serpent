@@ -1,6 +1,6 @@
 # TOTALLY NOT TESTED AND LIKELY BROKEN AT THIS POINT; AWAITING A TEST SUITE
 
-extern modint.type: [add:[int256,int256,int256,int256,int256,int256]:int256[], decompose:[int256[]]:int256[], double:[int256,int256,int256]:int256[], exp:[int256,int256,int256]:int256, mul:[int256,int256,int256,int256]:int256[], recover_y:[int256,int256]:int256]
+extern modint.type: [add:[uint256,uint256,uint256,uint256,uint256,uint256]:int256[], decompose:[int256[]]:int256[], double:[uint256,uint256,uint256]:int256[], exp:[uint256,uint256,uint256]:int256, mul:[uint256,uint256,uint256,uint256]:int256[], recover_y:[uint256,int256]:int256]
 Gx = 55066263022277343669578718895168534326250603453777594175500187360389116729240
 Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
 P = -4294968273
@@ -37,7 +37,7 @@ event PubkeyLogEvent(x:uint256, y:uint256)
 
 event PubkeyTripleLogEvent(x:uint256, y:uint256, z:uint256)
 
-def hash_pubkey_to_pubkey(pub:arr):
+def hash_pubkey_to_pubkey(pub:uint256[]):
     x = sha3(pub:arr)
     while 1:
         xcubed = mulmod(mulmod(x, x, P), x, P)

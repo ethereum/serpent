@@ -7,7 +7,7 @@ from ethereum import utils
 def signed(o):
     if not isinstance(o, (list, tuple)):
         return o - 2**256 if o >= 2**255 else o
-    return map(lambda x: x - 2**256 if x >= 2**255 else x, o)
+    return list(map(lambda x: x - 2**256 if x >= 2**255 else x, o))
 
 
 def hamming_weight(n):
@@ -40,7 +40,7 @@ def modexp_substitute(base, exp, mod):
 def ecrecover_substitute(z, v, r, s):
     P, A, B, N, Gx, Gy = b.P, b.A, b.B, b.N, b.Gx, b.Gy
     x = r
-    beta = pow(x*x*x+A*x+B, (P + 1) / 4, P)
+    beta = pow(x*x*x+A*x+B, (P + 1) // 4, P)
     y = beta if v % 2 ^ beta % 2 else (P - beta)
     Gz = b.jacobian_multiply((Gx, Gy, 1), (N - z) % N)
     XY = b.jacobian_multiply((x, y, 1), s)
@@ -53,7 +53,7 @@ def recover_y(x, y_bit):
     N = 2**256-432420386565659656852420866394968145599
     P = 2**256-4294968273
     xcubed = x**3 % P
-    beta = pow((x**3 + 7) % P, (P + 1) / 4, P)
+    beta = pow((x**3 + 7) % P, (P + 1) // 4, P)
     y_is_positive = y_bit ^ (beta % 2) ^ 1
     return(beta * y_is_positive + (P - beta) * (1 - y_is_positive))
 
@@ -76,15 +76,15 @@ def decompose(Q):
     return([ox, oy])
 
 def hash_array(arr):
-    o = ''
+    o = b''
     for x in arr:
-        if isinstance(x, (int, long)):
+        if isinstance(x, int):
             x = utils.zpad(utils.encode_int(x), 32)
         o += x
     return utils.big_endian_to_int(utils.sha3(o))
 
 def hash_value(x):
-    if isinstance(x, (int, long)):
+    if isinstance(x, int):
         x = utils.zpad(utils.encode_int(x), 32)
     return utils.big_endian_to_int(utils.sha3(x))
 
@@ -140,7 +140,7 @@ def ringsig_sign_substitute(msghash, priv, pub_xs, pub_ys):
     return (e[0]["left"], s, I[0], I[1] % 2)
 
 def bit(bytez, i):
-    return (ord(bytez[i // 8]) / 2**(i % 8)) % 2
+    return (ord(bytez[i // 8]) // 2**(i % 8)) % 2
 
 def ringsig_verify_substitute(msghash, x0, s, Ix, Iy, pub_xs, pub_ys):
     # Number of pubkeys
