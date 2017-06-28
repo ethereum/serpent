@@ -1,0 +1,32 @@
+name: serpent
+version: master
+summary: Serpent compiler
+description: |
+  Serpent is one of the high-level programming languages used to write
+  Ethereum contracts. The language, as suggested by its name, is designed to
+  be very similar to Python; it is intended to be maximally clean and simple,
+  combining many of the efficiency benefits of a low-level language with
+  ease-of-use in programming style, and at the same time adding special
+  domain-specific features for contract programming.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict
+
+apps:
+  serpent:
+    command: serpent
+    plugs: [home]
+
+parts:
+  serpent-make:
+    source: .
+    plugin: make
+    prepare: |
+      sed -i 's#/usr/local#$(DESTDIR)/usr/local#g' Makefile
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/local/bin
+      mkdir -p $SNAPCRAFT_PART_INSTALL/usr/local/lib
+    build-packages: [g++]
+  serpent-python:
+    source: .
+    plugin: python
+    after: [serpent-make]
