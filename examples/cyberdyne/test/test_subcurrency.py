@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import object
 from ethereum import tester, utils
 import os
 
@@ -15,7 +17,7 @@ class TestSubcurrencyContract(object):
         self.s.revert(self.snapshot)
 
     def test_create_gas_used(self):
-        print("create gas used:", self.s.block.gas_used)
+        print(("create gas used:", self.s.block.gas_used))
         assert self.s.block.gas_used <= self.CONTRACT_GAS
 
     def test_init(self):

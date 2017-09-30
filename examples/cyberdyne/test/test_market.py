@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import object
 from ethereum import abi, tester, utils
 import os
 from serpent import mk_full_signature
@@ -50,7 +52,7 @@ class TestSimpleContract(object):
         self.m.init_market(self.buy_heap.address, self.sell_heap.address, self.c1.address, self.c2.address)
 
     def test_create_gas_used(self):
-        print("create gas used:", self.s.block.gas_used)
+        print(("create gas used:", self.s.block.gas_used))
         assert self.s.block.gas_used <= self.CONTRACT_GAS
 
     def test_init(self):
