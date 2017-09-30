@@ -1,3 +1,4 @@
+from builtins import range
 import bitcoin as b
 import math
 import sys
@@ -7,7 +8,7 @@ from ethereum import utils
 def signed(o):
     if not isinstance(o, (list, tuple)):
         return o - 2**256 if o >= 2**255 else o
-    return list(map(lambda x: x - 2**256 if x >= 2**255 else x, o))
+    return list([x - 2**256 if x >= 2**255 else x for x in o])
 
 
 def hamming_weight(n):

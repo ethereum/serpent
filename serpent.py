@@ -1,3 +1,10 @@
+from __future__ import print_function
+from __future__ import division
+from builtins import str
+from builtins import map
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import serpent_pyext as pyext
 import sys
 import re
@@ -8,7 +15,7 @@ import os
 VERSION = '2.0.2'
 
 if sys.version_info.major == 2:
-    str_types = (bytes, str, unicode)
+    str_types = (bytes, str, str)
 else:
     str_types = (bytes, str)
 
@@ -44,7 +51,7 @@ class Token(object):
 class Astnode(object):
     def __init__(self, val, args, metadata):
         self.val = val
-        self.args = map(node, args)
+        self.args = list(map(node, args))
         self.metadata = Metadata(metadata)
 
     def out(self):
@@ -81,12 +88,12 @@ def take(x):
 
 
 def takelist(x):
-    return map(take, parse(x).args if is_string(x) else x)
+    return list(map(take, parse(x).args if is_string(x) else x))
 
 
 def pre_transform(code, params):
     code2 = ''
-    for k, v in params.items():
+    for k, v in list(params.items()):
         if isinstance(v, str_types):
             v = '"' + str(v) + '"'
         code2 += 'macro $%s:\n    %s\n' % (k, v)
@@ -102,24 +109,24 @@ compile_lll = lambda x: pyext.compile_lll(take(strtobytes(x)))
 parse = lambda code, **kwargs: node(pyext.parse(strtobytes(pre_transform(code, kwargs))))
 rewrite = lambda x: node(pyext.rewrite(take(strtobytes(x))))
 rewrite_chunk = lambda x: node(pyext.rewrite_chunk(take(strtobytes(x))))
-pretty_compile = lambda code, **kwargs: map(node, pyext.pretty_compile(strtobytes(pre_transform(code, kwargs))))
-pretty_compile_chunk = lambda code, **kwargs: map(node, pyext.pretty_compile_chunk(strtobytes(pre_transform(code, kwargs))))
-pretty_compile_lll = lambda code, **kwargs: map(node, pyext.pretty_compile_lll(take(strtobytes(pre_transform(code, kwargs)))))
+pretty_compile = lambda code, **kwargs: list(map(node, pyext.pretty_compile(strtobytes(pre_transform(code, kwargs)))))
+pretty_compile_chunk = lambda code, **kwargs: list(map(node, pyext.pretty_compile_chunk(strtobytes(pre_transform(code, kwargs)))))
+pretty_compile_lll = lambda code, **kwargs: list(map(node, pyext.pretty_compile_lll(take(strtobytes(pre_transform(code, kwargs))))))
 serialize = lambda x: pyext.serialize(takelist(strtobytes(x)))
-deserialize = lambda x: map(node, pyext.deserialize(x))
+deserialize = lambda x: list(map(node, pyext.deserialize(x)))
 mk_signature = lambda code, **kwargs: pyext.mk_signature(strtobytes(pre_transform(code, kwargs)))
 mk_full_signature = lambda code, **kwargs: json.loads(bytestostr(pyext.mk_full_signature(strtobytes(pre_transform(code, kwargs)))))
 mk_contract_info_decl = lambda code, **kwargs: json.loads(bytestostr(pyext.mk_contract_info_decl(strtobytes(pre_transform(code, kwargs)))))
 get_prefix = lambda x: pyext.get_prefix(strtobytes(x)) % 2**32
 
 if sys.version_info.major == 2:
-    is_string = lambda x: isinstance(x, (str, unicode, bytes))
-    is_numeric = lambda x: isinstance(x, (int, long))
+    is_string = lambda x: isinstance(x, (str, str, bytes))
+    is_numeric = lambda x: isinstance(x, (int, int))
 else:
     is_string = lambda x: isinstance(x, (str, bytes))
     is_numeric = lambda x: isinstance(x, int)
 
-tobytearr = lambda n, L: [] if L == 0 else tobytearr(n / 256, L - 1)+[n % 256]
+tobytearr = lambda n, L: [] if L == 0 else tobytearr(old_div(n, 256), L - 1)+[n % 256]
 
 
 # A set of methods for detecting raw values (numbers and strings) and

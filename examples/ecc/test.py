@@ -1,3 +1,6 @@
+from __future__ import print_function
+from builtins import map
+from builtins import range
 import bitcoin as b
 import random
 import sys
@@ -39,7 +42,7 @@ if '--double' in tests or not len(tests):
     print("Starting doubling tests")
     c = s.contract('jacobian_arith.se', language='serpent')
     for i in range(5):
-        print('trying doubling test', vals[i])
+        print(('trying doubling test', vals[i]))
         P = b.to_jacobian(b.privtopub(vals[i]))
         o1 = substitutes.jacobian_double_substitute(*list(P))
         o2 = c.double(*(list(P)))
@@ -49,7 +52,7 @@ if '--add' in tests or not len(tests):
     print("Starting addition tests")
     c = s.contract('jacobian_arith.se', language='serpent')
     for i in range(5):
-        print('trying addition test', vals[i * 2], vals[i * 2 + 1])
+        print(('trying addition test', vals[i * 2], vals[i * 2 + 1]))
         P = b.to_jacobian(b.privtopub(vals[i * 2]))
         Q = b.to_jacobian(b.privtopub(vals[i * 2 + 1]))
         o1 = substitutes.jacobian_add_substitute(*(list(P) + list(Q)))
@@ -60,7 +63,7 @@ if '--mul' in tests or not len(tests):
     print("Starting multiplication tests")
     c = s.contract('jacobian_arith.se', language='serpent')
     for i in range(5):
-        print('trying multiplication test', vals[i * 2], vals[i * 2 + 1])
+        print(('trying multiplication test', vals[i * 2], vals[i * 2 + 1]))
         P = b.to_jacobian(b.privtopub(vals[i * 2]))
         q = vals[i * 2 + 1]
         o1 = substitutes.jacobian_mul_substitute(*(list(P) + [q]))
@@ -75,16 +78,16 @@ if '--ecrecover' in tests or not len(tests):
     print("Starting ecrecover tests")
 
     for i in range(5):
-        print('trying ecrecover_test', vals[i*2], vals[i*2+1])
+        print(('trying ecrecover_test', vals[i*2], vals[i*2+1]))
         k = vals[i*2]
         h = vals[i*2+1]
         V, R, S = b.ecdsa_raw_sign(b.encode(h, 256, 32), k)
         aa = time.time()
         o1 = substitutes.ecrecover_substitute(h, V, R, S)
-        print('Native execution time:', time.time() - aa)
+        print(('Native execution time:', time.time() - aa))
         a = time.time()
         o2 = c.ecrecover(h, V, R, S)
-        print('time', time.time() - a, 'gas', s.head_state.receipts[-1].gas_used - s.head_state.receipts[-2].gas_used)
+        print(('time', time.time() - a, 'gas', s.head_state.receipts[-1].gas_used - s.head_state.receipts[-2].gas_used))
         assert o1 == o2, (o1, o2)
 
     # Explicit tests
@@ -122,9 +125,9 @@ if '--ringsig' in tests or not len(tests):
         x0, s_vals, Ix, Iy = substitutes.ringsig_sign_substitute(msghash, my_priv, pub_xs, pub_ys)
         t1 = time.time()
         assert substitutes.ringsig_verify_substitute(msghash, x0, s_vals, Ix, Iy, pub_xs, pub_ys)
-        print('Native execution time: ', time.time() - t1)
+        print(('Native execution time: ', time.time() - t1))
         t2 = time.time()
         o = c.verify(msghash, x0, s_vals, Ix, Iy, pub_xs, pub_ys, startgas=10**7)
         assert o
-        print('number of pubkeys', L, \
-            'totalgas', s.head_state.receipts[-1].gas_used - s.head_state.receipts[-2].gas_used, 'EVM verification time:', time.time() - t2)
+        print(('number of pubkeys', L, \
+            'totalgas', s.head_state.receipts[-1].gas_used - s.head_state.receipts[-2].gas_used, 'EVM verification time:', time.time() - t2))
