@@ -49,9 +49,9 @@ clean:
 	rm -f serpent *\.o libserpent.a libserpent.so
 
 install:
-	cp serpent /usr/local/bin
-	cp libserpent.a /usr/local/lib
-	cp libserpent.so /usr/local/lib
-	rm -rf /usr/local/include/libserpent
-	mkdir -p /usr/local/include/libserpent
-	cp $(HEADERS) /usr/local/include/libserpent
+	cp serpent $(DESTDIR)/usr/local/bin
+	cp libserpent.a $(DESTDIR)/usr/local/lib
+	cp libserpent.so $(DESTDIR)/usr/local/lib
+	rm -rf $(DESTDIR)/usr/local/include/libserpent
+	mkdir -p $(DESTDIR)/usr/local/include/libserpent
+	cp $(HEADERS) $(DESTDIR)/usr/local/include/libserpent
